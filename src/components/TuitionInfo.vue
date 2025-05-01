@@ -101,6 +101,17 @@ const deleteTuition = () => {
   }
 };
 
+const createNewTuition = () => {
+  // Generate a unique ID
+  const maxId = Math.max(...tuitions.map(t => parseInt(t.id, 10)), 0);
+  formTuition.id = (maxId + 1).toString().padStart(3, '0');
+  formTuition.name = '';
+  formTuition.level = 'ຊັ້ນ ມ 1';
+  formTuition.year = '2023-2024';
+  formTuition.amount = 0;
+  selectedTuition.value = null;
+};
+
 // Update name based on level change
 const updateName = () => {
   formTuition.name = `ຄ່າຮຽນ${formTuition.level}`;
@@ -199,13 +210,21 @@ const updateName = () => {
     
     <!-- Right Table Section -->
     <div class="w-2/3 p-4">
-      <div class="mb-4">
-        <div class="mb-1">ຄົ້ນຫາລະຫັດຄ່າຮຽນ</div>
-        <input 
-          v-model="searchQuery" 
-          type="text" 
-          class="w-full px-3 py-2 border border-gray-300 rounded"
-        />
+      <div class="flex items-center space-x-1 justify-between mb-4">
+        <div class="flex items-center space-x-1 flex-grow">
+          <div class="mb-1">ຄົ້ນຫາລະຫັດຄ່າຮຽນ</div>
+          <input 
+            v-model="searchQuery" 
+            type="text" 
+            class="flex-1 px-3 py-2 border border-gray-300 rounded"
+          />
+        </div>
+        <button
+          @click="createNewTuition"
+          class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 ml-2"
+        >
+          ເພີ່ມ
+        </button>
       </div>
       
       <!-- Table -->
