@@ -70,7 +70,6 @@ const currentStudentPhone = ref('0205689234');
 const currentClassName = ref('ມ 1/1');
 const numberOfBills = ref('');
 const description = ref('');
-const totalStudents = ref('');
 const searchQuery = ref('');
 
 const filteredRegistrations = computed(() => {
