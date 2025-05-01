@@ -1,0 +1,30 @@
+/* ฟอนต์ภาษาลาว */
+@font-face {
+  font-family: 'Saysettha';
+  src: url('https://laoscript.net/font/saysettha.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Saysettha';
+  src: url('https://laoscript.net/font/saysettha-bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* สำรองฟอนต์ฟอลแบ็คเป็น Noto Sans Lao */
+@font-face {
+  font-family: 'Noto Sans Lao';
+  src: url('https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@400;700&display=swap');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* กำหนดคลาสสำหรับใช้ฟอนต์ภาษาลาว */
+.lao-font {
+  font-family: 'Saysettha', 'Noto Sans Lao', sans-serif;
+} 

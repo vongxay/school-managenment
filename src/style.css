@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Lao fonts definition */
+/* ฟอนต์ภาษาลาว */
+@font-face {
+  font-family: 'Saysettha';
+  src: url('//laoscript.net/font/saysettha.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Saysettha';
+  src: url('//laoscript.net/font/saysettha-bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Add custom styles here */
+:root {
+  --font-lao: 'Noto Sans Lao', system-ui, sans-serif;
+}
+
+body {
+  font-family: var(--font-lao), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Add Lao font styling to specific elements */
+h1, h2, h3, h4, h5, h6, button, .lao-text {
+  font-family: var(--font-lao), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* กำหนดคลาสสำหรับใช้ฟอนต์ภาษาลาว */
+.lao-font {
+  font-family: var(--font-lao), sans-serif;
+}
