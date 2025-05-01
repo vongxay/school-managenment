@@ -70,12 +70,11 @@ const currentStudentPhone = ref('0205689234');
 const currentClassName = ref('ມ 1/1');
 const numberOfBills = ref('');
 const description = ref('');
-const totalStudents = ref('');
 const searchQuery = ref('');
 
 const filteredRegistrations = computed(() => {
   if (!searchQuery.value) {
-    return registrations.slice(0, 3).reverse();
+    return [...registrations].reverse();
   }
   
   const query = searchQuery.value.toLowerCase();
@@ -92,8 +91,64 @@ const printRegistration = () => {
   alert('ກຳລັງສັ່ງພິມໃບລົງທະບຽນ...');
 };
 
+const validateForm = () => {
+  if (!currentStudentId.value || !currentStudentName.value || !currentStudentPhone.value || 
+      !currentClassName.value || !currentSchoolYear.value) {
+    alert('ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບຖ້ວນ');
+    return false;
+  }
+  return true;
+};
+
 const saveRegistration = () => {
-  alert('ບັນທຶກການລົງທະບຽນສຳເລັດ');
+  if (!validateForm()) return;
+  
+  try {
+    // ດຶງຂໍ້ມູນລະດັບຊັ້ນຮຽນຈາກຫ້ອງຮຽນ
+    let level = currentClassName.value.includes('/') 
+      ? currentClassName.value.split('/')[0] 
+      : 'ຊັ້ນ ມ';
+    
+    // ສ້າງຂໍ້ມູນການລົງທະບຽນໃໝ່
+    const newRegistration: StudentRegistration = {
+      id: currentRegistrationId.value,
+      registrationDate: new Date().toISOString().split('T')[0],
+      studentId: currentStudentId.value,
+      studentName: currentStudentName.value,
+      studentPhone: currentStudentPhone.value,
+      classroom: currentClassName.value,
+      level: level,
+      schoolYear: currentSchoolYear.value,
+      paid: false
+    };
+    
+    // ເພີ່ມລົງໃນອາເຣລົງທະບຽນ
+    registrations.push(newRegistration);
+    
+    // ສ້າງ ID ໃໝ່ສຳລັບການລົງທະບຽນຄັ້ງຕໍ່ໄປ
+    let lastId = 34;  // ຄ່າເລີ່ມຕົ້ນຈາກໄອດີສຸດທ້າຍທີ່ມີຢູ່
+    try {
+      const idParts = currentRegistrationId.value.split('-');
+      if (idParts.length > 1) {
+        const numericPart = idParts[1].replace(/^0+/, '');
+        lastId = parseInt(numericPart) || lastId;
+      }
+    } catch (error) {
+      console.error("Error parsing ID:", error);
+    }
+    
+    currentRegistrationId.value = `INV-${String(lastId + 1).padStart(8, '0')}`;
+    
+    // ລ້າງຟອມຫຼັງຈາກບັນທຶກ
+    currentStudentId.value = '';
+    currentStudentName.value = '';
+    currentStudentPhone.value = '';
+    
+    alert('ບັນທຶກການລົງທະບຽນສຳເລັດ');
+  } catch (error) {
+    console.error("Error in registration:", error);
+    alert('ມີຂໍ້ຜິດພາດໃນການລົງທະບຽນ');
+  }
 };
 </script>
 
@@ -174,13 +229,6 @@ const saveRegistration = () => {
           <div>ນາງ ບີ ຈັນທະລີ</div>
           <div>020 56974325</div>
         </div>
-      </div>
-    </div>
-
-    <div class="flex items-center mb-4">
-      <div class="w-44 mr-2">ຈຳນວນນັກຮຽນທັງໝົດການຍ</div>
-      <div class="flex-grow">
-        <input type="text" class="w-full px-2 py-1 border rounded bg-white" v-model="totalStudents" />
       </div>
     </div>
 
