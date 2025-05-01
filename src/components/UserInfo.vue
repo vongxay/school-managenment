@@ -18,12 +18,6 @@ const formUser = reactive<User>({
 const searchQuery = ref('');
 const password = ref('');
 
-const roles = [
-  { value: 'admin', label: 'ຜູ້ບໍລິຫານລະບົບ' },
-  { value: 'teacher', label: 'ຄູອາຈານ' },
-  { value: 'staff', label: 'ພະນັກງານ' },
-];
-
 const filteredUsers = computed(() => {
   if (!searchQuery.value) return users;
   const query = searchQuery.value.toLowerCase();
@@ -87,25 +81,6 @@ const deleteUser = () => {
       password.value = '';
     }
   }
-};
-
-// ฟังก์ชันเปลี่ยนสถานะผู้ใช้
-const toggleUserStatus = () => {
-  if (selectedUser.value) {
-    formUser.active = !formUser.active;
-    if (selectedUser.value) {
-      const index = users.findIndex(u => u.id === selectedUser.value!.id);
-      if (index !== -1) {
-        users[index].active = formUser.active;
-      }
-    }
-  }
-};
-
-// รับป้ายกำกับบทบาท
-const getRoleLabel = (role: string) => {
-  const foundRole = roles.find(r => r.value === role);
-  return foundRole ? foundRole.label : role;
 };
 </script>
 

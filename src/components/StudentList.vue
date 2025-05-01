@@ -5,7 +5,8 @@ import { useStudentStore } from '../stores/studentStore';
 
 // ใช้ store แทน mock data
 const studentStore = useStudentStore();
-const students = studentStore.students;
+// ลบตัวแปร students ที่ไม่ได้ใช้งาน เพราะใช้ studentStore.students โดยตรง
+// const students = studentStore.students;
 const searchQuery = studentStore.searchQuery;
 const selectedGender = studentStore.selectedGender;
 

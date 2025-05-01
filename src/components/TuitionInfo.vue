@@ -66,17 +66,6 @@ const selectTuition = (tuition: Tuition) => {
   Object.assign(formTuition, tuition);
 };
 
-const createNewTuition = () => {
-  // Generate a unique ID
-  const maxId = Math.max(...tuitions.map(t => parseInt(t.id, 10)), 0);
-  formTuition.id = (maxId + 1).toString().padStart(3, '0');
-  formTuition.name = '';
-  formTuition.year = '2023-2024';
-  formTuition.level = 'ຊັ້ນ ມ 1';
-  formTuition.amount = 0;
-  selectedTuition.value = null;
-};
-
 const saveTuition = () => {
   if (!formTuition.name || !formTuition.year || !formTuition.level || formTuition.amount <= 0) {
     alert('ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບຖ້ວນ');

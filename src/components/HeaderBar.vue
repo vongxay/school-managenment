@@ -5,7 +5,14 @@ const searchQuery = ref('');
 const showNotifications = ref(false);
 const showUserMenu = ref(false);
 
-const notifications = [
+interface Notification {
+  id: number;
+  message: string;
+  time: string;
+  read: boolean;
+}
+
+const notifications: Notification[] = [
   {
     id: 1,
     message: 'ມີການລົງທະບຽນໃໝ່ 5 ຄົນ',
@@ -70,10 +77,10 @@ const markAsRead = (id: number) => {
           >
             <span class="text-xl">🔔</span>
             <span 
-              v-if="notifications.filter(n => !n.read).length > 0"
+              v-if="notifications.filter((n: Notification) => !n.read).length > 0"
               class="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
             >
-              {{ notifications.filter(n => !n.read).length }}
+              {{ notifications.filter((n: Notification) => !n.read).length }}
             </span>
           </button>
           

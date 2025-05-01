@@ -60,11 +60,6 @@ const registrations = reactive<StudentRegistration[]>([
   },
 ]);
 
-const teachers = [
-  { id: '020', name: 'ທ້າວ ຊິງຕາ ຈັນມາລີ', phone: '020 56234891' },
-  { id: '019', name: 'ນາງ ບີ ຈັນທະລີ', phone: '020 56974325' },
-];
-
 const currentRegistrationId = ref('INV-00000034');
 const currentSchoolYear = ref('2023-2024');
 const currentClassId = ref('002');
