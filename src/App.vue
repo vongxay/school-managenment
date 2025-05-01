@@ -24,6 +24,11 @@ const studentTab = ref('list'); // 'list' or 'form'
 // Toggle font demo section
 const showFontDemo = ref(false);
 
+// Handle switching to form view when student is selected
+const switchToFormView = () => {
+  studentTab.value = 'form';
+};
+
 // Computed to determine which component to display based on activeMenu
 const activeComponent = computed(() => {
   switch (activeMenu.value) {
@@ -95,13 +100,13 @@ const toggleFontDemo = () => {
                  activeMenu === 'reports' ? 'ລາຍງານ' : 'ໂຮງຮຽນ ສປປ ລາວ' }}
             </h1>
             
-            <!-- Show sub-tabs only for student info section -->
-            <div v-if="activeMenu === 'studentInfo'" class="space-x-2">
+            <!-- Show sub-tabs for student info and registration sections -->
+            <div v-if="activeMenu === 'studentInfo' || activeMenu === 'registration'" class="space-x-2">
               <button 
-                @click="studentTab = 'list'"
+                @click="activeMenu = 'studentInfo'; studentTab = 'list'"
                 :class="[
                   'px-4 py-2 rounded-lg',
-                  studentTab === 'list' 
+                  activeMenu === 'studentInfo' && studentTab === 'list' 
                     ? 'bg-blue-600 text-white' 
                     : 'bg-gray-200 hover:bg-gray-300'
                 ]"
@@ -109,10 +114,10 @@ const toggleFontDemo = () => {
                 ລາຍຊື່ນັກຮຽນ
               </button>
               <button 
-                @click="studentTab = 'form'"
+                @click="activeMenu = 'registration'"
                 :class="[
                   'px-4 py-2 rounded-lg',
-                  studentTab === 'form' 
+                  activeMenu === 'registration'
                     ? 'bg-blue-600 text-white' 
                     : 'bg-gray-200 hover:bg-gray-300'
                 ]"
@@ -137,7 +142,10 @@ const toggleFontDemo = () => {
           </div>
           
           <!-- Dynamic component based on active menu -->
-          <component :is="activeComponent" />
+          <component 
+            :is="activeComponent" 
+            @switch-to-form="switchToFormView"
+          />
         </div>
       </div>
     </div>
