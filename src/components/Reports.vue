@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref } from 'vue';
 
 // Active report
 const activeReport = ref('students');
@@ -33,7 +33,12 @@ const tuitionStatus = {
   total: 358
 };
 
-const monthlyPayments = [
+interface Payment {
+  month: string;
+  amount: number;
+}
+
+const monthlyPayments: Payment[] = [
   { month: 'ມັງກອນ', amount: 1500000 },
   { month: 'ກຸມພາ', amount: 850000 },
   { month: 'ມີນາ', amount: 750000 },
@@ -286,7 +291,7 @@ const exportToExcel = () => {
             <div class="flex justify-between items-center">
               <span class="text-lg font-medium">ລາຍຮັບທັງໝົດ:</span>
               <span class="text-2xl font-bold text-blue-700">
-                {{ formatCurrency(monthlyPayments.reduce((total, month) => total + month.amount, 0)) }}
+                {{ formatCurrency(monthlyPayments.reduce((total: number, month: Payment) => total + month.amount, 0)) }}
               </span>
             </div>
           </div>

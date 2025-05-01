@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import type { Student } from '../types/student';
+// ลบการ import Student ที่ไม่ได้ใช้งาน
+// import type { Student } from '../types/student';
 import StudentList from './StudentList.vue';
 import { useStudentStore } from '../stores/studentStore';
 

@@ -118,10 +118,6 @@ const cancelPaymentForm = (): void => {
 
 // Search and filter
 const searchQuery = ref('');
-const selectedYear = ref('all');
-const selectedStatus = ref('all');
-
-const years = ['2022-2023', '2023-2024', '2024-2025', '2025-2026'];
 
 // Format currency
 const formatCurrency = (amount: number): string => {
