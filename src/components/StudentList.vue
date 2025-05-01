@@ -10,6 +10,9 @@ const studentStore = useStudentStore();
 const searchQuery = studentStore.searchQuery;
 const selectedGender = studentStore.selectedGender;
 
+// Function to switch to form tab - need to be used by parent component
+const emits = defineEmits(['switch-to-form']);
+
 // State for pagination
 const currentPage = ref(1);
 const itemsPerPage = ref(10);
@@ -38,6 +41,8 @@ const navigateToPage = (page: number) => {
 const viewStudent = (student: Student) => {
   // เริ่มแก้ไขข้อมูลแต่ไม่ให้บันทึก (เพื่อดูข้อมูลเท่านั้น)
   studentStore.startEdit(student.studentId);
+  // Emit event to switch to form view
+  emits('switch-to-form');
   // Scroll to form
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
@@ -45,6 +50,8 @@ const viewStudent = (student: Student) => {
 const editStudent = (student: Student) => {
   // เริ่มแก้ไขข้อมูล
   studentStore.startEdit(student.studentId);
+  // Emit event to switch to form view
+  emits('switch-to-form');
   // Scroll to form
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
@@ -57,6 +64,8 @@ const deleteStudent = (student: Student) => {
 
 const addNewStudent = () => {
   studentStore.startNew();
+  // Emit event to switch to form view
+  emits('switch-to-form');
   // Scroll to form
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
