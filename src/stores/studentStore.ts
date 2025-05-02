@@ -205,6 +205,26 @@ export const useStudentStore = () => {
     deleteStudent,
     startEdit,
     startNew,
-    clearSearch
+    clearSearch,
+    getStudentById: (studentId: string) => {
+      return students.find(s => s.studentId === studentId);
+    },
+    getTuitionFee: async (yearLevel: string) => {
+      // สมมติค่าเรียนตามระดับชั้น
+      const fees: {[key: string]: number} = {
+        'ມ 1': 60000,
+        'ມ 2': 65000,
+        'ມ 3': 70000,
+        'ມ 4': 75000,
+        'ມ 5': 80000,
+        'ມ 6': 85000,
+      };
+      return fees[yearLevel] || 50000; // ค่าเริ่มต้นถ้าไม่พบระดับชั้น
+    },
+    savePayment: async (paymentData: any) => {
+      console.log('บันทึกการชำระเงิน:', paymentData);
+      // ในระบบจริงจะส่งข้อมูลไปบันทึกที่ API
+      return true;
+    }
   };
 }; 
