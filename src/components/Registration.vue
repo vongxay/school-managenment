@@ -54,7 +54,7 @@ const registrations = reactive<StudentRegistration[]>([
     studentName: 'ທ້າວ ຊິງຕາ ຈັນມາລີ', 
     studentPhone: '0205689234', 
     classroom: 'ມ 1/1', 
-    level: 'ຊັ້ນ ມ', 
+    level: 'ຊັ້ນ ມ 1', 
     schoolYear: '2023-2024', 
     paid: true 
   },
@@ -105,9 +105,15 @@ const saveRegistration = () => {
   
   try {
     // ດຶງຂໍ້ມູນລະດັບຊັ້ນຮຽນຈາກຫ້ອງຮຽນ
-    let level = currentClassName.value.includes('/') 
-      ? currentClassName.value.split('/')[0] 
-      : 'ຊັ້ນ ມ';
+    let level = 'ຊັ້ນ ມ';
+    
+    if (currentClassName.value.includes('/')) {
+      const grade = currentClassName.value.split('/')[0].trim();
+      if (grade.startsWith('ມ ')) {
+        const gradeNumber = grade.substring(2);
+        level = `ຊັ້ນ ມ ${gradeNumber}`;
+      }
+    }
     
     // ສ້າງຂໍ້ມູນການລົງທະບຽນໃໝ່
     const newRegistration: StudentRegistration = {

@@ -2,6 +2,7 @@
 import { ref, reactive, computed } from 'vue';
 import { useStudentStore } from '../stores/studentStore';
 import { useRouter } from 'vue-router';
+import type { Student } from '../types/student';
 
 const studentStore = useStudentStore();
 const router = useRouter();
@@ -45,6 +46,12 @@ const paidAmount = ref<number>(0);
 const changeAmount = computed(() => {
   return Math.max(0, paidAmount.value - amount.value);
 });
+
+// เพิ่ม state สำหรับการค้นหานักเรียน
+const studentSearchQuery = ref('');
+const filteredStudents = ref<Student[]>([]);
+const filteredRegistrations = ref<any[]>([]);
+const showStudentSearch = ref(false);
 
 // เพิ่ม loading state
 const isLoading = ref(false);
@@ -96,8 +103,8 @@ async function loadStudentData(studentId: string) {
       payment.classLevel = `ມ ${grade}/${section}`;
       payment.yearLevel = payment.classLevel;
       
-      // ดึงเฉพาะส่วนของ ມ X จากชื่อชั้นเรียน
-      payment.level = `ມ ${grade}`;
+      // ปรับรูปแบบให้สอดคล้องกับ LevelInfo และ TuitionInfo
+      payment.level = `ຊັ້ນ ມ ${grade}`;
       
       payment.academicYear = `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
       payment.tuitionId = student.studentId || '';
@@ -144,6 +151,13 @@ const confirmPayment = async () => {
       status: payment.status
     });
     
+    // อัปเดตสถานะการชำระเงินในการลงทะเบียน
+    try {
+      await studentStore.updateRegistrationPaymentStatus(payment.tuitionId, true);
+    } catch (regError) {
+      console.error('ບໍ່ສາມາດອັບເດດສະຖານະການລົງທະບຽນໄດ້:', regError);
+    }
+    
     alert('ບັນທຶກການຊຳລະເງິນສຳເລັດແລ້ວ');
     isLoading.value = false;
     
@@ -162,8 +176,97 @@ const confirmPayment = async () => {
 // ฟังก์ชันรีเซ็ตฟอร์ม
 const resetForm = () => {
   payment.invoiceNo = 'INV-' + Math.floor(Math.random() * 1000000).toString().padStart(9, '0');
+  payment.date = new Date().toISOString().split('T')[0];
+  payment.tuitionId = '';
+  payment.studentName = '';
+  payment.studentPhone = '';
+  payment.yearLevel = '';
+  payment.level = '';
+  payment.classLevel = '';
+  payment.academicYear = '';
   payment.status = 'ລໍຖ້າຊໍາລະ';
+  amount.value = 0;
   paidAmount.value = 0;
+  showStudentSearch.value = false;
+  studentSearchQuery.value = '';
+  filteredStudents.value = [];
+  filteredRegistrations.value = [];
+};
+
+// เพิ่มฟังก์ชันสำหรับค้นหานักเรียน
+const searchStudents = () => {
+  if (!studentSearchQuery.value.trim()) {
+    filteredStudents.value = [];
+    filteredRegistrations.value = [];
+    return;
+  }
+  
+  const query = studentSearchQuery.value.toLowerCase();
+  
+  // ค้นหาในข้อมูลนักเรียน
+  filteredStudents.value = studentStore.getAllStudents().filter(student => 
+    student.studentId.toLowerCase().includes(query) || 
+    student.studentNameLao.toLowerCase().includes(query) ||
+    student.phoneNumber.toLowerCase().includes(query)
+  ).slice(0, 3); // แสดงแค่ 3 คนแรกเพื่อไม่ให้รายการยาวเกินไป
+  
+  // ค้นหาในข้อมูลการลงทะเบียน
+  filteredRegistrations.value = studentStore.searchRegistrations(query).slice(0, 3);
+  
+  showStudentSearch.value = true;
+};
+
+// เพิ่มฟังก์ชันสำหรับเลือกนักเรียน
+const selectStudent = async (studentId: string) => {
+  try {
+    isLoading.value = true;
+    await loadStudentData(studentId);
+    showStudentSearch.value = false;
+    isLoading.value = false;
+  } catch (error) {
+    console.error('ບໍ່ສາມາດໂຫລດຂໍ້ມູນນັກສຶກສາໄດ້:', error);
+    hasError.value = true;
+    errorMessage.value = 'ບໍ່ສາມາດໂຫລດຂໍ້ມູນນັກສຶກສາໄດ້';
+    isLoading.value = false;
+  }
+};
+
+// เพิ่มฟังก์ชันเลือกการลงทะเบียน
+const selectRegistration = async (registrationId: string) => {
+  try {
+    isLoading.value = true;
+    
+    console.log('ກຳລັງໂຫລດຂໍ້ມູນລົງທະບຽນ:', registrationId);
+    const registration = studentStore.getRegistrationByInvoiceId(registrationId);
+    
+    if (!registration) {
+      console.error('ບໍ່ພົບຂໍ້ມູນການລົງທະບຽນ:', registrationId);
+      throw new Error('ບໍ່ພົບຂໍ້ມູນການລົງທະບຽນ');
+    }
+    
+    console.log('ພົບຂໍ້ມູນການລົງທະບຽນ:', registration);
+    
+    // อัปเดตข้อมูลใบเสร็จตามการลงทะเบียน
+    payment.invoiceNo = registration.id;
+    payment.date = new Date().toISOString().split('T')[0];
+    payment.tuitionId = registration.studentId;
+    payment.studentName = registration.studentName;
+    payment.studentPhone = registration.studentPhone;
+    payment.classLevel = registration.classroom;
+    payment.level = registration.level;
+    payment.academicYear = registration.schoolYear;
+    
+    // ดึงค่าเรียนตามระดับชั้น
+    amount.value = await studentStore.getTuitionFee(registration.level) || 0;
+    
+    showStudentSearch.value = false;
+    isLoading.value = false;
+  } catch (error) {
+    console.error('ເກີດຂໍ້ຜິດພາດໃນການໂຫລດຂໍ້ມູນການລົງທະບຽນ:', error);
+    hasError.value = true;
+    errorMessage.value = 'ບໍ່ສາມາດໂຫລດຂໍ້ມູນການລົງທະບຽນໄດ້';
+    isLoading.value = false;
+  }
 };
 
 // เพิ่มฟังก์ชันสำหรับตรวจสอบความถูกต้องของข้อมูล
@@ -200,6 +303,86 @@ const validatePaymentInput = () => {
     </div>
     
     <div v-else>
+      <!-- ค้นหานักเรียน -->
+      <div class="mb-4 p-2 bg-white rounded">
+        <div class="flex items-center space-x-2">
+          <div class="w-28">ຄົ້ນຫານັກສຶກສາ</div>
+          <input 
+            type="text" 
+            v-model="studentSearchQuery" 
+            @input="searchStudents"
+            class="flex-1 px-2 py-1 border rounded" 
+            placeholder="ພິມລະຫັດລົງທະບຽນ, ລະຫັດນັກສຶກສາ ຫຼື ຊື່ນັກສຶກສາ..."
+          />
+          <button @click="resetForm" class="px-4 py-1 bg-gray-300 rounded hover:bg-gray-400">
+            ລ້າງຂໍ້ມູນ
+          </button>
+        </div>
+        
+        <!-- ปุ่มทดสอบค้นหาด้วยรหัสลงทะเบียนตัวอย่าง -->
+        <div class="mt-2 flex flex-wrap gap-2 text-sm">
+          <span class="text-gray-600">ຕົວຢ່າງລະຫັດ:</span>
+          <button 
+            @click="selectRegistration('INV-00000031')" 
+            class="px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+          >
+            INV-00000031
+          </button>
+          <button 
+            @click="selectRegistration('INV-00000032')" 
+            class="px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+          >
+            INV-00000032
+          </button>
+          <button 
+            @click="selectRegistration('INV-00000033')" 
+            class="px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+          >
+            INV-00000033
+          </button>
+          <button 
+            @click="selectRegistration('INV-00000034')" 
+            class="px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+          >
+            INV-00000034
+          </button>
+        </div>
+        
+        <!-- แสดงผลการค้นหา -->
+        <div v-if="showStudentSearch" class="mt-2 border rounded">
+          <!-- ผลการค้นหาการลงทะเบียน -->
+          <div v-if="filteredRegistrations.length > 0">
+            <div class="p-2 font-bold bg-gray-200">ຂໍ້ມູນການລົງທະບຽນ</div>
+            <div 
+              v-for="reg in filteredRegistrations" 
+              :key="reg.id"
+              @click="selectRegistration(reg.id)"
+              class="p-2 hover:bg-gray-100 cursor-pointer border-b"
+            >
+              {{ reg.id }} - {{ reg.studentName }} ({{ reg.level }})
+            </div>
+          </div>
+          
+          <!-- ผลการค้นหานักเรียน -->
+          <div v-if="filteredStudents.length > 0">
+            <div class="p-2 font-bold bg-gray-200">ຂໍ້ມູນນັກສຶກສາ</div>
+            <div 
+              v-for="student in filteredStudents" 
+              :key="student.studentId"
+              @click="selectStudent(student.studentId)"
+              class="p-2 hover:bg-gray-100 cursor-pointer border-b"
+            >
+              {{ student.studentId }} - {{ student.studentNameLao }} ({{ student.phoneNumber }})
+            </div>
+          </div>
+          
+          <!-- ไม่พบข้อมูล -->
+          <div v-if="filteredStudents.length === 0 && filteredRegistrations.length === 0" class="p-2 text-gray-500">
+            ບໍ່ພົບຂໍ້ມູນ
+          </div>
+        </div>
+      </div>
+      
       <!-- Header Section -->
       <div class="flex justify-between mb-4 p-2 bg-white rounded">
         <div class="flex items-center space-x-4">
@@ -208,11 +391,11 @@ const validatePaymentInput = () => {
             <input type="text" v-model="payment.invoiceNo" class="px-2 py-1 border rounded" readonly />
           </div>
           <div>
-            <span class="mb-1 mr-2 text-sm">ຄ່າທຳນຽມ</span>
+            <span class="mb-1 mr-2 text-sm">ລະຫັດຄ່າຮຽນ</span>
             <input type="text" value="007" class="px-2 py-1 border rounded" readonly />
           </div>
           <div>
-            <span class="mb-1 mr-2 text-sm">ຄ່າຮຽນຊັ້ນ</span>
+            <span class="mb-1 mr-2 text-sm">ຊື່ຊັ້ນຮຽນ</span>
             <input type="text" :value="payment.level" class="px-2 py-1 border rounded" readonly />
           </div>
         </div>
