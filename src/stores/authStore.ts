@@ -1,11 +1,11 @@
-import { ref, reactive } from 'vue';
+import { reactive } from 'vue';
 import type { UserSession, AuthState, LoginCredentials } from '../types/auth';
 
 // Mock users for testing (in a real app, this would come from an API)
 const mockUsers = [
-  { id: '001', username: 'admin', password: 'admin123', name: 'ທ້າວ ມິຮຸນດົງ ອິສິຣິ', role: 'admin', active: true },
-  { id: '002', username: 'teacher', password: 'teacher123', name: 'ນາງສາວ ນຸ ສຸກົນໄຊ', role: 'teacher', active: true },
-  { id: '003', username: 'staff', password: 'staff123', name: 'ທ້າວ ສົມສະຫວັນ', role: 'staff', active: true },
+  { id: '001', username: 'admin', password: 'admin123', name: 'ທ້າວ ມິຮຸນດົງ ອິສິຣິ', role: 'admin' as const, active: true },
+  { id: '002', username: 'teacher', password: 'teacher123', name: 'ນາງສາວ ນຸ ສຸກົນໄຊ', role: 'teacher' as const, active: true },
+  { id: '003', username: 'staff', password: 'staff123', name: 'ທ້າວ ສົມສະຫວັນ', role: 'staff' as const, active: true },
 ];
 
 // Initialize store state

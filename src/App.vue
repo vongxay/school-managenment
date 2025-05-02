@@ -86,22 +86,12 @@ const toggleFontDemo = () => {
 // Check auth state on component mounted
 onMounted(() => {
   // Initialize auth from localStorage if available
-  const storedUser = localStorage.getItem('currentUser');
-  if (storedUser && !isLoginPage.value) {
-    try {
-      const userData = JSON.parse(storedUser);
-      // Just to be safe, validate user object
-      if (userData && userData.id && userData.username) {
-        // Set the active menu to dashboard
-        activeMenu.value = 'dashboard';
-      } else {
-        // If user data is invalid, redirect to login
-        router.push('/login');
-      }
-    } catch (error) {
-      console.error('Failed to parse stored user data:', error);
-      router.push('/login');
-    }
+  if (authStore.isAuthenticated && !isLoginPage.value) {
+    // Set the active menu to dashboard
+    activeMenu.value = 'dashboard';
+  } else if (!authStore.isAuthenticated && !isLoginPage.value) {
+    // If user is not authenticated, redirect to login
+    router.push('/login');
   }
 });
 </script>

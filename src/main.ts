@@ -20,7 +20,7 @@ const router = createRouter({
 })
 
 // Navigation guard for authentication
-router.beforeEach((to, from) => {
+router.beforeEach((to) => {
   // Check if the route requires authentication
   const publicPages = ['/login'];
   const authRequired = !publicPages.includes(to.path);
