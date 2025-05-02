@@ -1,544 +1,486 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue';
+import { useStudentStore } from '../stores/studentStore';
+import { useRouter } from 'vue-router';
+import type { Student } from '../types/student';
+
+const studentStore = useStudentStore();
+const router = useRouter();
 
 interface Payment {
-  id: string;
-  registrationId: string;
-  studentId: string;
+  invoiceNo: string;
+  date: string;
+  tuitionId: string;
   studentName: string;
   studentPhone: string;
-  classroom: string;
+  yearLevel: string;
   level: string;
-  schoolYear: string;
-  amount: number;
-  paymentDate: string;
-  paymentMethod: 'cash' | 'transfer' | 'other';
-  status: 'completed' | 'pending' | 'canceled';
+  classLevel: string;
+  academicYear: string;
+  status: string;
 }
 
-// Explicitly declaring the type for payment form to avoid circular reference issue
-interface PaymentFormData {
-  registrationId: string;
-  amount: number;
-  paymentMethod: 'cash' | 'transfer' | 'other';
-  receivedAmount: number;
-}
-
-const payments = reactive<Payment[]>([
-  { 
-    id: '007', 
-    registrationId: 'INV-00000033', 
-    studentId: '010', 
-    studentName: 'ທ້າວ ເອ ແສງຈັນ', 
-    studentPhone: '02058947234',
-    classroom: 'ມ 3/1', 
-    level: 'ຊັ້ນ ມ 3', 
-    schoolYear: '2024-2025', 
-    amount: 70000, 
-    paymentDate: '2022-6-11',
-    paymentMethod: 'cash',
-    status: 'completed'
+// รับข้อมูลนักเรียนจาก prop
+const props = defineProps({
+  studentId: {
+    type: String,
+    default: ''
   }
-]);
-
-const selectedPayment = ref<Payment | null>(null);
-const isPaymentFormVisible = ref(false);
-
-// Mock registration to pay for
-const unpaidRegistration = {
-  id: 'INV-00000033',
-  student: { id: '010', name: 'ທ້າວ ເອ ແສງຈັນ', phone: '02058947234' },
-  classroom: 'ມ 3/1',
-  level: 'ຊັ້ນ ມ 3',
-  schoolYear: '2024-2025',
-  tuitionFee: 70000,
-};
-
-// Initialize with explicit type
-const paymentFormData = reactive<PaymentFormData>({
-  registrationId: unpaidRegistration.id,
-  amount: unpaidRegistration.tuitionFee,
-  paymentMethod: 'cash',
-  receivedAmount: 100000,
 });
 
-// Create computed property separately to avoid the circular reference
-const changeAmount = computed((): number => {
-  return paymentFormData.receivedAmount - paymentFormData.amount;
+const payment = reactive<Payment>({
+  invoiceNo: 'INV-' + Math.floor(Math.random() * 1000000).toString().padStart(9, '0'),
+  date: new Date().toISOString().split('T')[0],
+  tuitionId: '',
+  studentName: '',
+  studentPhone: '',
+  yearLevel: '',
+  level: '',
+  classLevel: '',
+  academicYear: '',
+  status: 'ລໍຖ້າຊໍາລະ'
 });
 
-const viewPayment = (payment: Payment): void => {
-  selectedPayment.value = payment;
-  isPaymentFormVisible.value = false;
+const amount = ref<number>(0);
+const paidAmount = ref<number>(0);
+const changeAmount = computed(() => {
+  return Math.max(0, paidAmount.value - amount.value);
+});
+
+// เพิ่ม state สำหรับการค้นหานักเรียน
+const studentSearchQuery = ref('');
+const filteredStudents = ref<Student[]>([]);
+const filteredRegistrations = ref<any[]>([]);
+const showStudentSearch = ref(false);
+
+// เพิ่ม loading state
+const isLoading = ref(false);
+const hasError = ref(false);
+const errorMessage = ref('');
+
+// โหลดข้อมูลนักเรียนเมื่อคอมโพเนนต์ถูกโหลด
+const loadData = async () => {
+  if (props.studentId) {
+    // ถ้ามี studentId ในพร็อพ ให้โหลดข้อมูลนักเรียน
+    try {
+      isLoading.value = true;
+      await loadStudentData(props.studentId);
+      isLoading.value = false;
+    } catch (error) {
+      console.error('ບໍ່ສາມາດໂຫລດຂໍ້ມູນນັກສຶກສາໄດ້:', error);
+      hasError.value = true;
+      errorMessage.value = 'ບໍ່ສາມາດໂຫລດຂໍ້ມູນນັກສຶກສາໄດ້';
+      isLoading.value = false;
+    }
+  } else {
+    // ถ้าไม่มี studentId ให้ใช้ข้อมูลตัวอย่าง (สำหรับการพัฒนา)
+    payment.invoiceNo = 'INV-' + Math.floor(Math.random() * 1000000).toString().padStart(9, '0');
+    payment.tuitionId = '010';
+    payment.studentName = 'ທ້າວ ເອ ສະຫວັນ';
+    payment.studentPhone = '02058947234';
+    payment.classLevel = 'ມ 3/1';
+    payment.level = 'ມ 3';
+    payment.yearLevel = payment.classLevel;
+    payment.academicYear = '2024-2025';
+    amount.value = 70000;
+  }
 };
 
-const showPaymentForm = (): void => {
-  selectedPayment.value = null;
-  isPaymentFormVisible.value = true;
+// เรียกใช้ฟังก์ชันโหลดข้อมูลเมื่อคอมโพเนนต์ถูกโหลด
+loadData();
+
+// ฟังก์ชันโหลดข้อมูลนักเรียน
+async function loadStudentData(studentId: string) {
+  try {
+    const student = await studentStore.getStudentById(studentId);
+    if (student) {
+      payment.studentName = student.studentNameLao || '';
+      payment.studentPhone = student.phoneNumber || '';
+      
+      // ดึงชั้นเรียนจาก studentId ตามรูปแบบ
+      const grade = student.studentId?.charAt(0) || '1';
+      const section = student.studentId?.charAt(1) || '1';
+      payment.classLevel = `ມ ${grade}/${section}`;
+      payment.yearLevel = payment.classLevel;
+      
+      // ปรับรูปแบบให้สอดคล้องกับ LevelInfo และ TuitionInfo
+      payment.level = `ຊັ້ນ ມ ${grade}`;
+      
+      payment.academicYear = `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
+      payment.tuitionId = student.studentId || '';
+      
+      // เรียกค่าเรียนตามระดับชั้น
+      amount.value = await studentStore.getTuitionFee(payment.level) || 0;
+    } else {
+      throw new Error('ບໍ່ພົບຂໍ້ມູນນັກສຶກສາ');
+    }
+  } catch (error) {
+    console.error('Error loading student data:', error);
+    throw error;
+  }
+}
+
+// ตรวจสอบและแก้ไขเมื่อมีการเปลี่ยนแปลงค่า paidAmount
+const updatePaidAmount = (event: Event) => {
+  const value = Number((event.target as HTMLInputElement)?.value || 0);
+  if (value < 0) {
+    paidAmount.value = 0;
+  }
 };
 
-const processPayment = (): void => {
-  if (paymentFormData.amount <= 0) {
-    alert('ກະລຸນາປ້ອນຈຳນວນເງິນ');
+const confirmPayment = async () => {
+  const validationError = validatePaymentInput();
+  if (validationError) {
+    alert(validationError);
     return;
   }
   
-  if (paymentFormData.receivedAmount < paymentFormData.amount) {
-    alert('ຈຳນວນເງິນທີ່ຮັບຕ້ອງຫຼາຍກວ່າຫຼືເທົ່າກັບຄ່າຮຽນ');
+  try {
+    isLoading.value = true;
+    // อัปเดตสถานะการชำระเงิน
+    payment.status = 'ຈ່າຍແລ້ວ';
+    
+    // บันทึกการชำระเงิน
+    await studentStore.savePayment({
+      invoiceNo: payment.invoiceNo,
+      studentId: payment.tuitionId,
+      amount: amount.value,
+      paidAmount: paidAmount.value,
+      changeAmount: changeAmount.value,
+      paymentDate: payment.date,
+      status: payment.status
+    });
+    
+    // อัปเดตสถานะการชำระเงินในการลงทะเบียน
+    try {
+      await studentStore.updateRegistrationPaymentStatus(payment.tuitionId, true);
+    } catch (regError) {
+      console.error('ບໍ່ສາມາດອັບເດດສະຖານະການລົງທະບຽນໄດ້:', regError);
+    }
+    
+    alert('ບັນທຶກການຊຳລະເງິນສຳເລັດແລ້ວ');
+    isLoading.value = false;
+    
+    // Reset form สำหรับการชำระครั้งต่อไป
+    resetForm();
+    
+    // นำทางไปยังหน้ารายการชำระเงิน
+    router.push('/payments');
+  } catch (error) {
+    isLoading.value = false;
+    console.error('ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກການຊຳລະເງິນ:', error);
+    alert('ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກການຊຳລະເງິນ');
+  }
+};
+
+// ฟังก์ชันรีเซ็ตฟอร์ม
+const resetForm = () => {
+  payment.invoiceNo = 'INV-' + Math.floor(Math.random() * 1000000).toString().padStart(9, '0');
+  payment.date = new Date().toISOString().split('T')[0];
+  payment.tuitionId = '';
+  payment.studentName = '';
+  payment.studentPhone = '';
+  payment.yearLevel = '';
+  payment.level = '';
+  payment.classLevel = '';
+  payment.academicYear = '';
+  payment.status = 'ລໍຖ້າຊໍາລະ';
+  amount.value = 0;
+  paidAmount.value = 0;
+  showStudentSearch.value = false;
+  studentSearchQuery.value = '';
+  filteredStudents.value = [];
+  filteredRegistrations.value = [];
+};
+
+// เพิ่มฟังก์ชันสำหรับค้นหานักเรียน
+const searchStudents = () => {
+  if (!studentSearchQuery.value.trim()) {
+    filteredStudents.value = [];
+    filteredRegistrations.value = [];
     return;
   }
   
-  // Create new payment record
-  const newPayment: Payment = {
-    id: (payments.length + 1).toString().padStart(3, '0'),
-    registrationId: paymentFormData.registrationId,
-    studentId: unpaidRegistration.student.id,
-    studentName: unpaidRegistration.student.name,
-    studentPhone: unpaidRegistration.student.phone,
-    classroom: unpaidRegistration.classroom,
-    level: unpaidRegistration.level,
-    schoolYear: unpaidRegistration.schoolYear,
-    amount: paymentFormData.amount,
-    paymentDate: new Date().toISOString().slice(0, 10),
-    paymentMethod: paymentFormData.paymentMethod,
-    status: 'completed'
-  };
+  const query = studentSearchQuery.value.toLowerCase();
   
-  payments.push(newPayment);
-  alert('ບັນທຶກການຈ່າຍຄ່າຮຽນສຳເລັດ!');
+  // ค้นหาในข้อมูลนักเรียน
+  filteredStudents.value = studentStore.getAllStudents().filter(student => 
+    student.studentId.toLowerCase().includes(query) || 
+    student.studentNameLao.toLowerCase().includes(query) ||
+    student.phoneNumber.toLowerCase().includes(query)
+  ).slice(0, 3); // แสดงแค่ 3 คนแรกเพื่อไม่ให้รายการยาวเกินไป
   
-  // In a real app, you would now print a receipt
-  selectedPayment.value = newPayment;
-  isPaymentFormVisible.value = false;
-};
-
-const cancelPaymentForm = (): void => {
-  isPaymentFormVisible.value = false;
-};
-
-// Search and filter
-const searchQuery = ref('');
-
-// Format currency
-const formatCurrency = (amount: number): string => {
-  return amount.toLocaleString() + ' ₭';
-};
-
-// Format fixed currency (without decimals)
-const formatFixedCurrency = (amount: number): string => {
-  return amount.toLocaleString() + ' ₭';
-};
-
-// Format date for display
-const formatDate = (dateString: string): string => {
-  const dateParts = dateString.split('-');
-  if (dateParts.length !== 3) return dateString;
+  // ค้นหาในข้อมูลการลงทะเบียน
+  filteredRegistrations.value = studentStore.searchRegistrations(query).slice(0, 3);
   
-  return `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+  showStudentSearch.value = true;
 };
 
-// Print receipt
-const printReceipt = (): void => {
-  if (!selectedPayment.value) return;
-  
-  alert('ກຳລັງສັ່ງພິມໃບຮັບເງິນ...');
-  // In a real app, this would open a print dialog or generate a PDF
-};
-
-// Get payment method label
-const getPaymentMethodLabel = (method: string): string => {
-  switch (method) {
-    case 'cash': return 'ເງິນສົດ';
-    case 'transfer': return 'ໂອນເງິນ';
-    case 'other': return 'ອື່ນໆ';
-    default: return method;
+// เพิ่มฟังก์ชันสำหรับเลือกนักเรียน
+const selectStudent = async (studentId: string) => {
+  try {
+    isLoading.value = true;
+    await loadStudentData(studentId);
+    showStudentSearch.value = false;
+    isLoading.value = false;
+  } catch (error) {
+    console.error('ບໍ່ສາມາດໂຫລດຂໍ້ມູນນັກສຶກສາໄດ້:', error);
+    hasError.value = true;
+    errorMessage.value = 'ບໍ່ສາມາດໂຫລດຂໍ້ມູນນັກສຶກສາໄດ້';
+    isLoading.value = false;
   }
 };
 
-// Get status label
-const getStatusLabel = (status: string): string => {
-  switch (status) {
-    case 'completed': return 'ຈ່າຍ';
-    case 'pending': return 'ລໍຖ້າ';
-    case 'canceled': return 'ຍົກເລີກ';
-    default: return status;
+// เพิ่มฟังก์ชันเลือกการลงทะเบียน
+const selectRegistration = async (registrationId: string) => {
+  try {
+    isLoading.value = true;
+    
+    console.log('ກຳລັງໂຫລດຂໍ້ມູນລົງທະບຽນ:', registrationId);
+    const registration = studentStore.getRegistrationByInvoiceId(registrationId);
+    
+    if (!registration) {
+      console.error('ບໍ່ພົບຂໍ້ມູນການລົງທະບຽນ:', registrationId);
+      throw new Error('ບໍ່ພົບຂໍ້ມູນການລົງທະບຽນ');
+    }
+    
+    console.log('ພົບຂໍ້ມູນການລົງທະບຽນ:', registration);
+    
+    // อัปเดตข้อมูลใบเสร็จตามการลงทะเบียน
+    payment.invoiceNo = registration.id;
+    payment.date = new Date().toISOString().split('T')[0];
+    payment.tuitionId = registration.studentId;
+    payment.studentName = registration.studentName;
+    payment.studentPhone = registration.studentPhone;
+    payment.classLevel = registration.classroom;
+    payment.level = registration.level;
+    payment.academicYear = registration.schoolYear;
+    
+    // ดึงค่าเรียนตามระดับชั้น
+    amount.value = await studentStore.getTuitionFee(registration.level) || 0;
+    
+    showStudentSearch.value = false;
+    isLoading.value = false;
+  } catch (error) {
+    console.error('ເກີດຂໍ້ຜິດພາດໃນການໂຫລດຂໍ້ມູນການລົງທະບຽນ:', error);
+    hasError.value = true;
+    errorMessage.value = 'ບໍ່ສາມາດໂຫລດຂໍ້ມູນການລົງທະບຽນໄດ້';
+    isLoading.value = false;
   }
 };
 
-// Get status class
-const getStatusClass = (status: string): string => {
-  switch (status) {
-    case 'completed': return 'bg-green-100 text-green-800';
-    case 'pending': return 'bg-yellow-100 text-yellow-800';
-    case 'canceled': return 'bg-red-100 text-red-800';
-    default: return 'bg-gray-100 text-gray-800';
+// เพิ่มฟังก์ชันสำหรับตรวจสอบความถูกต้องของข้อมูล
+const validatePaymentInput = () => {
+  if (!payment.tuitionId || !payment.studentName) {
+    return 'ກະລຸນາລະບຸຂໍ້ມູນນັກສຶກສາ';
   }
+  
+  if (amount.value <= 0) {
+    return 'ຄ່າຮຽນບໍ່ຖືກຕ້ອງ';
+  }
+  
+  if (!paidAmount.value || paidAmount.value <= 0) {
+    return 'ກະລຸນາລະບຸຈຳນວນເງິນທີ່ຈ່າຍ';
+  }
+  
+  if (paidAmount.value < amount.value) {
+    return 'ຈຳນວນເງິນທີ່ຈ່າຍນ້ອຍກວ່າຄ່າຮຽນ';
+  }
+  
+  return null;
 };
 </script>
 
 <template>
-  <div class="bg-gray-200 p-4 rounded-lg">
-    <!-- Payment Header -->
-    <div class="grid grid-cols-4 gap-2 mb-4">
-      <div>
-        <div class="mb-1">ລະຫັດລົງທະບຽນ</div>
-        <input type="text" class="w-full px-2 py-1 border rounded bg-white" :value="selectedPayment?.registrationId || 'INV-00000033'" readonly />
-      </div>
-      <div>
-        <div class="mb-1">ຄ່າບໍາລຸງ</div>
-        <input type="text" class="w-full px-2 py-1 border rounded bg-white" :value="selectedPayment?.id || '007'" readonly />
-      </div>
-      <div class="col-span-2">
-        <div class="mb-1">ຄ່າຮຽນຊັ້ນ ມ 3</div>
-        <input type="text" class="w-full px-2 py-1 border rounded bg-white" :value="selectedPayment?.level || 'ຊັ້ນ ມ 3'" readonly />
-      </div>
+  <div class="p-4 bg-gray-200 rounded-lg">
+    <!-- Loading/Error states -->
+    <div v-if="isLoading" class="p-4 text-center">
+      <p class="text-lg">ກຳລັງໂຫລດຂໍ້ມູນ...</p>
     </div>
-
-    <!-- Payment Table -->
-    <div class="mb-4">
-      <div class="grid grid-cols-9 bg-gray-400 p-2 text-sm">
-        <div>ລະຫັດລົງທະບຽນ</div>
-        <div>ວັນທີລົງທະບຽນ</div>
-        <div>ລະຫັດນັກຮຽນ</div>
-        <div>ຊື່ນັກຮຽນ(La)</div>
-        <div>ເບີໂທຜູ້ປົກຄອງ</div>
-        <div>ຫ້ອງຮຽນ</div>
-        <div>ຊັ້ນຮຽນ</div>
-        <div>ສົກຮຽນ</div>
-        <div>ສະຖານະ</div>
-      </div>
-      <div class="bg-white text-sm">
-        <div class="grid grid-cols-9 p-2 border-b">
-          <div>{{ selectedPayment?.registrationId || 'INV-00000033' }}</div>
-          <div>{{ selectedPayment?.paymentDate || '2022-6-11' }}</div>
-          <div>{{ selectedPayment?.studentId || '010' }}</div>
-          <div>{{ selectedPayment?.studentName || 'ທ້າວ ເອ ແສງຈັນ' }}</div>
-          <div>{{ selectedPayment?.studentPhone || '02058947234' }}</div>
-          <div>{{ selectedPayment?.classroom || 'ມ 3/1' }}</div>
-          <div>{{ selectedPayment?.level || 'ຊັ້ນ ມ 3' }}</div>
-          <div>{{ selectedPayment?.schoolYear || '2024-2025' }}</div>
-          <div>{{ getStatusLabel(selectedPayment?.status || 'completed') }}</div>
-        </div>
-      </div>
+    
+    <div v-else-if="hasError" class="p-4 bg-red-100 text-red-700 rounded mb-4">
+      <p>{{ errorMessage }}</p>
     </div>
-
-    <!-- Payment Info -->
-    <div class="grid grid-cols-2 gap-4 mb-4">
-      
-      <div class="text-right pr-2">
-        <div class="mb-1">ຄ່າຮຽນ</div>
-      </div>
-      <div>
-        <input 
-          type="text" 
-          class="w-full px-2 py-1 border rounded bg-white" 
-          :value="formatCurrency(paymentFormData.amount)" 
-          readonly 
-        />
-      </div>
-      
-      <div class="text-right pr-2">
-        <div class="mb-1">ຈ່າຍເງິນ</div>
-      </div>
-      <div>
-        <input 
-          v-model.number="paymentFormData.receivedAmount" 
-          type="text" 
-          class="w-full px-2 py-1 border rounded bg-white" 
-        />
-      </div>
-      
-      <div class="text-right pr-2">
-        <div class="mb-1">ເງິນທອນ</div>
-      </div>
-      <div>
-        <input 
-          type="text" 
-          class="w-full px-2 py-1 border rounded bg-white" 
-          :value="formatFixedCurrency(changeAmount)" 
-          readonly 
-        />
-      </div>
-      <div class="col-span-2 flex justify-center mb-2">
-        <button class="px-10 py-2 bg-gray-300 hover:bg-gray-400 text-black rounded-lg border shadow mx-auto" @click="processPayment">
-          ຊຳລະ
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Original Payment Component (Hidden) -->
-  <div class="hidden">
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <!-- Left: Payment List -->
-      <div class="md:col-span-1 bg-white rounded-lg shadow">
-        <div class="p-4 border-b">
-          <h2 class="text-lg font-medium">ການຈ່າຍຄ່າຮຽນ</h2>
-          
-          <div class="mt-3 space-y-3">
-            <div>
-              <input
-                v-model="searchQuery"
-                type="text"
-                placeholder="ຄົ້ນຫາ..."
-                class="w-full px-3 py-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          </div>
-        </div>
-        
-        <div class="divide-y max-h-[600px] overflow-y-auto">
-          <div 
-            v-for="payment in payments" 
-            :key="payment.id"
-            @click="viewPayment(payment)"
-            :class="[
-              'p-4 hover:bg-gray-50 cursor-pointer',
-              selectedPayment?.id === payment.id ? 'bg-blue-50' : ''
-            ]"
-          >
-            <div class="flex justify-between items-start">
-              <div>
-                <div class="font-medium">{{ payment.studentName }}</div>
-                <div class="text-sm text-gray-500">
-                  {{ payment.registrationId }} | {{ formatDate(payment.paymentDate) }}
-                </div>
-                <div class="text-sm text-gray-500">
-                  {{ payment.classroom }} | {{ payment.schoolYear }}
-                </div>
-              </div>
-              <div class="text-right">
-                <div class="font-bold text-blue-600">{{ formatFixedCurrency(payment.amount) }}</div>
-                <span 
-                  :class="[
-                    'px-2 py-1 rounded-full text-xs font-medium mt-1 inline-block',
-                    getStatusClass(payment.status)
-                  ]"
-                >
-                  {{ getStatusLabel(payment.status) }}
-                </span>
-              </div>
-            </div>
-          </div>
-          <div v-if="payments.length === 0" class="p-4 text-center text-gray-500">
-            ບໍ່ມີຂໍ້ມູນການຈ່າຍຄ່າຮຽນ
-          </div>
-        </div>
-        
-        <div class="p-4 border-t">
-          <button 
-            @click="showPaymentForm"
-            class="px-4 py-2 w-full bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            + ຈ່າຍຄ່າຮຽນໃໝ່
+    
+    <div v-else>
+      <!-- ค้นหานักเรียน -->
+      <div class="mb-4 p-2 bg-white rounded">
+        <div class="flex items-center space-x-2">
+          <div class="w-28">ຄົ້ນຫານັກສຶກສາ</div>
+          <input 
+            type="text" 
+            v-model="studentSearchQuery" 
+            @input="searchStudents"
+            class="flex-1 px-2 py-1 border rounded" 
+            placeholder="ພິມລະຫັດລົງທະບຽນ, ລະຫັດນັກສຶກສາ ຫຼື ຊື່ນັກສຶກສາ..."
+          />
+          <button @click="resetForm" class="px-4 py-1 bg-gray-300 rounded hover:bg-gray-400">
+            ລ້າງຂໍ້ມູນ
           </button>
         </div>
+        
+        <!-- ปุ่มทดสอบค้นหาด้วยรหัสลงทะเบียนตัวอย่าง -->
+        <div class="mt-2 flex flex-wrap gap-2 text-sm">
+          <span class="text-gray-600">ຕົວຢ່າງລະຫັດ:</span>
+          <button 
+            @click="selectRegistration('INV-00000031')" 
+            class="px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+          >
+            INV-00000031
+          </button>
+          <button 
+            @click="selectRegistration('INV-00000032')" 
+            class="px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+          >
+            INV-00000032
+          </button>
+          <button 
+            @click="selectRegistration('INV-00000033')" 
+            class="px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+          >
+            INV-00000033
+          </button>
+          <button 
+            @click="selectRegistration('INV-00000034')" 
+            class="px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+          >
+            INV-00000034
+          </button>
+        </div>
+        
+        <!-- แสดงผลการค้นหา -->
+        <div v-if="showStudentSearch" class="mt-2 border rounded">
+          <!-- ผลการค้นหาการลงทะเบียน -->
+          <div v-if="filteredRegistrations.length > 0">
+            <div class="p-2 font-bold bg-gray-200">ຂໍ້ມູນການລົງທະບຽນ</div>
+            <div 
+              v-for="reg in filteredRegistrations" 
+              :key="reg.id"
+              @click="selectRegistration(reg.id)"
+              class="p-2 hover:bg-gray-100 cursor-pointer border-b"
+            >
+              {{ reg.id }} - {{ reg.studentName }} ({{ reg.level }})
+            </div>
+          </div>
+          
+          <!-- ผลการค้นหานักเรียน -->
+          <div v-if="filteredStudents.length > 0">
+            <div class="p-2 font-bold bg-gray-200">ຂໍ້ມູນນັກສຶກສາ</div>
+            <div 
+              v-for="student in filteredStudents" 
+              :key="student.studentId"
+              @click="selectStudent(student.studentId)"
+              class="p-2 hover:bg-gray-100 cursor-pointer border-b"
+            >
+              {{ student.studentId }} - {{ student.studentNameLao }} ({{ student.phoneNumber }})
+            </div>
+          </div>
+          
+          <!-- ไม่พบข้อมูล -->
+          <div v-if="filteredStudents.length === 0 && filteredRegistrations.length === 0" class="p-2 text-gray-500">
+            ບໍ່ພົບຂໍ້ມູນ
+          </div>
+        </div>
       </div>
       
-      <!-- Right: Payment Details or Form -->
-      <div class="md:col-span-2 bg-white rounded-lg shadow">
-        <!-- Payment Form -->
-        <div v-if="isPaymentFormVisible" class="p-6">
-          <h2 class="text-xl font-medium mb-6">ຟອມຈ່າຍຄ່າຮຽນ</h2>
-          
-          <div class="bg-gray-50 p-4 rounded-lg mb-6">
-            <h3 class="text-lg font-medium mb-2">ຂໍ້ມູນນັກຮຽນ</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <div class="text-sm text-gray-500">ລະຫັດລົງທະບຽນ</div>
-                <div>{{ unpaidRegistration.id }}</div>
-              </div>
-              <div>
-                <div class="text-sm text-gray-500">ຊື່ນັກຮຽນ</div>
-                <div class="font-medium">{{ unpaidRegistration.student.name }}</div>
-              </div>
-              <div>
-                <div class="text-sm text-gray-500">ຫ້ອງຮຽນ</div>
-                <div>{{ unpaidRegistration.classroom }}</div>
-              </div>
-              <div>
-                <div class="text-sm text-gray-500">ສົກຮຽນ</div>
-                <div>{{ unpaidRegistration.schoolYear }}</div>
-              </div>
-            </div>
+      <!-- Header Section -->
+      <div class="flex justify-between mb-4 p-2 bg-white rounded">
+        <div class="flex items-center space-x-4">
+          <div>
+            <span class="mb-1 mr-2 text-sm">ລະຫັດລົງທະບຽນ</span>
+            <input type="text" v-model="payment.invoiceNo" class="px-2 py-1 border rounded" readonly />
           </div>
-          
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">ຈຳນວນຄ່າຮຽນທີ່ຕ້ອງຈ່າຍ</label>
-              <input 
-                v-model.number="paymentFormData.amount" 
-                type="number"
-                min="0" 
-                class="w-full px-3 py-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">ວິທີການຈ່າຍ</label>
-              <select 
-                v-model="paymentFormData.paymentMethod"
-                class="w-full px-3 py-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="cash">ເງິນສົດ</option>
-                <option value="transfer">ໂອນເງິນ</option>
-                <option value="other">ອື່ນໆ</option>
-              </select>
-            </div>
-            
-            <div v-if="paymentFormData.paymentMethod === 'cash'">
-              <label class="block text-sm font-medium text-gray-700 mb-1">ຈຳນວນເງິນທີ່ຮັບ</label>
-              <input 
-                v-model.number="paymentFormData.receivedAmount" 
-                type="number"
-                min="0" 
-                class="w-full px-3 py-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            
-            <div v-if="paymentFormData.paymentMethod === 'cash' && paymentFormData.receivedAmount > 0" class="bg-gray-50 p-4 rounded-lg">
-              <div class="flex justify-between">
-                <div class="text-sm font-medium">ຈຳນວນເງິນທີ່ຮັບ:</div>
-                <div>{{ formatFixedCurrency(paymentFormData.receivedAmount) }}</div>
-              </div>
-              <div class="flex justify-between mt-1">
-                <div class="text-sm font-medium">ຈຳນວນຄ່າຮຽນ:</div>
-                <div>{{ formatFixedCurrency(paymentFormData.amount) }}</div>
-              </div>
-              <div class="border-t mt-2 pt-2 flex justify-between">
-                <div class="text-sm font-medium">ເງິນທອນ:</div>
-                <div class="font-bold" :class="changeAmount >= 0 ? 'text-blue-600' : 'text-red-600'">
-                  {{ formatFixedCurrency(changeAmount) }}
-                </div>
-              </div>
-            </div>
-            
-            <div class="flex justify-end space-x-3 pt-4">
-              <button 
-                @click="cancelPaymentForm" 
-                class="px-4 py-2 border rounded-lg hover:bg-gray-100"
-              >
-                ຍົກເລີກ
-              </button>
-              <button 
-                @click="processPayment" 
-                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                ບັນທຶກການຈ່າຍຄ່າຮຽນ
-              </button>
-            </div>
+          <div>
+            <span class="mb-1 mr-2 text-sm">ລະຫັດຄ່າຮຽນ</span>
+            <input type="text" value="007" class="px-2 py-1 border rounded" readonly />
+          </div>
+          <div>
+            <span class="mb-1 mr-2 text-sm">ຊື່ຊັ້ນຮຽນ</span>
+            <input type="text" :value="payment.level" class="px-2 py-1 border rounded" readonly />
           </div>
         </div>
         
-        <!-- Payment Details -->
-        <div v-else-if="selectedPayment" class="p-6">
-          <div class="flex justify-between items-center mb-6">
-            <h2 class="text-xl font-medium">ລາຍລະອຽດການຈ່າຍຄ່າຮຽນ</h2>
-            <button 
-              @click="printReceipt"
-              class="px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
-            >
-              <span class="mr-2">🖨️</span> ພິມໃບຮັບເງິນ
-            </button>
-          </div>
-          
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="space-y-4">
-              <div class="border-b pb-3">
-                <div class="text-sm text-gray-500">ລະຫັດການຈ່າຍຄ່າຮຽນ</div>
-                <div class="font-medium">{{ selectedPayment.id }}</div>
-              </div>
-              
-              <div class="border-b pb-3">
-                <div class="text-sm text-gray-500">ລະຫັດການລົງທະບຽນ</div>
-                <div>{{ selectedPayment.registrationId }}</div>
-              </div>
-              
-              <div class="border-b pb-3">
-                <div class="text-sm text-gray-500">ວັນທີຈ່າຍ</div>
-                <div>{{ formatDate(selectedPayment.paymentDate) }}</div>
-              </div>
-              
-              <div class="border-b pb-3">
-                <div class="text-sm text-gray-500">ວິທີການຈ່າຍ</div>
-                <div>{{ getPaymentMethodLabel(selectedPayment.paymentMethod) }}</div>
-              </div>
-              
-              <div class="border-b pb-3">
-                <div class="text-sm text-gray-500">ສະຖານະ</div>
-                <div>
-                  <span 
-                    :class="[
-                      'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-                      getStatusClass(selectedPayment.status)
-                    ]"
-                  >
-                    {{ getStatusLabel(selectedPayment.status) }}
-                  </span>
-                </div>
-              </div>
-            </div>
-            
-            <div class="space-y-4">
-              <div class="border-b pb-3">
-                <div class="text-sm text-gray-500">ລະຫັດນັກຮຽນ</div>
-                <div class="font-medium">{{ selectedPayment.studentId }}</div>
-              </div>
-              
-              <div class="border-b pb-3">
-                <div class="text-sm text-gray-500">ຊື່ນັກຮຽນ</div>
-                <div class="font-medium">{{ selectedPayment.studentName }}</div>
-              </div>
-              
-              <div class="border-b pb-3">
-                <div class="text-sm text-gray-500">ເບີໂທລະສັບ</div>
-                <div>{{ selectedPayment.studentPhone }}</div>
-              </div>
-              
-              <div class="border-b pb-3">
-                <div class="text-sm text-gray-500">ຫ້ອງຮຽນ</div>
-                <div>{{ selectedPayment.classroom }}</div>
-              </div>
-              
-              <div class="border-b pb-3">
-                <div class="text-sm text-gray-500">ຊັ້ນຮຽນ</div>
-                <div>{{ selectedPayment.level }}</div>
-              </div>
-              
-              <div class="border-b pb-3">
-                <div class="text-sm text-gray-500">ສົກຮຽນ</div>
-                <div>{{ selectedPayment.schoolYear }}</div>
-              </div>
-            </div>
-          </div>
-          
-          <div class="mt-6 border-t pt-6">
-            <div class="bg-gray-50 p-4 rounded-lg">
-              <div class="flex justify-between items-center">
-                <div class="text-lg font-medium">ຈຳນວນຄ່າຮຽນ</div>
-                <div class="text-2xl font-bold text-blue-700">{{ formatCurrency(selectedPayment.amount) }}</div>
-              </div>
-            </div>
-          </div>
+        <div>
+          <button class="px-2 py-1 bg-gray-200 rounded">...</button>
+        </div>
+      </div>
+      
+      <!-- Payment Information Table -->
+      <div class="mb-4 bg-white rounded overflow-hidden">
+        <div class="grid grid-cols-9 bg-gray-300 p-2 text-sm">
+          <div>ລະຫັດລົງທະບຽນ</div>
+          <div>ວັນທີລົງທະບຽນ</div>
+          <div>ລະຫັດນັກສຶກສາ</div>
+          <div>ຊື່ນັກສຶກສາ(La)</div>
+          <div>ເບີໂທນັກສຶກສາ</div>
+          <div>ຫ້ອງຮຽນ</div>
+          <div>ຊັ້ນຮຽນ</div>
+          <div>ສົກຮຽນ</div>
+          <div>ສະຖານະ</div>
         </div>
         
-        <!-- No Payment Selected -->
-        <div v-else class="p-6">
-          <h2 class="text-xl font-medium mb-4">ການຈ່າຍຄ່າຮຽນ</h2>
-          <div class="p-12 border-2 border-dashed rounded-lg flex flex-col items-center justify-center">
-            <div class="text-6xl mb-4">💰</div>
-            <div class="text-gray-500 text-center">
-              <p class="mb-2">ກະລຸນາເລືອກການຈ່າຍຄ່າຮຽນຈາກລາຍການ ຫຼື ເລີ່ມການຈ່າຍຄ່າຮຽນໃໝ່</p>
-            </div>
-            <button 
-              @click="showPaymentForm"
-              class="mt-6 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              ຈ່າຍຄ່າຮຽນໃໝ່
-            </button>
+        <div class="grid grid-cols-9 p-2 bg-gray-100">
+          <div>{{ payment.invoiceNo }}</div>
+          <div>{{ payment.date }}</div>
+          <div>{{ payment.tuitionId }}</div>
+          <div>{{ payment.studentName }}</div>
+          <div>{{ payment.studentPhone }}</div>
+          <div>{{ payment.classLevel }}</div>
+          <div>{{ payment.level }}</div>
+          <div>{{ payment.academicYear }}</div>
+          <div :class="payment.status === 'ຈ່າຍແລ້ວ' ? 'text-green-600 font-bold' : ''">
+            {{ payment.status }}
+          </div>
+        </div>
+      </div>
+      
+      <!-- Amounts and Confirmation -->
+      <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="flex-1 flex justify-center">
+          <button 
+            @click="confirmPayment" 
+            class="px-12 py-2 bg-green-600 text-white border rounded shadow-sm hover:bg-green-700 disabled:bg-gray-400"
+            :disabled="isLoading || payment.status === 'ຈ່າຍແລ້ວ'"
+          >
+            <span v-if="isLoading">ກຳລັງດຳເນີນການ...</span>
+            <span v-else>ຊຳລະ</span>
+          </button>
+        </div>
+        
+        <div class="space-y-2">
+          <div class="flex items-center justify-end space-x-2">
+            <div class="text-right">ຈໍານວນ</div>
+            <input 
+              type="text" 
+              v-model="amount" 
+              class="w-32 px-2 py-1 border rounded text-right" 
+              readonly
+            />
+          </div>
+          
+          <div class="flex items-center justify-end space-x-2">
+            <div class="text-right">ຊຳລະເງິນ</div>
+            <input 
+              type="number" 
+              v-model="paidAmount" 
+              class="w-32 px-2 py-1 border rounded text-right"
+              :disabled="payment.status === 'ຈ່າຍແລ້ວ'"
+              min="0"
+              @input="updatePaidAmount"
+            />
+          </div>
+          
+          <div class="flex items-center justify-end space-x-2">
+            <div class="text-right">ເງິນທອນ</div>
+            <input 
+              type="text" 
+              v-model="changeAmount" 
+              class="w-32 px-2 py-1 border rounded text-right" 
+              readonly
+            />
           </div>
         </div>
       </div>
     </div>
   </div>
-</template> 
+</template>

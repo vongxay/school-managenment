@@ -1,6 +1,67 @@
 import { ref, reactive } from 'vue';
 import type { Student } from '../types/student';
 
+// เพิ่มข้อมูลการลงทะเบียน
+interface StudentRegistration {
+  id: string;
+  registrationDate: string;
+  studentId: string;
+  studentName: string;
+  studentPhone: string;
+  classroom: string;
+  level: string;
+  schoolYear: string;
+  paid: boolean;
+}
+
+// ข้อมูลการลงทะเบียนจำลอง
+const registrations = reactive<StudentRegistration[]>([
+  { 
+    id: 'INV-00000031', 
+    registrationDate: '2022-6-11', 
+    studentId: '008', 
+    studentName: 'ທ້າວ ກັນ ໄຊສະຫຸຼດ', 
+    studentPhone: '02059874624', 
+    classroom: 'ມ 3/1', 
+    level: 'ຊັ້ນ ມ 3', 
+    schoolYear: '2024-2025', 
+    paid: true 
+  },
+  { 
+    id: 'INV-00000032', 
+    registrationDate: '2022-6-11', 
+    studentId: '009', 
+    studentName: 'ທ້າວ ບີ ບຸນມີໃຈ', 
+    studentPhone: '02026345982', 
+    classroom: 'ມ 3/1', 
+    level: 'ຊັ້ນ ມ 3', 
+    schoolYear: '2024-2025', 
+    paid: true 
+  },
+  { 
+    id: 'INV-00000033', 
+    registrationDate: '2022-6-11', 
+    studentId: '010', 
+    studentName: 'ທ້າວ ເອ ແສງຈັນ', 
+    studentPhone: '02056234895', 
+    classroom: 'ມ 3/1', 
+    level: 'ຊັ້ນ ມ 3', 
+    schoolYear: '2024-2025', 
+    paid: true 
+  },
+  { 
+    id: 'INV-00000034', 
+    registrationDate: '2023-6-15', 
+    studentId: '020', 
+    studentName: 'ທ້າວ ຊິງຕາ ຈັນມາລີ', 
+    studentPhone: '0205689234', 
+    classroom: 'ມ 1/1', 
+    level: 'ຊັ້ນ ມ 1', 
+    schoolYear: '2023-2024', 
+    paid: true 
+  },
+]);
+
 // สร้างข้อมูลจำลองสำหรับรายการนักเรียน
 const students = reactive<Student[]>([
   {
@@ -205,6 +266,70 @@ export const useStudentStore = () => {
     deleteStudent,
     startEdit,
     startNew,
-    clearSearch
+    clearSearch,
+    getStudentById: (studentId: string) => {
+      return students.find(s => s.studentId === studentId);
+    },
+    getRegistrations: () => {
+      return registrations;
+    },
+    getRegistrationByInvoiceId: (invoiceId: string) => {
+      if (!invoiceId) {
+        console.error('ລະຫັດລົງທະບຽນເປັນຄ່າຫວ່າງ');
+        return null;
+      }
+      
+      console.log('ຄົ້ນຫາລະຫັດລົງທະບຽນ:', invoiceId);
+      console.log('ຂໍ້ມູນລົງທະບຽນທັງໝົດ:', registrations.length, 'ລາຍການ');
+      
+      const reg = registrations.find(r => r.id === invoiceId);
+      console.log('ຜົນການຄົ້ນຫາ:', reg ? 'ພົບຂໍ້ມູນ' : 'ບໍ່ພົບຂໍ້ມູນ');
+      
+      return reg || null;
+    },
+    searchRegistrations: (query: string) => {
+      if (!query) {
+        return [];
+      }
+      
+      query = query.toLowerCase();
+      console.log('ຄົ້ນຫາຂໍ້ມູນລົງທະບຽນດ້ວຍຄຳວ່າ:', query);
+      
+      const results = registrations.filter(reg => 
+        reg.id.toLowerCase().includes(query) || 
+        reg.studentId.toLowerCase().includes(query) || 
+        reg.studentName.toLowerCase().includes(query) ||
+        reg.studentPhone.toLowerCase().includes(query)
+      );
+      
+      console.log('ພົບ', results.length, 'ລາຍການ');
+      return results;
+    },
+    getTuitionFee: async (yearLevel: string) => {
+      // สมมติค่าเรียนตามระดับชั้น
+      const fees: {[key: string]: number} = {
+        'ຊັ້ນ ມ 1': 60000,
+        'ຊັ້ນ ມ 2': 65000,
+        'ຊັ້ນ ມ 3': 70000,
+        'ຊັ້ນ ມ 4': 75000,
+        'ຊັ້ນ ມ 5': 80000,
+        'ຊັ້ນ ມ 6': 85000,
+      };
+      return fees[yearLevel] || 50000; // ค่าเริ่มต้นถ้าไม่พบระดับชั้น
+    },
+    savePayment: async (paymentData: any) => {
+      console.log('บันทึกการชำระเงิน:', paymentData);
+      // ในระบบจริงจะส่งข้อมูลไปบันทึกที่ API
+      return true;
+    },
+    updateRegistrationPaymentStatus: async (studentId: string, isPaid: boolean) => {
+      // หาข้อมูลการลงทะเบียนของนักเรียน
+      const foundRegistration = registrations.find(r => r.studentId === studentId);
+      if (foundRegistration) {
+        foundRegistration.paid = isPaid;
+        console.log(`อัปเดตสถานะการชำระเงินของการลงทะเบียน ${foundRegistration.id} เป็น ${isPaid ? 'ຈ່າຍ' : 'ຍັງບໍ່ຈ່າຍ'}`);
+      }
+      return true;
+    }
   };
 }; 
