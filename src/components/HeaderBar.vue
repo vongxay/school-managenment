@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { useAuthStore } from '../stores/authStore';
 
+const router = useRouter();
+const authStore = useAuthStore();
 const searchQuery = ref('');
 const showNotifications = ref(false);
 const showUserMenu = ref(false);
@@ -48,6 +52,12 @@ const markAsRead = (id: number) => {
   if (notification) {
     notification.read = true;
   }
+};
+
+const handleLogout = () => {
+  authStore.logout();
+  router.push('/login');
+  showUserMenu.value = false;
 };
 </script>
 
@@ -111,7 +121,7 @@ const markAsRead = (id: number) => {
         </div>
         
         <!-- User Menu -->
-        <div class="relative">
+        <div class="relative" v-if="authStore.isAuthenticated">
           <button 
             @click="toggleUserMenu"
             class="flex items-center space-x-2 hover:bg-gray-100 rounded-lg p-2"
@@ -119,7 +129,7 @@ const markAsRead = (id: number) => {
             <div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
               👤
             </div>
-            <div class="text-sm font-medium">ຜູ້ບໍລິຫານ</div>
+            <div class="text-sm font-medium">{{ authStore.user?.name || 'ຜູ້ບໍລິຫານ' }}</div>
             <span>▼</span>
           </button>
           
@@ -136,9 +146,12 @@ const markAsRead = (id: number) => {
                 ການຕັ້ງຄ່າ
               </a>
               <div class="border-t border-gray-200 my-1"></div>
-              <a href="#" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">
+              <button 
+                @click="handleLogout"
+                class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+              >
                 ອອກຈາກລະບົບ
-              </a>
+              </button>
             </div>
           </div>
         </div>
