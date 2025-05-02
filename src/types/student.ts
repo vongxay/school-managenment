@@ -34,4 +34,5 @@ export interface User {
   name: string;
   role: 'admin' | 'teacher' | 'staff';
   active: boolean;
+  image: string | null;
 }

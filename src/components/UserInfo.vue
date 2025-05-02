@@ -3,8 +3,8 @@ import { ref, reactive, computed } from 'vue';
 import type { User } from '../types/student';
 
 const users = reactive<User[]>([
-  { id: '001', username: 'Mr. Mihundong Isiri', name: 'ທ້າວ ມິຮຸນດົງ ອິສິຣິ', role: 'admin', active: true },
-  { id: '002', username: 'nu', name: 'ນາງສາວ ນຸ ສຸກົນໄຊ', role: 'teacher', active: true },
+  { id: '001', username: 'Mr. Mihundong Isiri', name: 'ທ້າວ ມິຮຸນດົງ ອິສິຣິ', role: 'admin', active: true, image: null },
+  { id: '002', username: 'nu', name: 'ນາງສາວ ນຸ ສຸກົນໄຊ', role: 'teacher', active: true, image: null },
 ]);
 
 const selectedUser = ref<User | null>(users[0]);  // เลือกผู้ใช้แรกเป็นค่าเริ่มต้น
@@ -13,10 +13,12 @@ const formUser = reactive<User>({
   username: selectedUser.value?.username || '',
   name: selectedUser.value?.name || '',
   role: selectedUser.value?.role || 'staff',
-  active: selectedUser.value?.active || true
+  active: selectedUser.value?.active || true,
+  image: selectedUser.value?.image || null
 });
 const searchQuery = ref('');
 const password = ref('');
+const previewImage = ref<string | null>(null);
 
 const filteredUsers = computed(() => {
   if (!searchQuery.value) return users;
@@ -32,6 +34,7 @@ const selectUser = (user: User) => {
   selectedUser.value = user;
   Object.assign(formUser, user);
   password.value = '************';
+  previewImage.value = user.image;
 };
 
 const createNewUser = () => {
@@ -42,8 +45,10 @@ const createNewUser = () => {
   formUser.name = '';
   formUser.role = 'staff';
   formUser.active = true;
+  formUser.image = null;
   selectedUser.value = null;
   password.value = '';
+  previewImage.value = null;
 };
 
 const saveUser = () => {
@@ -78,8 +83,26 @@ const deleteUser = () => {
       formUser.name = '';
       formUser.role = 'staff';
       formUser.active = true;
+      formUser.image = null;
       password.value = '';
+      previewImage.value = null;
     }
+  }
+};
+
+const handleImageUpload = (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  if (input.files && input.files[0]) {
+    const file = input.files[0];
+    const reader = new FileReader();
+    
+    reader.onload = (e) => {
+      const result = e.target?.result as string;
+      previewImage.value = result;
+      formUser.image = result;
+    };
+    
+    reader.readAsDataURL(file);
   }
 };
 </script>
@@ -139,25 +162,35 @@ const deleteUser = () => {
       <div class="mb-8">
         <div class="mb-1">ຮູບ</div>
         <div class="border border-gray-300 rounded p-2 flex justify-center">
-          <svg width="100" height="100" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+          <img v-if="previewImage" :src="previewImage" class="w-24 h-24 object-cover" />
+          <svg v-else width="100" height="100" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
             <rect width="100" height="100" fill="#e2e8f0"/>
             <circle cx="50" cy="35" r="18" fill="#94a3b8"/>
             <path d="M50,95 C70,95 85,80 85,65 L85,61 C85,53 75,45 50,45 C25,45 15,53 15,61 L15,65 C15,80 30,95 50,95 Z" fill="#94a3b8"/>
           </svg>
         </div>
+        <label class="mt-2 w-full px-3 py-2 bg-gray-200 text-black rounded hover:bg-gray-300 cursor-pointer text-center block">
+          ອັບໂຫລດຮູບພາບ
+          <input 
+            type="file" 
+            accept="image/*" 
+            class="hidden" 
+            @change="handleImageUpload"
+          />
+        </label>
       </div>
       
       <!-- ปุ่ม -->
       <div class="grid grid-cols-2 gap-4">
         <button 
           @click="deleteUser" 
-          class="px-4 py-2 bg-gray-200 text-black rounded hover:bg-gray-300 text-center"
+          class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
         >
           ລຶບ
         </button>
         <button 
           @click="saveUser" 
-          class="px-4 py-2 bg-gray-200 text-black rounded hover:bg-gray-300 text-center"
+          class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
         >
           ບັນທຶກ
         </button>
@@ -178,7 +211,7 @@ const deleteUser = () => {
         </div>
         <button
           @click="createNewUser"
-          class="px-4 py-2 bg-gray-200 text-black rounded hover:bg-gray-300 ml-2"
+          class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 ml-2"
         >
           ເພີ່ມ
         </button>
@@ -207,7 +240,8 @@ const deleteUser = () => {
           <div>{{ user.username }}</div>
           <div>{{ user.active ? 'Y' : 'N' }}</div>
           <div class="flex justify-center">
-            <svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <img v-if="user.image" :src="user.image" class="w-6 h-6 object-cover rounded-full" />
+            <svg v-else width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
               <rect width="100" height="100" fill="#e2e8f0"/>
               <circle cx="50" cy="35" r="18" fill="#94a3b8"/>
               <path d="M50,95 C70,95 85,80 85,65 L85,61 C85,53 75,45 50,45 C25,45 15,53 15,61 L15,65 C15,80 30,95 50,95 Z" fill="#94a3b8"/>
