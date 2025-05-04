@@ -2,6 +2,9 @@ import { Router } from 'express';
 import authRoutes from './authRoutes';
 import userRoutes from './userRoutes';
 import studentRoutes from './studentRoutes';
+import classRoutes from './classRoutes';
+import yearRoutes from './yearRoutes';
+import levelRoutes from './levelRoutes';
 
 const router = Router();
 
@@ -9,6 +12,9 @@ const router = Router();
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/students', studentRoutes);
+router.use('/classes', classRoutes);
+router.use('/years', yearRoutes);
+router.use('/levels', levelRoutes);
 
 // เส้นทางทดสอบ API
 router.get('/health', (req, res) => {

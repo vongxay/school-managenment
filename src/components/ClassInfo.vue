@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
+import axios from 'axios';
 
 interface ClassRoom {
   id: string;
@@ -7,22 +8,17 @@ interface ClassRoom {
   level: string;
 }
 
-const classes = reactive<ClassRoom[]>([
-  { id: '004', name: 'ຫ້ອງ 1/1', level: 'ຊັ້ນ ມ 1' },
-  { id: '005', name: 'ຫ້ອງ 1/2', level: 'ຊັ້ນ ມ 1' },
-  { id: '006', name: 'ຫ້ອງ 2/1', level: 'ຊັ້ນ ມ 2' },
-  { id: '007', name: 'ຫ້ອງ 2/2', level: 'ຊັ້ນ ມ 2' },
-  { id: '008', name: 'ຫ້ອງ 3/1', level: 'ຊັ້ນ ມ 3' },
-  { id: '009', name: 'ຫ້ອງ 3/2', level: 'ຊັ້ນ ມ 3' },
-]);
-
-const selectedClass = ref<ClassRoom | null>(classes[0]);  // Default select first class
+const API_URL = 'http://localhost:3000/api';
+const classes = reactive<ClassRoom[]>([]);
+const selectedClass = ref<ClassRoom | null>(null);
 const formClass = reactive<ClassRoom>({
-  id: selectedClass.value?.id || '004',
-  name: selectedClass.value?.name || 'ຫ້ອງ 1/1',
-  level: selectedClass.value?.level || 'ຊັ້ນ ມ 1',
+  id: '',
+  name: '',
+  level: 'ຊັ້ນ ມ 1',
 });
 const searchQuery = ref('');
+const isLoading = ref(false);
+const errorMessage = ref('');
 
 const levelOptions = [
   'ຊັ້ນ ມ 1',
@@ -44,49 +40,132 @@ const filteredClasses = computed(() => {
   );
 });
 
+// ດຶງຂໍ້ມູນຫ້ອງຮຽນທັງໝົດ
+const fetchClasses = async () => {
+  try {
+    isLoading.value = true;
+    errorMessage.value = '';
+    const response = await axios.get(`${API_URL}/classes`);
+    if (response.data.success) {
+      Object.assign(classes, response.data.data);
+      if (classes.length > 0 && !selectedClass.value) {
+        selectClass(classes[0]);
+      }
+    } else {
+      errorMessage.value = 'ບໍ່ສາມາດດຶງຂໍ້ມູນຫ້ອງຮຽນໄດ້';
+    }
+  } catch (error) {
+    console.error('Error fetching classes:', error);
+    errorMessage.value = 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນຫ້ອງຮຽນ';
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 const selectClass = (classItem: ClassRoom) => {
   selectedClass.value = classItem;
   Object.assign(formClass, classItem);
 };
 
 const createNewClass = () => {
-  // Generate a unique ID - in production this would be handled server-side
-  const maxId = Math.max(...classes.map(c => parseInt(c.id, 10)), 0);
-  formClass.id = (maxId + 1).toString().padStart(3, '0');
+  // ຕັ້ງຄ່າຟອມໃຫ້ເປັນຄ່າເລີ່ມຕົ້ນສຳລັບການສ້າງໃໝ່
+  selectedClass.value = null;
+  formClass.id = '';
   formClass.name = '';
   formClass.level = 'ຊັ້ນ ມ 1';
-  selectedClass.value = null;
 };
 
-const saveClass = () => {
-  if (selectedClass.value) {
-    // Update existing class
-    const index = classes.findIndex(c => c.id === selectedClass.value?.id);
-    if (index !== -1) {
-      classes[index] = { ...formClass };
+const saveClass = async () => {
+  try {
+    isLoading.value = true;
+    errorMessage.value = '';
+    
+    if (!formClass.name) {
+      errorMessage.value = 'ກະລຸນາປ້ອນຊື່ຫ້ອງຮຽນ';
+      return;
     }
-  } else {
-    // Add new class
-    classes.push({ ...formClass });
+    
+    if (selectedClass.value) {
+      // ອັບເດດຫ້ອງຮຽນທີ່ມີຢູ່ແລ້ວ
+      const response = await axios.put(`${API_URL}/classes/${selectedClass.value.id}`, formClass);
+      if (response.data.success) {
+        const index = classes.findIndex(c => c.id === selectedClass.value?.id);
+        if (index !== -1) {
+          classes[index] = { ...formClass };
+        }
+      } else {
+        errorMessage.value = 'ບໍ່ສາມາດອັບເດດຂໍ້ມູນຫ້ອງຮຽນໄດ້';
+      }
+    } else {
+      // ເພີ່ມຫ້ອງຮຽນໃໝ່
+      const response = await axios.post(`${API_URL}/classes`, formClass);
+      if (response.data.success) {
+        classes.push({ ...response.data.data });
+        selectClass(response.data.data);
+      } else {
+        errorMessage.value = 'ບໍ່ສາມາດເພີ່ມຂໍ້ມູນຫ້ອງຮຽນໄດ້';
+      }
+    }
+  } catch (error) {
+    console.error('Error saving class:', error);
+    errorMessage.value = 'ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກຂໍ້ມູນຫ້ອງຮຽນ';
+  } finally {
+    isLoading.value = false;
   }
 };
 
-const deleteClass = () => {
-  if (selectedClass.value) {
-    const index = classes.findIndex(c => c.id === selectedClass.value!.id);
-    if (index !== -1) {
-      classes.splice(index, 1);
-      selectedClass.value = null;
-      formClass.id = '';
-      formClass.name = '';
-      formClass.level = 'ຊັ້ນ ມ 1';
+const deleteClass = async () => {
+  if (!selectedClass.value) return;
+  
+  if (!confirm(`ທ່ານແນ່ໃຈບໍ່ວ່າຕ້ອງການລຶບຫ້ອງຮຽນ ${selectedClass.value.name}?`)) {
+    return;
+  }
+  
+  try {
+    isLoading.value = true;
+    errorMessage.value = '';
+    
+    const response = await axios.delete(`${API_URL}/classes/${selectedClass.value.id}`);
+    if (response.data.success) {
+      const index = classes.findIndex(c => c.id === selectedClass.value!.id);
+      if (index !== -1) {
+        classes.splice(index, 1);
+        selectedClass.value = null;
+        formClass.id = '';
+        formClass.name = '';
+        formClass.level = 'ຊັ້ນ ມ 1';
+        
+        if (classes.length > 0) {
+          selectClass(classes[0]);
+        }
+      }
+    } else {
+      errorMessage.value = 'ບໍ່ສາມາດລຶບຂໍ້ມູນຫ້ອງຮຽນໄດ້';
     }
+  } catch (error) {
+    console.error('Error deleting class:', error);
+    errorMessage.value = 'ເກີດຂໍ້ຜິດພາດໃນການລຶບຂໍ້ມູນຫ້ອງຮຽນ';
+  } finally {
+    isLoading.value = false;
   }
 };
+
+// ໂຫຼດຂໍ້ມູນເມື່ອຄອມໂພເນັນຖືກສ້າງ
+onMounted(fetchClasses);
 </script>
 
 <template>
   <div class="grid grid-cols-3 gap-4 bg-white rounded-lg p-4">
+    <!-- ຂໍ້ຄວາມແຈ້ງເຕືອນຄວາມຜິດພາດ -->
+    <div v-if="errorMessage" class="col-span-3 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+      {{ errorMessage }}
+    </div>
+    
+    <!-- ຂໍ້ຄວາມກຳລັງໂຫຼດ -->
+    <div v-if="isLoading" class="col-span-3 flex justify-center items-center">
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700"></div>
+    </div>
+    
     <!-- Left Column - Form inputs -->
     <div class="border-r pr-4 col-span-1">
       <!-- ID -->
@@ -135,12 +214,14 @@ const deleteClass = () => {
         <button 
           @click="deleteClass" 
           class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          :disabled="isLoading || !selectedClass"
         >
           ລົບ
         </button>
         <button 
           @click="saveClass" 
           class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          :disabled="isLoading"
         >
           ບັນທຶກ
         </button>
@@ -162,6 +243,7 @@ const deleteClass = () => {
         <button
           @click="createNewClass"
           class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 ml-2"
+          :disabled="isLoading"
         >
           ເພີ່ມ
         </button>

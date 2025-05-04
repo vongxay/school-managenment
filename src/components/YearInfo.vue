@@ -1,24 +1,22 @@
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
+import axios from 'axios';
 
 interface SchoolYear {
   id: string;
   period: string;
 }
 
-const schoolYears = reactive<SchoolYear[]>([
-  { id: '001', period: '2022-2023' },
-  { id: '002', period: '2023-2024' },
-  { id: '003', period: '2024-2025' },
-  { id: '004', period: '2025-2026' },
-]);
-
-const selectedYear = ref<SchoolYear | null>(schoolYears[0]);  // Default select first year
+const API_URL = 'http://localhost:3000/api';
+const schoolYears = reactive<SchoolYear[]>([]);
+const selectedYear = ref<SchoolYear | null>(null);
 const formYear = reactive<SchoolYear>({
-  id: selectedYear.value?.id || '001',
-  period: selectedYear.value?.period || '2022-2023',
+  id: '',
+  period: '',
 });
 const searchQuery = ref('');
+const isLoading = ref(false);
+const errorMessage = ref('');
 
 const filteredYears = computed(() => {
   if (!searchQuery.value) return schoolYears;
@@ -29,54 +27,131 @@ const filteredYears = computed(() => {
   );
 });
 
+// ດຶງຂໍ້ມູນສົກຮຽນທັງໝົດ
+const fetchYears = async () => {
+  try {
+    isLoading.value = true;
+    errorMessage.value = '';
+    const response = await axios.get(`${API_URL}/years`);
+    if (response.data.success) {
+      Object.assign(schoolYears, response.data.data);
+      if (schoolYears.length > 0 && !selectedYear.value) {
+        selectYear(schoolYears[0]);
+      }
+    } else {
+      errorMessage.value = 'ບໍ່ສາມາດດຶງຂໍ້ມູນສົກຮຽນໄດ້';
+    }
+  } catch (error) {
+    console.error('Error fetching school years:', error);
+    errorMessage.value = 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນສົກຮຽນ';
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 const selectYear = (year: SchoolYear) => {
   selectedYear.value = year;
   Object.assign(formYear, year);
 };
 
 const createNewYear = () => {
-  // Generate a unique ID
-  const maxId = Math.max(...schoolYears.map(y => parseInt(y.id, 10)), 0);
-  formYear.id = (maxId + 1).toString().padStart(3, '0');
-  formYear.period = '';
+  // ຕັ້ງຄ່າຟອມໃຫ້ເປັນຄ່າເລີ່ມຕົ້ນສຳລັບການສ້າງໃໝ່
   selectedYear.value = null;
+  formYear.id = '';
+  formYear.period = '';
 };
 
-const saveYear = () => {
-  if (!formYear.period) {
-    alert('ກະລຸນາປ້ອນສົກຮຽນ');
+const saveYear = async () => {
+  try {
+    isLoading.value = true;
+    errorMessage.value = '';
+    
+    if (!formYear.period) {
+      errorMessage.value = 'ກະລຸນາປ້ອນສົກຮຽນ';
+      isLoading.value = false;
+      return;
+    }
+    
+    if (selectedYear.value) {
+      // ອັບເດດສົກຮຽນທີ່ມີຢູ່ແລ້ວ
+      const response = await axios.put(`${API_URL}/years/${selectedYear.value.id}`, formYear);
+      if (response.data.success) {
+        const index = schoolYears.findIndex(y => y.id === selectedYear.value?.id);
+        if (index !== -1) {
+          schoolYears[index] = { ...formYear };
+        }
+      } else {
+        errorMessage.value = 'ບໍ່ສາມາດອັບເດດຂໍ້ມູນສົກຮຽນໄດ້';
+      }
+    } else {
+      // ເພີ່ມສົກຮຽນໃໝ່
+      const response = await axios.post(`${API_URL}/years`, formYear);
+      if (response.data.success) {
+        schoolYears.push({ ...response.data.data });
+        selectYear(response.data.data);
+      } else {
+        errorMessage.value = 'ບໍ່ສາມາດເພີ່ມຂໍ້ມູນສົກຮຽນໄດ້';
+      }
+    }
+  } catch (error) {
+    console.error('Error saving school year:', error);
+    errorMessage.value = 'ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກຂໍ້ມູນສົກຮຽນ';
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const deleteYear = async () => {
+  if (!selectedYear.value) return;
+  
+  if (!confirm(`ທ່ານແນ່ໃຈບໍວ່າຕ້ອງການລຶບຂໍ້ມູນສົກຮຽນ ${selectedYear.value.period}?`)) {
     return;
   }
   
-  if (selectedYear.value) {
-    // Update existing year
-    const index = schoolYears.findIndex(y => y.id === selectedYear.value?.id);
-    if (index !== -1) {
-      schoolYears[index] = { ...formYear };
-    }
-  } else {
-    // Add new year
-    schoolYears.push({ ...formYear });
-  }
-};
-
-const deleteYear = () => {
-  if (selectedYear.value) {
-    if (confirm(`ທ່ານແນ່ໃຈບໍວ່າຕ້ອງການລຶບຂໍ້ມູນສົກຮຽນ ${selectedYear.value.period}?`)) {
+  try {
+    isLoading.value = true;
+    errorMessage.value = '';
+    
+    const response = await axios.delete(`${API_URL}/years/${selectedYear.value.id}`);
+    if (response.data.success) {
       const index = schoolYears.findIndex(y => y.id === selectedYear.value!.id);
       if (index !== -1) {
         schoolYears.splice(index, 1);
         selectedYear.value = null;
         formYear.id = '';
         formYear.period = '';
+        
+        if (schoolYears.length > 0) {
+          selectYear(schoolYears[0]);
+        }
       }
+    } else {
+      errorMessage.value = 'ບໍ່ສາມາດລຶບຂໍ້ມູນສົກຮຽນໄດ້';
     }
+  } catch (error) {
+    console.error('Error deleting school year:', error);
+    errorMessage.value = 'ເກີດຂໍ້ຜິດພາດໃນການລຶບຂໍ້ມູນສົກຮຽນ';
+  } finally {
+    isLoading.value = false;
   }
 };
+
+// ໂຫຼດຂໍ້ມູນເມື່ອຄອມໂພເນັນຖືກສ້າງ
+onMounted(fetchYears);
 </script>
 
 <template>
   <div class="grid grid-cols-3 gap-4 bg-white rounded-lg p-4">
+    <!-- ຂໍ້ຄວາມແຈ້ງເຕືອນຄວາມຜິດພາດ -->
+    <div v-if="errorMessage" class="col-span-3 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+      {{ errorMessage }}
+    </div>
+    
+    <!-- ຂໍ້ຄວາມກຳລັງໂຫຼດ -->
+    <div v-if="isLoading" class="col-span-3 flex justify-center items-center">
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700"></div>
+    </div>
+    
     <!-- Left Column - Form inputs -->
     <div class="border-r pr-4 col-span-1">
       <!-- ID -->
@@ -106,12 +181,14 @@ const deleteYear = () => {
         <button 
           @click="deleteYear" 
           class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          :disabled="isLoading || !selectedYear"
         >
           ລຶບ
         </button>
         <button 
           @click="saveYear" 
           class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          :disabled="isLoading"
         >
           ບັນທຶກ
         </button>
@@ -133,6 +210,7 @@ const deleteYear = () => {
         <button
           @click="createNewYear"
           class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 ml-2"
+          :disabled="isLoading"
         >
           ເພີ່ມ
         </button>

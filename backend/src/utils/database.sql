@@ -130,4 +130,54 @@ VALUES
   (UUID(), 'teacher', '$2b$10$ECpLZ8ylV/StG4h5eDDKB.nssCl/ZGQdmA0LXRbJXJzGRmPTuDvRC', 'ນາງສາວ ນຸ ສຸກົນໄຊ', 'teacher', 1),
   (UUID(), 'staff', '$2b$10$ECpLZ8ylV/StG4h5eDDKB.nssCl/ZGQdmA0LXRbJXJzGRmPTuDvRC', 'ທ້າວ ສົມສະຫວັນ', 'staff', 1);
 
--- หมายเหตุ: รหัสผ่านที่เข้ารหัสไว้คือ "admin123", "teacher123", "staff123" ตามลำดับ (ใช้ bcrypt) 
+-- หมายเหตุ: รหัสผ่านที่เข้ารหัสไว้คือ "admin123", "teacher123", "staff123" ตามลำดับ (ใช้ bcrypt)
+
+-- เพิ่มตาราง school_years (ปีการศึกษา)
+CREATE TABLE IF NOT EXISTS `school_years` (
+  `id` VARCHAR(10) NOT NULL,
+  `period` VARCHAR(20) NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- เพิ่มตาราง levels (ระดับชั้น)
+CREATE TABLE IF NOT EXISTS `levels` (
+  `id` VARCHAR(10) NOT NULL,
+  `name` VARCHAR(50) NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- เพิ่มตาราง classes (ห้องเรียน)
+CREATE TABLE IF NOT EXISTS `classes` (
+  `id` VARCHAR(10) NOT NULL,
+  `name` VARCHAR(50) NOT NULL,
+  `level` VARCHAR(50) NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- เพิ่มข้อมูลตัวอย่างในตาราง
+INSERT INTO `school_years` (`id`, `period`) VALUES
+('001', '2022-2023'),
+('002', '2023-2024'),
+('003', '2024-2025'),
+('004', '2025-2026');
+
+INSERT INTO `levels` (`id`, `name`) VALUES
+('007', 'ຊັ້ນ ມ 2'),
+('008', 'ຊັ້ນ ມ 3'),
+('009', 'ຊັ້ນ ມ 4'),
+('010', 'ຊັ້ນ ມ 5'),
+('011', 'ຊັ້ນ ມ 6');
+
+INSERT INTO `classes` (`id`, `name`, `level`) VALUES
+('004', 'ຫ້ອງ 1/1', 'ຊັ້ນ ມ 1'),
+('005', 'ຫ້ອງ 1/2', 'ຊັ້ນ ມ 1'),
+('006', 'ຫ້ອງ 2/1', 'ຊັ້ນ ມ 2'),
+('007', 'ຫ້ອງ 2/2', 'ຊັ້ນ ມ 2'),
+('008', 'ຫ້ອງ 3/1', 'ຊັ້ນ ມ 3'),
+('009', 'ຫ້ອງ 3/2', 'ຊັ້ນ ມ 3'); 
