@@ -35,9 +35,9 @@ const switchToFormView = () => {
   studentTab.value = 'form';
 };
 
-// Check if we're on the login page
-const isLoginPage = computed(() => {
-  return route.path === '/login';
+// Check if we're on a public page (login or register)
+const isPublicPage = computed(() => {
+  return route.path === '/login' || route.path === '/register';
 });
 
 // Computed to determine which component to display based on activeMenu
@@ -79,10 +79,10 @@ const handleMenuSelect = (menuId: string) => {
 // Check auth state on component mounted
 onMounted(() => {
   // Initialize auth from localStorage if available
-  if (authStore.isAuthenticated && !isLoginPage.value) {
+  if (authStore.isAuthenticated && !isPublicPage.value) {
     // Set the active menu to dashboard
     activeMenu.value = 'dashboard';
-  } else if (!authStore.isAuthenticated && !isLoginPage.value) {
+  } else if (!authStore.isAuthenticated && !isPublicPage.value) {
     // If user is not authenticated, redirect to login
     router.push('/login');
   }
@@ -91,8 +91,8 @@ onMounted(() => {
 
 <template>
   <div class="h-screen bg-gray-100">
-    <!-- Login Page without Dashboard UI -->
-    <router-view v-if="isLoginPage"></router-view>
+    <!-- Login and Register Pages without Dashboard UI -->
+    <router-view v-if="isPublicPage"></router-view>
     
     <!-- Dashboard Layout -->
     <div v-else class="flex h-screen bg-gray-100">
