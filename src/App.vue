@@ -16,7 +16,6 @@ import Registration from './components/Registration.vue';
 import Payment from './components/Payment.vue';
 import Reports from './components/Reports.vue';
 import LevelInfo from './components/LevelInfo.vue';
-import LaoFontDemo from './components/LaoFontDemo.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -77,12 +76,6 @@ const handleMenuSelect = (menuId: string) => {
     studentTab.value = 'list';
   }
 };
-
-// Toggle font demo display
-const toggleFontDemo = () => {
-  showFontDemo.value = !showFontDemo.value;
-};
-
 // Check auth state on component mounted
 onMounted(() => {
   // Initialize auth from localStorage if available
@@ -155,14 +148,6 @@ onMounted(() => {
                 </button>
               </div>
               
-              <!-- Font demo toggle button -->
-              <button 
-                v-if="activeMenu === 'dashboard'"
-                @click="toggleFontDemo"
-                class="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700"
-              >
-                {{ showFontDemo ? 'ປິດການທົດສອບຟອນຕ໌' : 'ທົດສອບຟອນຕ໌ລາວ' }}
-              </button>
             </div>
             
             <!-- Font Demo Section -->
