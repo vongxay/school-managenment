@@ -60,6 +60,12 @@ const registrations = reactive<StudentRegistration[]>([
   },
 ]);
 
+// เพิ่มข้อมูลนักเรียนในตารางสำหรับค้นหา
+const studentTableData = reactive([
+  { studentId: '020', studentName: 'ທ້າວ ຊິງຕາ ຈັນມາລີ', studentPhone: '020 56234891' },
+  { studentId: '019', studentName: 'ນາງ ບີ ຈັນທະລີ', studentPhone: '020 56974325' }
+]);
+
 const currentRegistrationId = ref('INV-00000034');
 const currentSchoolYear = ref('2023-2024');
 const currentClassId = ref('002');
@@ -71,6 +77,7 @@ const currentClassName = ref('ມ 1/1');
 const numberOfBills = ref('');
 const description = ref('');
 const searchQuery = ref('');
+const studentSearchQuery = ref(''); // เพิ่มตัวแปรสำหรับค้นหานักเรียนในตาราง
 
 const filteredRegistrations = computed(() => {
   if (!searchQuery.value) {
@@ -85,6 +92,20 @@ const filteredRegistrations = computed(() => {
   );
   
   return filtered.slice(0, 10).reverse();
+});
+
+// เพิ่ม computed property สำหรับกรองข้อมูลนักเรียนในตาราง
+const filteredStudents = computed(() => {
+  if (!studentSearchQuery.value) {
+    return studentTableData;
+  }
+  
+  const query = studentSearchQuery.value.toLowerCase();
+  return studentTableData.filter(student => 
+    student.studentName.toLowerCase().includes(query) || 
+    student.studentId.toLowerCase().includes(query) ||
+    student.studentPhone.toLowerCase().includes(query)
+  );
 });
 
 const printRegistration = () => {
@@ -208,13 +229,10 @@ const saveRegistration = () => {
     </div>
 
     <div class="flex items-center mb-4">
-      <div class="w-28 mr-2">ຈຳນວນບິນການຍ</div>
-      <div class="w-40 mr-4">
-        <input type="text" class="w-full px-2 py-1 border rounded bg-white" v-model="numberOfBills" />
-      </div>
-      <div class="w-28 mr-2">ຄຳອະທິບາຍ</div>
+      <div class="w-28 mr-2">ຂໍ້ມູນຂອງນັກຮຽນ</div>
+      <div class="w-28 mr-2">search</div>
       <div class="w-40">
-        <input type="text" class="w-full px-2 py-1 border rounded bg-white" v-model="description" />
+        <input type="text" class="w-full px-2 py-1 border rounded bg-white" v-model="studentSearchQuery" />
       </div>
     </div>
 
@@ -225,15 +243,10 @@ const saveRegistration = () => {
         <div>ເບີໂທຜູ້ປົກຄອງ</div>
       </div>
       <div class="bg-white">
-        <div class="grid grid-cols-3 p-2">
-          <div>020</div>
-          <div>ທ້າວ ຊິງຕາ ຈັນມາລີ</div>
-          <div>020 56234891</div>
-        </div>
-        <div class="grid grid-cols-3 p-2 bg-gray-100">
-          <div>019</div>
-          <div>ນາງ ບີ ຈັນທະລີ</div>
-          <div>020 56974325</div>
+        <div v-for="student in filteredStudents" :key="student.studentId" class="grid grid-cols-3 p-2" :class="{'bg-gray-100': student.studentId === '019'}">
+          <div>{{ student.studentId }}</div>
+          <div>{{ student.studentName }}</div>
+          <div>{{ student.studentPhone }}</div>
         </div>
       </div>
     </div>
