@@ -1,25 +1,22 @@
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
+import axios from 'axios';
 
 interface Level {
   id: string;
   name: string;
 }
 
-const levels = reactive<Level[]>([
-  { id: '007', name: 'ຊັ້ນ ມ 2' },
-  { id: '008', name: 'ຊັ້ນ ມ 3' },
-  { id: '009', name: 'ຊັ້ນ ມ 4' },
-  { id: '010', name: 'ຊັ້ນ ມ 5' },
-  { id: '011', name: 'ຊັ້ນ ມ 6' },
-]);
-
+const API_URL = 'http://localhost:3000/api';
+const levels = reactive<Level[]>([]);
 const selectedLevel = ref<Level | null>(null);
 const formLevel = reactive<Level>({
   id: '',
   name: '',
 });
 const searchQuery = ref('');
+const isLoading = ref(false);
+const errorMessage = ref('');
 
 const filteredLevels = computed(() => {
   if (!searchQuery.value) return levels;
@@ -30,47 +27,131 @@ const filteredLevels = computed(() => {
   );
 });
 
+// ດຶງຂໍ້ມູນຊັ້ນຮຽນທັງໝົດ
+const fetchLevels = async () => {
+  try {
+    isLoading.value = true;
+    errorMessage.value = '';
+    const response = await axios.get(`${API_URL}/levels`);
+    if (response.data.success) {
+      Object.assign(levels, response.data.data);
+      if (levels.length > 0 && !selectedLevel.value) {
+        selectLevel(levels[0]);
+      }
+    } else {
+      errorMessage.value = 'ບໍ່ສາມາດດຶງຂໍ້ມູນຊັ້ນຮຽນໄດ້';
+    }
+  } catch (error) {
+    console.error('Error fetching levels:', error);
+    errorMessage.value = 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນຊັ້ນຮຽນ';
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 const selectLevel = (level: Level) => {
   selectedLevel.value = level;
   Object.assign(formLevel, level);
 };
 
 const createNewLevel = () => {
-  // Generate a unique ID
-  const maxId = Math.max(...levels.map(l => parseInt(l.id, 10)), 0);
-  formLevel.id = (maxId + 1).toString().padStart(3, '0');
-  formLevel.name = '';
+  // ຕັ້ງຄ່າຟອມໃຫ້ເປັນຄ່າເລີ່ມຕົ້ນສຳລັບການສ້າງໃໝ່
   selectedLevel.value = null;
+  formLevel.id = '';
+  formLevel.name = '';
 };
 
-const saveLevel = () => {
-  if (selectedLevel.value) {
-    // Update existing level
-    const index = levels.findIndex(l => l.id === selectedLevel.value?.id);
-    if (index !== -1) {
-      levels[index] = { ...formLevel };
+const saveLevel = async () => {
+  try {
+    isLoading.value = true;
+    errorMessage.value = '';
+    
+    if (!formLevel.name) {
+      errorMessage.value = 'ກະລຸນາປ້ອນຊື່ຊັ້ນຮຽນ';
+      isLoading.value = false;
+      return;
     }
-  } else {
-    // Add new level
-    levels.push({ ...formLevel });
+    
+    if (selectedLevel.value) {
+      // ອັບເດດຊັ້ນຮຽນທີ່ມີຢູ່ແລ້ວ
+      const response = await axios.put(`${API_URL}/levels/${selectedLevel.value.id}`, formLevel);
+      if (response.data.success) {
+        const index = levels.findIndex(l => l.id === selectedLevel.value?.id);
+        if (index !== -1) {
+          levels[index] = { ...formLevel };
+        }
+      } else {
+        errorMessage.value = 'ບໍ່ສາມາດອັບເດດຂໍ້ມູນຊັ້ນຮຽນໄດ້';
+      }
+    } else {
+      // ເພີ່ມຊັ້ນຮຽນໃໝ່
+      const response = await axios.post(`${API_URL}/levels`, formLevel);
+      if (response.data.success) {
+        levels.push({ ...response.data.data });
+        selectLevel(response.data.data);
+      } else {
+        errorMessage.value = 'ບໍ່ສາມາດເພີ່ມຂໍ້ມູນຊັ້ນຮຽນໄດ້';
+      }
+    }
+  } catch (error) {
+    console.error('Error saving level:', error);
+    errorMessage.value = 'ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກຂໍ້ມູນຊັ້ນຮຽນ';
+  } finally {
+    isLoading.value = false;
   }
 };
 
-const deleteLevel = () => {
-  if (selectedLevel.value) {
-    const index = levels.findIndex(l => l.id === selectedLevel.value!.id);
-    if (index !== -1) {
-      levels.splice(index, 1);
-      selectedLevel.value = null;
-      formLevel.id = '';
-      formLevel.name = '';
+const deleteLevel = async () => {
+  if (!selectedLevel.value) return;
+  
+  if (!confirm(`ທ່ານແນ່ໃຈບໍ່ວ່າຕ້ອງການລຶບຊັ້ນຮຽນ ${selectedLevel.value.name}?`)) {
+    return;
+  }
+  
+  try {
+    isLoading.value = true;
+    errorMessage.value = '';
+    
+    const response = await axios.delete(`${API_URL}/levels/${selectedLevel.value.id}`);
+    if (response.data.success) {
+      const index = levels.findIndex(l => l.id === selectedLevel.value!.id);
+      if (index !== -1) {
+        levels.splice(index, 1);
+        selectedLevel.value = null;
+        formLevel.id = '';
+        formLevel.name = '';
+        
+        if (levels.length > 0) {
+          selectLevel(levels[0]);
+        }
+      }
+    } else {
+      errorMessage.value = 'ບໍ່ສາມາດລຶບຂໍ້ມູນຊັ້ນຮຽນໄດ້';
     }
+  } catch (error) {
+    console.error('Error deleting level:', error);
+    errorMessage.value = 'ເກີດຂໍ້ຜິດພາດໃນການລຶບຂໍ້ມູນຊັ້ນຮຽນ';
+  } finally {
+    isLoading.value = false;
   }
 };
+
+// ໂຫຼດຂໍ້ມູນເມື່ອຄອມໂພເນັນຖືກສ້າງ
+onMounted(fetchLevels);
 </script>
 
 <template>
   <div class="grid grid-cols-3 gap-4 bg-white rounded-lg p-4">
+    <!-- ຂໍ້ຄວາມແຈ້ງເຕືອນຄວາມຜິດພາດ -->
+    <div v-if="errorMessage" class="col-span-3 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+      {{ errorMessage }}
+    </div>
+    
+    <!-- ຂໍ້ຄວາມກຳລັງໂຫຼດ -->
+    <div v-if="isLoading" class="col-span-3 flex justify-center items-center">
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700"></div>
+    </div>
+    
     <!-- Left Column - Form inputs -->
     <div class="border-r pr-4 col-span-1">
       <!-- ID -->
@@ -80,6 +161,7 @@ const deleteLevel = () => {
           v-model="formLevel.id" 
           type="text" 
           class="w-full px-3 py-2 border border-gray-300 rounded"
+          :disabled="!!selectedLevel"
         />
       </div>
       
@@ -98,12 +180,14 @@ const deleteLevel = () => {
         <button 
           @click="deleteLevel" 
           class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          :disabled="isLoading || !selectedLevel"
         >
           ລົບ
         </button>
         <button 
           @click="saveLevel" 
           class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          :disabled="isLoading"
         >
           ບັນທຶກ
         </button>
@@ -125,6 +209,7 @@ const deleteLevel = () => {
         <button
           @click="createNewLevel"
           class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 ml-2"
+          :disabled="isLoading"
         >
           ເພີ່ມ
         </button>

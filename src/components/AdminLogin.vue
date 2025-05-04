@@ -137,6 +137,16 @@ const toggleShowPassword = () => {
             {{ authStore.isLoading ? 'ກຳລັງເຂົ້າສູ່ລະບົບ...' : 'ເຂົ້າສູ່ລະບົບ' }}
           </button>
         </div>
+        
+        <!-- ลิงก์ไปหน้าลงทะเบียน -->
+        <div class="text-center mt-4">
+          <p class="text-sm">
+            ຍັງບໍ່ມີບັນຊີຜູ້ໃຊ້ບໍ? 
+            <router-link to="/register" class="font-medium text-blue-600 hover:text-blue-500">
+              ລົງທະບຽນ
+            </router-link>
+          </p>
+        </div>
       </form>
     </div>
   </div>

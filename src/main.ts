@@ -4,12 +4,14 @@ import App from './App.vue'
 import './style.css'
 
 import AdminLogin from './components/AdminLogin.vue'
+import AdminRegister from './components/AdminRegister.vue'
 import Dashboard from './components/Dashboard.vue'
 
 // Define routes
 const routes = [
   { path: '/', redirect: '/login' },
   { path: '/login', component: AdminLogin },
+  { path: '/register', component: AdminRegister },
   { path: '/dashboard', component: Dashboard },
 ]
 
@@ -22,7 +24,7 @@ const router = createRouter({
 // Navigation guard for authentication
 router.beforeEach((to) => {
   // Check if the route requires authentication
-  const publicPages = ['/login'];
+  const publicPages = ['/login', '/register'];
   const authRequired = !publicPages.includes(to.path);
   const currentUser = localStorage.getItem('currentUser');
 
