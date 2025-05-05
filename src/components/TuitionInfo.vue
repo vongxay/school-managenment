@@ -11,6 +11,16 @@ interface Tuition {
   amount: number;
 }
 
+interface SchoolYear {
+  id: string;
+  period: string;
+}
+
+interface Level {
+  id: string;
+  name: string;
+}
+
 const API_URL = 'http://localhost:5000/api';
 const tuitions = reactive<Tuition[]>([]);
 const selectedTuition = ref<Tuition | null>(null);
@@ -18,40 +28,14 @@ const formTuition = reactive<Tuition>({
   id: '',
   name: '',
   year: '',
-  level: 'ຊັ້ນ ມ 1',
+  level: '',
   amount: 0
 });
+const schoolYears = reactive<SchoolYear[]>([]);
+const levels = reactive<Level[]>([]);
 const searchQuery = ref('');
 const isLoading = ref(false);
 const errorMessage = ref('');
-
-const years = [
-  '2022-2023',
-  '2023-2024',
-  '2024-2025',
-  '2025-2026',
-];
-
-const levels = [
-  'ຊັ້ນ ມ 1',
-  'ຊັ້ນ ມ 2',
-  'ຊັ້ນ ມ 3',
-  'ຊັ້ນ ມ 4',
-  'ຊັ້ນ ມ 5',
-  'ຊັ້ນ ມ 6',
-  'ຊັ້ນ ມ 7',
-];
-
-const filteredTuitions = computed(() => {
-  if (!searchQuery.value) return tuitions;
-  const query = searchQuery.value.toLowerCase();
-  return tuitions.filter(t => 
-    t.id.toLowerCase().includes(query) || 
-    t.name.toLowerCase().includes(query) || 
-    t.level.toLowerCase().includes(query) ||
-    t.year.toLowerCase().includes(query)
-  );
-});
 
 // ດຶງຂໍ້ມູນຄ່າຮຽນທັງໝົດ
 const fetchTuitions = async () => {
@@ -74,6 +58,59 @@ const fetchTuitions = async () => {
     isLoading.value = false;
   }
 };
+
+// ດຶງຂໍ້ມູນສົກຮຽນທັງໝົດ
+const fetchYears = async () => {
+  try {
+    isLoading.value = true;
+    errorMessage.value = '';
+    const response = await axios.get(`${API_URL}/years`);
+    if (response.data.success) {
+      Object.assign(schoolYears, response.data.data);
+    } else {
+      errorMessage.value = 'ບໍ່ສາມາດດຶງຂໍ້ມູນສົກຮຽນໄດ້';
+    }
+  } catch (error) {
+    console.error('Error fetching school years:', error);
+    errorMessage.value = 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນສົກຮຽນ';
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// ດຶງຂໍ້ມູນຊັ້ນຮຽນທັງໝົດ
+const fetchLevels = async () => {
+  try {
+    isLoading.value = true;
+    errorMessage.value = '';
+    const response = await axios.get(`${API_URL}/levels`);
+    if (response.data.success) {
+      Object.assign(levels, response.data.data);
+      // ຕັ້ງຄ່າເລີ່ມຕົ້ນຖ້າມີຂໍ້ມູນ
+      if (levels.length > 0 && !formTuition.level) {
+        formTuition.level = levels[0].name;
+      }
+    } else {
+      errorMessage.value = 'ບໍ່ສາມາດດຶງຂໍ້ມູນຊັ້ນຮຽນໄດ້';
+    }
+  } catch (error) {
+    console.error('Error fetching levels:', error);
+    errorMessage.value = 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນຊັ້ນຮຽນ';
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const filteredTuitions = computed(() => {
+  if (!searchQuery.value) return tuitions;
+  const query = searchQuery.value.toLowerCase();
+  return tuitions.filter(t => 
+    t.id.toLowerCase().includes(query) || 
+    t.name.toLowerCase().includes(query) || 
+    t.level.toLowerCase().includes(query) ||
+    t.year.toLowerCase().includes(query)
+  );
+});
 
 const selectTuition = (tuition: Tuition) => {
   selectedTuition.value = tuition;
@@ -169,7 +206,7 @@ const deleteTuition = async () => {
         selectedTuition.value = null;
         formTuition.id = '';
         formTuition.name = '';
-        formTuition.level = 'ຊັ້ນ ມ 1';
+        formTuition.level = levels.length > 0 ? levels[0].name : '';
         formTuition.year = '';
         formTuition.amount = 0;
         
@@ -196,8 +233,8 @@ const createNewTuition = () => {
     : 0;
   formTuition.id = (maxId + 1).toString().padStart(3, '0');
   formTuition.name = '';
-  formTuition.level = 'ຊັ້ນ ມ 1';
-  formTuition.year = years[1]; // Default to current year (2023-2024)
+  formTuition.level = levels.length > 0 ? levels[0].name : '';
+  formTuition.year = schoolYears.length > 0 ? schoolYears[0].period : '';
   formTuition.amount = 0;
   selectedTuition.value = null;
 };
@@ -208,7 +245,9 @@ const updateName = () => {
 };
 
 // ໂຫລດຂໍ້ມູນເມື່ອຄອມໂພເນັນຖືກສ້າງ
-onMounted(fetchTuitions);
+onMounted(async () => {
+  await Promise.all([fetchTuitions(), fetchYears(), fetchLevels()]);
+});
 </script>
 
 <template>
@@ -256,8 +295,8 @@ onMounted(fetchTuitions);
             @change="updateName"
             class="flex-1 px-3 py-2 border border-gray-300 rounded"
           >
-            <option v-for="level in levels" :key="level" :value="level">
-              {{ level }}
+            <option v-for="level in levels" :key="level.id" :value="level.name">
+              {{ level.name }}
             </option>
           </select>
           <button class="px-3 py-2 bg-gray-200 rounded">...</button>
@@ -277,8 +316,8 @@ onMounted(fetchTuitions);
             v-model="formTuition.year" 
             class="flex-1 px-3 py-2 border border-gray-300 rounded"
           >
-            <option v-for="year in years" :key="year" :value="year">
-              {{ year }}
+            <option v-for="year in schoolYears" :key="year.id" :value="year.period">
+              {{ year.period }}
             </option>
           </select>
           <button class="px-3 py-2 bg-gray-200 rounded">...</button>
