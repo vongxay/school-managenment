@@ -59,10 +59,22 @@ class YearController {
         return;
       }
       
-      // กำหนดชื่อปีการศึกษาถ้าไม่มี
-      if (!yearData.name) {
-        yearData.name = yearData.period;
+      // ตรวจสอบว่ามีปีการศึกษาซ้ำหรือไม่
+      const existingYears = await yearModel.getAllYears();
+      const isDuplicatePeriod = existingYears.some(year => 
+        year.period === yearData.period || year.name === yearData.period
+      );
+      
+      if (isDuplicatePeriod) {
+        res.status(400).json({
+          success: false,
+          message: 'ສົກຮຽນນີ້ມີຢູ່ໃນລະບົບແລ້ວ'
+        });
+        return;
       }
+      
+      // กำหนดชื่อปีการศึกษาให้ตรงกับ period
+      yearData.name = yearData.period;
       
       // กำหนดวันที่เริ่มต้นและสิ้นสุดถ้าไม่มี
       if (!yearData.start_date || !yearData.end_date) {

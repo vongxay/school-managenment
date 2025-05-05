@@ -52,6 +52,22 @@ class YearModel {
         yearData.end_date = `${nextYear}-04-30`;
       }
       
+      // ตรวจสอบรูปแบบวันที่ให้ถูกต้อง
+      // ตรวจสอบว่าวันที่เป็น string หรือ Date object
+      let startDate = yearData.start_date;
+      let endDate = yearData.end_date;
+      
+      // ถ้าเป็น string ที่อาจมี timestamp ให้แปลงเป็น YYYY-MM-DD
+      if (typeof startDate === 'string' && startDate.includes('T')) {
+        const date = new Date(startDate);
+        startDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      }
+      
+      if (typeof endDate === 'string' && endDate.includes('T')) {
+        const date = new Date(endDate);
+        endDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      }
+      
       // กำหนดค่าเริ่มต้นสำหรับ is_current
       if (yearData.is_current === undefined) {
         yearData.is_current = false;
@@ -59,7 +75,7 @@ class YearModel {
       
       const [result] = await pool.query(
         'INSERT INTO school_years (id, period, name, start_date, end_date, is_current) VALUES (?, ?, ?, ?, ?, ?)',
-        [yearData.id, yearData.period, yearData.name, yearData.start_date, yearData.end_date, yearData.is_current]
+        [yearData.id, yearData.period, yearData.name, startDate, endDate, yearData.is_current]
       );
       return yearData;
     } catch (error) {
@@ -71,14 +87,42 @@ class YearModel {
   // อัปเดตข้อมูลปีการศึกษา
   async updateYear(id: string, yearData: Partial<SchoolYear>): Promise<boolean> {
     try {
+      // ดึงข้อมูลปีการศึกษาปัจจุบัน
+      const currentYear = await this.getYearById(id);
+      if (!currentYear) {
+        return false;
+      }
+      
       // ตั้งค่า name เหมือนกับ period ถ้ามีการอัปเดต period แต่ไม่มีการอัปเดต name
       if (yearData.period && !yearData.name) {
         yearData.name = yearData.period;
       }
       
+      // จัดการรูปแบบวันที่
+      let startDate = yearData.start_date || currentYear.start_date;
+      let endDate = yearData.end_date || currentYear.end_date;
+      
+      // ถ้าเป็น string ที่อาจมี timestamp ให้แปลงเป็น YYYY-MM-DD
+      if (typeof startDate === 'string' && startDate.includes('T')) {
+        const date = new Date(startDate);
+        startDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      }
+      
+      if (typeof endDate === 'string' && endDate.includes('T')) {
+        const date = new Date(endDate);
+        endDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      }
+      
       const [result] = await pool.query(
         'UPDATE school_years SET period = ?, name = ?, start_date = ?, end_date = ?, is_current = ? WHERE id = ?',
-        [yearData.period, yearData.name, yearData.start_date, yearData.end_date, yearData.is_current, id]
+        [
+          yearData.period || currentYear.period,
+          yearData.name || currentYear.name,
+          startDate,
+          endDate,
+          yearData.is_current !== undefined ? yearData.is_current : currentYear.is_current,
+          id
+        ]
       );
       const resultOk = result as { affectedRows: number };
       return resultOk.affectedRows > 0;
