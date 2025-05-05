@@ -9,7 +9,7 @@ interface ClassRoom {
   level: string;
 }
 
-const API_URL = 'http://localhost:3000/api';
+const API_URL = 'http://localhost:5000/api';
 const classes = reactive<ClassRoom[]>([]);
 const selectedClass = ref<ClassRoom | null>(null);
 const formClass = reactive<ClassRoom>({

@@ -3,14 +3,14 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import morgan from 'morgan';
 import { checkConnection } from './utils/db';
-import studentRoutes from './routes/studentRoutes';
+import apiRoutes from './routes/index';
 
 // โหลดตัวแปรสภาพแวดล้อม
 dotenv.config();
 
 // สร้างแอปพลิเคชัน Express
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
@@ -31,13 +31,13 @@ checkConnection()
     process.exit(1);
   });
 
-// เส้นทาง API
+// เส้นทาง API หลัก
 app.get('/', (req, res) => {
   res.json({ message: 'ยินดีต้อนรับสู่ School Management API' });
 });
 
-// นำเข้าเส้นทาง API
-app.use('/api/students', studentRoutes);
+// นำเข้าเส้นทาง API ทั้งหมด
+app.use('/api', apiRoutes);
 
 // เริ่มต้นเซิร์ฟเวอร์
 app.listen(port, () => {

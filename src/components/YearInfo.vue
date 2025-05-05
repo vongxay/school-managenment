@@ -8,7 +8,7 @@ interface SchoolYear {
   period: string;
 }
 
-const API_URL = 'http://localhost:3000/api';
+const API_URL = 'http://localhost:5000/api';
 const schoolYears = reactive<SchoolYear[]>([]);
 const selectedYear = ref<SchoolYear | null>(null);
 const formYear = reactive<SchoolYear>({

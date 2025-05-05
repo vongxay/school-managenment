@@ -3,7 +3,7 @@ import type { UserSession, AuthState, LoginCredentials } from '../types/auth';
 import axios from 'axios';
 
 // ຕັ້ງຄ່າ base URL ຂອງ API
-const API_URL = 'http://localhost:3000/api';
+const API_URL = 'http://localhost:5000/api';
 
 // Initialize store state
 const state = reactive<AuthState>({
