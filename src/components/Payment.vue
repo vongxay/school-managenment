@@ -261,12 +261,12 @@ const selectRegistration = async (registrationId: string) => {
     // อัปเดตข้อมูลใบเสร็จตามการลงทะเบียน
     payment.invoiceNo = registration.id;
     payment.date = new Date().toISOString().split('T')[0];
-    payment.tuitionId = registration.studentId;
-    payment.studentName = registration.studentName;
-    payment.studentPhone = registration.studentPhone;
+    payment.tuitionId = registration.student_id;
+    payment.studentName = registration.student_name;
+    payment.studentPhone = registration.student_phone;
     payment.classLevel = registration.classroom;
     payment.level = registration.level;
-    payment.academicYear = registration.schoolYear;
+    payment.academicYear = registration.school_year;
     
     // ดึงค่าเรียนตามระดับชั้น
     amount.value = await studentStore.getTuitionFee(registration.level) || 0;
