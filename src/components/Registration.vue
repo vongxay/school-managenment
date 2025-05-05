@@ -8,14 +8,11 @@ const authStore = useAuthStore();
 // ຂໍ້ມູນການລົງທະບຽນ
 const registrations = ref([]);
 const studentTableData = ref([]);
-const classroomData = ref([
-  'ມ 1/1', 'ມ 1/2', 'ມ 1/3', 'ມ 1/4',
-  'ມ 2/1', 'ມ 2/2', 'ມ 2/3', 'ມ 2/4',
-  'ມ 3/1', 'ມ 3/2', 'ມ 3/3', 'ມ 3/4',
-  'ມ 4/1', 'ມ 4/2', 'ມ 4/3', 'ມ 4/4',
-  'ມ 5/1', 'ມ 5/2', 'ມ 5/3', 'ມ 5/4',
-  'ມ 6/1', 'ມ 6/2', 'ມ 6/3', 'ມ 6/4',
-]);
+
+// ຂໍ້ມູນປີການສຶກສາແລະລະດັບຊັ້ນ
+const schoolYears = ref([]);
+const levels = ref([]);
+const classroomData = ref([]); // ເພີ່ມຕົວແປເກັບຂໍ້ມູນຫ້ອງຮຽນສຳລັບ dialog
 
 // URL ຂອງ API
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -32,6 +29,7 @@ const currentStudentId = ref('');
 const currentStudentName = ref('');
 const currentStudentPhone = ref('');
 const currentClassName = ref('');
+const currentClassLevel = ref(''); // ເພີ່ມຕົວແປເກັບລະດັບຊັ້ນຂອງຫ້ອງຮຽນ
 const numberOfBills = ref('');
 const description = ref('');
 const searchQuery = ref('');
@@ -39,6 +37,7 @@ const studentSearchQuery = ref('');
 const isAuthenticated = ref(false);
 const token = ref('');
 const showClassroomDialog = ref(false);
+const showSchoolYearDialog = ref(false);
 
 // ກອງຂໍ້ມູນນັກຮຽນສຳລັບສະແດງໃນຕາຕະລາງ
 const filteredStudents = computed(() => {
@@ -217,18 +216,14 @@ const validateForm = () => {
     return false;
   }
 
-  // ກຳນົດລະດັບຊັ້ນຈາກຫ້ອງຮຽນ (ຕ້ອງມີຄ່າ)
-  let level = '';
-  if (currentClassName.value.includes('/')) {
-    const grade = currentClassName.value.split('/')[0].trim();
-    if (grade.startsWith('ມ ')) {
-      const gradeNumber = grade.substring(2);
-      level = `ຊັ້ນ ມ ${gradeNumber}`;
+  if (!currentClassLevel.value) {
+    alert('ກະລຸນາເລືອກຫ້ອງຮຽນທີ່ມີລະດັບຊັ້ນຮຽນກຳນົດໄວ້');
+    
+    // ພະຍາຍາມດຶງຂໍ້ມູນຫ້ອງຮຽນອີກຄັ້ງ
+    if (currentClassName.value) {
+      fetchClassInfo(currentClassName.value);
     }
-  }
-
-  if (!level) {
-    alert('ບໍ່ສາມາດກຳນົດລະດັບຊັ້ນໄດ້ ກະລຸນາເລືອກຫ້ອງຮຽນໃຫ້ຖືກຕ້ອງ');
+    
     return false;
   }
   
@@ -244,22 +239,13 @@ const saveRegistration = async () => {
     error.value = '';
     apiError.value = '';
     
-    // ຄຳນວນລະດັບຊັ້ນຮຽນຈາກຫ້ອງຮຽນ
-    let level = '';
-    if (currentClassName.value.includes('/')) {
-      const grade = currentClassName.value.split('/')[0].trim();
-      if (grade.startsWith('ມ ')) {
-        const gradeNumber = grade.substring(2);
-        level = `ຊັ້ນ ມ ${gradeNumber}`;
-      }
-    }
-    
+    // ໃຊ້ລະດັບຊັ້ນທີ່ດຶງມາຈາກຂໍ້ມູນຫ້ອງຮຽນແທນການຄຳນວນເອງ
     console.log('ກຳລັງລົງທະບຽນ:', {
       student_id: currentStudentId.value,
       student_name: currentStudentName.value,
       student_phone: currentStudentPhone.value,
       classroom: currentClassName.value,
-      level,
+      level: currentClassLevel.value, // ໃຊ້ຄ່າຈາກຕົວແປທີ່ເກັບລະດັບຊັ້ນ
       school_year: currentSchoolYear.value
     });
     
@@ -269,7 +255,7 @@ const saveRegistration = async () => {
       student_name: currentStudentName.value,
       student_phone: currentStudentPhone.value,
       classroom: currentClassName.value,
-      level: level,
+      level: currentClassLevel.value, // ໃຊ້ຄ່າຈາກຕົວແປທີ່ເກັບລະດັບຊັ້ນ
       school_year: currentSchoolYear.value,
       paid: false
     };
@@ -314,6 +300,7 @@ const clearForm = () => {
   currentStudentName.value = '';
   currentStudentPhone.value = '';
   currentClassName.value = '';
+  currentClassLevel.value = ''; // ລ້າງຄ່າລະດັບຊັ້ນ
   
   // ສ້າງ ID ໃໝ່ສຳລັບການລົງທະບຽນຄັ້ງຕໍ່ໄປ
   generateNewRegistrationId();
@@ -334,19 +321,165 @@ const selectClassroom = (classroom) => {
   currentClassName.value = classroom;
   showClassroomDialog.value = false;
   
-  // ກຳນົດລະດັບຊັ້ນຈາກຫ້ອງຮຽນທີ່ເລືອກ
-  if (classroom.includes('/')) {
-    const grade = classroom.split('/')[0].trim();
-    if (grade.startsWith('ມ ')) {
-      const gradeNumber = grade.substring(2);
-      currentClassId.value = gradeNumber;
+  // ດຶງຂໍ້ມູນຫ້ອງຮຽນຈາກ API
+  fetchClassInfo(classroom);
+};
+
+// ດຶງຂໍ້ມູນຫ້ອງຮຽນແລະລະດັບຊັ້ນທີ່ຖືກຕ້ອງ
+const fetchClassInfo = async (className) => {
+  try {
+    isLoading.value = true;
+    error.value = '';
+    
+    const response = await axios.get(`${API_URL}/classes`, {
+      headers: {
+        Authorization: `Bearer ${authStore.user?.token}`
+      }
+    });
+    
+    if (response.data.success) {
+      // ຊອກຫາຂໍ້ມູນຫ້ອງຮຽນທີ່ເລືອກ
+      const classInfo = response.data.data.find(c => c.name === className);
+      if (classInfo) {
+        // ຕັ້ງຄ່າລະດັບຊັ້ນຕາມຂໍ້ມູນຈາກຖານຂໍ້ມູນ
+        currentClassLevel.value = classInfo.level;
+        currentClassId.value = classInfo.id;
+      } else {
+        // ຖ້າບໍ່ພົບຂໍ້ມູນຫ້ອງຮຽນ ໃຫ້ໃຊ້ວິທີຄຳນວນເດີມ
+        if (className.includes('/')) {
+          const grade = className.split('/')[0].trim();
+          if (grade.startsWith('ມ ')) {
+            const gradeNumber = grade.substring(2);
+            currentClassId.value = gradeNumber;
+            
+            // ຊອກຫາລະດັບຊັ້ນໃນຂໍ້ມູນທີ່ດຶງມາຈາກຖານຂໍ້ມູນ
+            const levelObj = levels.value.find(l => l.name === `ຊັ້ນ ມ ${gradeNumber}`);
+            if (levelObj) {
+              currentClassLevel.value = levelObj.name;
+            } else {
+              currentClassLevel.value = `ຊັ້ນ ມ ${gradeNumber}`;
+            }
+          }
+        }
+      }
     }
+  } catch (err) {
+    console.error('Error fetching class info:', err);
+    error.value = err.response?.data?.message || 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນຫ້ອງຮຽນ';
+  } finally {
+    isLoading.value = false;
   }
 };
 
 // ເປີດໜ້າຕ່າງເລືອກຫ້ອງຮຽນ
 const openClassroomDialog = () => {
+  // ດຶງຂໍ້ມູນຫ້ອງຮຽນກ່ອນເປີດ dialog
+  fetchClasses();
   showClassroomDialog.value = true;
+};
+
+// ດຶງຂໍ້ມູນຫ້ອງຮຽນທັງໝົດ
+const fetchClasses = async () => {
+  try {
+    isLoading.value = true;
+    error.value = '';
+    
+    const response = await axios.get(`${API_URL}/classes`, {
+      headers: {
+        Authorization: `Bearer ${authStore.user?.token}`
+      }
+    });
+    
+    if (response.data.success) {
+      // ປັບຮູບແບບຂໍ້ມູນຫ້ອງຮຽນສຳລັບ dialog
+      classroomData.value = response.data.data.map(c => c.name);
+    }
+  } catch (err) {
+    console.error('Error fetching classes:', err);
+    error.value = err.response?.data?.message || 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນຫ້ອງຮຽນ';
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// ດຶງຂໍ້ມູນປີການສຶກສາທັງໝົດ
+const fetchSchoolYears = async () => {
+  try {
+    isLoading.value = true;
+    error.value = '';
+    
+    const response = await axios.get(`${API_URL}/years`, {
+      headers: {
+        Authorization: `Bearer ${authStore.user?.token}`
+      }
+    });
+    
+    if (response.data.success) {
+      // ປັບຮູບແບບຂໍ້ມູນປີການສຶກສາ
+      schoolYears.value = response.data.data.map(year => ({
+        id: year.id,
+        period: year.period || year.name
+      }));
+      
+      // ຕັ້ງຄ່າປີການສຶກສາປັດຈຸບັນຖ້າມີຂໍ້ມູນ
+      if (schoolYears.value.length > 0 && !currentSchoolYear.value) {
+        // ຫາປີການສຶກສາທີ່ເປັນປັດຈຸບັນ
+        const currentYear = schoolYears.value.find(year => year.period === `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`);
+        if (currentYear) {
+          currentSchoolYear.value = currentYear.period;
+          currentClassId.value = currentYear.id;
+        } else {
+          // ໃຊ້ປີການສຶກສາທຳອິດໃນລາຍການ
+          currentSchoolYear.value = schoolYears.value[0].period;
+          currentClassId.value = schoolYears.value[0].id;
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching school years:', err);
+    error.value = err.response?.data?.message || 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນປີການສຶກສາ';
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// ດຶງຂໍ້ມູນລະດັບຊັ້ນທັງໝົດ
+const fetchLevels = async () => {
+  try {
+    isLoading.value = true;
+    error.value = '';
+    
+    const response = await axios.get(`${API_URL}/levels`, {
+      headers: {
+        Authorization: `Bearer ${authStore.user?.token}`
+      }
+    });
+    
+    if (response.data.success) {
+      // ປັບຮູບແບບຂໍ້ມູນລະດັບຊັ້ນ
+      levels.value = response.data.data.map(level => ({
+        id: level.id,
+        name: level.name
+      }));
+    }
+  } catch (err) {
+    console.error('Error fetching levels:', err);
+    error.value = err.response?.data?.message || 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນລະດັບຊັ້ນ';
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// ເລືອກປີການສຶກສາ
+const selectSchoolYear = (year) => {
+  currentSchoolYear.value = year.period;
+  currentClassId.value = year.id;
+  showSchoolYearDialog.value = false;
+};
+
+// ເປີດໜ້າຕ່າງເລືອກປີການສຶກສາ
+const openSchoolYearDialog = () => {
+  showSchoolYearDialog.value = true;
 };
 
 // ເມື່ອຄອມໂພເນນໂຫລດ
@@ -360,12 +493,19 @@ onMounted(() => {
     fetchRegistrations();
     searchStudents();
     
+    // ດຶງຂໍ້ມູນປີການສຶກສາແລະລະດັບຊັ້ນຈາກຖານຂໍ້ມູນ
+    fetchSchoolYears();
+    fetchLevels();
+    fetchClasses(); // ດຶງຂໍ້ມູນຫ້ອງຮຽນ
+    
     // ສ້າງ ID ໃໝ່ສຳລັບການລົງທະບຽນ
     generateNewRegistrationId();
     
-    // ຕັ້ງຄ່າປີການສຶກສາປັດຈຸບັນ
-    const currentYear = new Date().getFullYear();
-    currentSchoolYear.value = `${currentYear}-${currentYear + 1}`;
+    // ຕັ້ງຄ່າປີການສຶກສາປັດຈຸບັນ (ຈະໃຊ້ເປັນຄ່າເລີ່ມຕົ້ນຖ້າບໍ່ສາມາດດຶງຂໍ້ມູນຈາກ API)
+    if (!currentSchoolYear.value) {
+      const currentYear = new Date().getFullYear();
+      currentSchoolYear.value = `${currentYear}-${currentYear + 1}`;
+    }
   } else {
     error.value = 'ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນໃຊ້ງານ';
   }
@@ -396,10 +536,10 @@ onMounted(() => {
         <input type="text" class="w-full px-2 py-1 border rounded bg-white" v-model="currentClassId" placeholder="002" />
       </div>
       <div class="w-56 mr-2">
-        <input type="text" class="w-full px-2 py-1 border rounded bg-white" v-model="currentSchoolYear" />
+        <input type="text" class="w-full px-2 py-1 border rounded bg-white" v-model="currentSchoolYear" readonly />
       </div>
       <div class="w-12">
-        <button class="w-full px-2 py-1 bg-white border rounded hover:bg-gray-100">...</button>
+        <button class="w-full px-2 py-1 bg-white border rounded hover:bg-gray-100" @click="openSchoolYearDialog">...</button>
       </div>
     </div>
 
@@ -549,6 +689,28 @@ onMounted(() => {
             class="px-2 py-1 border rounded hover:bg-gray-100"
           >
             {{ classroom }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dialog ເລືອກປີການສຶກສາ -->
+    <div v-if="showSchoolYearDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white p-4 rounded-md shadow-lg max-w-md w-full">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-bold">ເລືອກປີການສຶກສາ</h3>
+          <button @click="showSchoolYearDialog = false" class="text-gray-500 hover:text-gray-700">
+            &times;
+          </button>
+        </div>
+        <div class="grid grid-cols-2 gap-2 mb-4">
+          <button 
+            v-for="year in schoolYears" 
+            :key="year.id"
+            @click="selectSchoolYear(year)"
+            class="px-2 py-1 border rounded hover:bg-gray-100"
+          >
+            {{ year.period }}
           </button>
         </div>
       </div>
