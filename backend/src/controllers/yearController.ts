@@ -59,6 +59,30 @@ class YearController {
         return;
       }
       
+      // กำหนดชื่อปีการศึกษาถ้าไม่มี
+      if (!yearData.name) {
+        yearData.name = yearData.period;
+      }
+      
+      // กำหนดวันที่เริ่มต้นและสิ้นสุดถ้าไม่มี
+      if (!yearData.start_date || !yearData.end_date) {
+        const [startYear, endYear] = yearData.period.split('-').map(year => parseInt(year.trim()));
+        
+        if (startYear && endYear) {
+          yearData.start_date = `${startYear}-05-01`;
+          yearData.end_date = `${endYear}-04-30`;
+        } else {
+          const currentYear = new Date().getFullYear();
+          yearData.start_date = `${currentYear}-05-01`;
+          yearData.end_date = `${currentYear + 1}-04-30`;
+        }
+      }
+      
+      // กำหนดค่า is_current ถ้าไม่มี
+      if (yearData.is_current === undefined) {
+        yearData.is_current = false;
+      }
+      
       const newYear = await yearModel.createYear(yearData);
       res.status(201).json({
         success: true,
@@ -86,6 +110,21 @@ class YearController {
           message: 'ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບຖ້ວນ'
         });
         return;
+      }
+      
+      // กำหนดชื่อปีการศึกษาถ้าไม่มี
+      if (!yearData.name && yearData.period) {
+        yearData.name = yearData.period;
+      }
+      
+      // อัปเดตวันที่เริ่มต้นและสิ้นสุดถ้ามีการเปลี่ยนแปลงปีการศึกษา
+      if (yearData.period && (!yearData.start_date || !yearData.end_date)) {
+        const [startYear, endYear] = yearData.period.split('-').map(year => parseInt(year.trim()));
+        
+        if (startYear && endYear) {
+          if (!yearData.start_date) yearData.start_date = `${startYear}-05-01`;
+          if (!yearData.end_date) yearData.end_date = `${endYear}-04-30`;
+        }
       }
       
       const success = await yearModel.updateYear(id, yearData);
