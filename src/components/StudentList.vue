@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { onMounted } from '@vue/runtime-core';
+import { onMounted, watch } from '@vue/runtime-core';
 import type { Student } from '../types/student';
 import { useStudentStore } from '../stores/studentStore';
 
@@ -63,11 +63,15 @@ const deleteStudent = async (student: Student) => {
   if (confirm(`ທ່ານແນ່ໃຈບໍວ່າຕ້ອງການລຶບຂໍ້ມູນນັກຮຽນ ${student.studentNameLao}?`)) {
     try {
       isLoading.value = true;
-      await studentStore.deleteStudent(student.studentId);
-      alert('ລຶບຂໍ້ມູນນັກຮຽນສຳເລັດແລ້ວ');
-      // รีเซ็ตหน้าเพจถ้ารายการในหน้านั้นว่างเปล่า
-      if (paginatedStudents.value.length === 1 && currentPage.value > 1) {
-        currentPage.value--;
+      const success = await studentStore.deleteStudent(student.studentId);
+      if (success) {
+        alert('ລຶບຂໍ້ມູນນັກຮຽນສຳເລັດແລ້ວ');
+        // รีเซ็ตหน้าเพจถ้ารายการในหน้านั้นว่างเปล่า
+        if (paginatedStudents.value.length === 1 && currentPage.value > 1) {
+          currentPage.value--;
+        }
+      } else {
+        errorMessage.value = studentStore.errorMessage.value || 'ບໍ່ສາມາດລຶບຂໍ້ມູນນັກຮຽນໄດ້';
       }
     } catch (error) {
       console.error('ເກີດຂໍ້ຜິດພາດໃນການລຶບຂໍ້ມູນນັກຮຽນ:', error);
@@ -91,7 +95,7 @@ const loadStudents = async () => {
   try {
     isLoading.value = true;
     errorMessage.value = '';
-    studentStore.getAllStudents();
+    await studentStore.getAllStudents();
   } catch (error) {
     console.error('ເກີດຂໍ້ຜິດພາດໃນການໂຫລດຂໍ້ມູນນັກຮຽນ:', error);
     errorMessage.value = 'ບໍ່ສາມາດໂຫລດຂໍ້ມູນນັກຮຽນໄດ້';
@@ -100,8 +104,28 @@ const loadStudents = async () => {
   }
 };
 
+// เพิ่มฟังก์ชันสำหรับการค้นหา
+const searchStudents = async () => {
+  currentPage.value = 1; // รีเซ็ตหน้าเมื่อค้นหา
+  try {
+    isLoading.value = true;
+    errorMessage.value = '';
+    await studentStore.getFilteredStudents();
+  } catch (error) {
+    console.error('ເກີດຂໍ້ຜິດພາດໃນການຄົ້ນຫານັກຮຽນ:', error);
+    errorMessage.value = 'ບໍ່ສາມາດຄົ້ນຫານັກຮຽນໄດ້';
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 // โหลดข้อมูลเมื่อคอมโพเนนต์ถูกสร้าง
 onMounted(loadStudents);
+
+// เพิ่ม watcher สำหรับการค้นหา
+watch([searchQuery, selectedGender], () => {
+  searchStudents();
+});
 </script>
 
 <template>

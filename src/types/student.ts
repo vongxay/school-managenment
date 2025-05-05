@@ -2,7 +2,7 @@ export interface Student {
   studentId: string;
   studentNameLao: string;
   guardianPhone: string;
-  gender: string;
+  gender: 'M' | 'F';
   province: string;
   district: string;
   village: string;
@@ -16,8 +16,9 @@ export interface Student {
   nationality: string;
   dateOfBirth: string;
   phoneNumber: string;
-  searchQuery: string;
   photoUrl: string;
+  searchQuery: string;
+  _id?: string; // ID จาก API
 }
 
 export interface StudentFormValidation {
@@ -35,4 +36,18 @@ export interface User {
   role: 'admin' | 'teacher' | 'staff';
   active: boolean;
   image: string | null;
+}
+
+export interface StudentRegistration {
+  id: string;
+  invoice_id: string;
+  student_id: string;
+  student_name: string;
+  student_phone: string;
+  classroom: string;
+  level: string;
+  school_year: string;
+  is_paid: boolean;
+  registration_date: string;
+  tuition_fee: number;
 }

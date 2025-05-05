@@ -198,7 +198,7 @@ const resetForm = () => {
 };
 
 // เพิ่มฟังก์ชันสำหรับค้นหานักเรียน
-const searchStudents = () => {
+const searchStudents = async () => {
   if (!studentSearchQuery.value.trim()) {
     filteredStudents.value = [];
     filteredRegistrations.value = [];
@@ -207,17 +207,25 @@ const searchStudents = () => {
   
   const query = studentSearchQuery.value.toLowerCase();
   
-  // ค้นหาในข้อมูลนักเรียน
-  filteredStudents.value = studentStore.getAllStudents().filter(student => 
-    student.studentId.toLowerCase().includes(query) || 
-    student.studentNameLao.toLowerCase().includes(query) ||
-    student.phoneNumber.toLowerCase().includes(query)
-  ).slice(0, 3); // แสดงแค่ 3 คนแรกเพื่อไม่ให้รายการยาวเกินไป
-  
-  // ค้นหาในข้อมูลการลงทะเบียน
-  filteredRegistrations.value = studentStore.searchRegistrations(query).slice(0, 3);
-  
-  showStudentSearch.value = true;
+  try {
+    // ค้นหาในข้อมูลนักเรียน
+    const students = await studentStore.getAllStudents();
+    filteredStudents.value = students.filter(student => 
+      student.studentId.toLowerCase().includes(query) || 
+      student.studentNameLao.toLowerCase().includes(query) ||
+      student.phoneNumber.toLowerCase().includes(query)
+    ).slice(0, 3); // แสดงแค่ 3 คนแรกเพื่อไม่ให้รายการยาวเกินไป
+    
+    // ค้นหาในข้อมูลการลงทะเบียน
+    const registrations = await studentStore.searchRegistrations(query);
+    filteredRegistrations.value = registrations.slice(0, 3);
+    
+    showStudentSearch.value = true;
+  } catch (error) {
+    console.error('ເກີດຂໍ້ຜິດພາດໃນການຄົ້ນຫາ:', error);
+    filteredStudents.value = [];
+    filteredRegistrations.value = [];
+  }
 };
 
 // เพิ่มฟังก์ชันสำหรับเลือกนักเรียน
@@ -241,7 +249,7 @@ const selectRegistration = async (registrationId: string) => {
     isLoading.value = true;
     
     console.log('ກຳລັງໂຫລດຂໍ້ມູນລົງທະບຽນ:', registrationId);
-    const registration = studentStore.getRegistrationByInvoiceId(registrationId);
+    const registration = await studentStore.getRegistrationByInvoiceId(registrationId);
     
     if (!registration) {
       console.error('ບໍ່ພົບຂໍ້ມູນການລົງທະບຽນ:', registrationId);
