@@ -1,6 +1,7 @@
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import db from '../utils/db';
 import { v4 as uuidv4 } from 'uuid';
+import { formatDateToYMD } from '../utils/dateUtils';
 
 // กำหนดชนิดข้อมูลสำหรับนักเรียน
 export interface Student extends RowDataPacket {
@@ -13,14 +14,14 @@ export interface Student extends RowDataPacket {
   district: string;
   village: string;
   id_number: string;
-  id_issued_date: Date | null;
+  id_issued_date: Date | string | null;
   birth_village: string;
   birth_district: string;
   birth_province: string;
   ethnicity: string;
   religion: string;
   nationality: string;
-  date_of_birth: Date | null;
+  date_of_birth: Date | string | null;
   phone_number: string;
   photo_url: string;
   created_at: Date;
@@ -78,7 +79,23 @@ class StudentModel {
         'SELECT * FROM students WHERE id = ?',
         [id]
       );
-      return rows.length > 0 ? rows[0] : null;
+      
+      if (rows.length > 0) {
+        const student = rows[0];
+        
+        // จัดรูปแบบวันที่
+        if (student.date_of_birth) {
+          student.date_of_birth = formatDateToYMD(student.date_of_birth);
+        }
+        
+        if (student.id_issued_date) {
+          student.id_issued_date = formatDateToYMD(student.id_issued_date);
+        }
+        
+        return student;
+      }
+      
+      return null;
     } catch (error) {
       console.error('Error finding student by ID:', error);
       throw error;
@@ -92,7 +109,23 @@ class StudentModel {
         'SELECT * FROM students WHERE student_id = ?',
         [studentId]
       );
-      return rows.length > 0 ? rows[0] : null;
+      
+      if (rows.length > 0) {
+        const student = rows[0];
+        
+        // จัดรูปแบบวันที่
+        if (student.date_of_birth) {
+          student.date_of_birth = formatDateToYMD(student.date_of_birth);
+        }
+        
+        if (student.id_issued_date) {
+          student.id_issued_date = formatDateToYMD(student.id_issued_date);
+        }
+        
+        return student;
+      }
+      
+      return null;
     } catch (error) {
       console.error('Error finding student by student ID:', error);
       throw error;
@@ -151,12 +184,25 @@ class StudentModel {
       // ดึงข้อมูลนักเรียน
       const [rows] = await db.execute<Student[]>(query, queryParams);
       
+      // จัดรูปแบบวันที่สำหรับนักเรียนทุกคน
+      const formattedStudents = rows.map(student => {
+        if (student.date_of_birth) {
+          student.date_of_birth = formatDateToYMD(student.date_of_birth);
+        }
+        
+        if (student.id_issued_date) {
+          student.id_issued_date = formatDateToYMD(student.id_issued_date);
+        }
+        
+        return student;
+      });
+      
       // ดึงจำนวนทั้งหมด
       const [countResult] = await db.execute<RowDataPacket[]>(countQuery, countParams);
       const total = countResult[0]?.total || 0;
       
       return {
-        students: rows,
+        students: formattedStudents,
         total
       };
     } catch (error) {

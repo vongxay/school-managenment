@@ -1,6 +1,7 @@
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../utils/db';
+import { formatDateToYMD } from '../utils/dateUtils';
 
 export interface Student extends RowDataPacket {
   id: string;
@@ -43,17 +44,61 @@ export interface StudentRegistration extends RowDataPacket {
 export const StudentModel = {
   findAll: async (): Promise<Student[]> => {
     const [rows] = await db.query<Student[]>('SELECT * FROM students');
-    return rows;
+    
+    // จัดรูปแบบวันที่สำหรับนักเรียนทุกคน
+    return rows.map(student => {
+      if (student.date_of_birth) {
+        student.date_of_birth = formatDateToYMD(student.date_of_birth);
+      }
+      
+      if (student.id_issued_date) {
+        student.id_issued_date = formatDateToYMD(student.id_issued_date);
+      }
+      
+      return student;
+    });
   },
   
   findById: async (id: string): Promise<Student | null> => {
     const [rows] = await db.query<Student[]>('SELECT * FROM students WHERE id = ?', [id]);
-    return rows.length > 0 ? rows[0] : null;
+    
+    if (rows.length > 0) {
+      const student = rows[0];
+      
+      // จัดรูปแบบวันที่
+      if (student.date_of_birth) {
+        student.date_of_birth = formatDateToYMD(student.date_of_birth);
+      }
+      
+      if (student.id_issued_date) {
+        student.id_issued_date = formatDateToYMD(student.id_issued_date);
+      }
+      
+      return student;
+    }
+    
+    return null;
   },
   
   findByStudentId: async (studentId: string): Promise<Student | null> => {
     const [rows] = await db.query<Student[]>('SELECT * FROM students WHERE student_id = ?', [studentId]);
-    return rows.length > 0 ? rows[0] : null;
+    
+    if (rows.length > 0) {
+      const student = rows[0];
+      
+      // จัดรูปแบบวันที่
+      if (student.date_of_birth) {
+        student.date_of_birth = formatDateToYMD(student.date_of_birth);
+      }
+      
+      if (student.id_issued_date) {
+        student.id_issued_date = formatDateToYMD(student.id_issued_date);
+      }
+      
+      return student;
+    }
+    
+    return null;
   },
   
   create: async (student: Omit<Student, 'id' | 'created_at' | 'updated_at'>): Promise<string> => {
@@ -128,7 +173,14 @@ export const StudentModel = {
     }
     
     const [rows] = await db.query<any[]>(query, params);
-    return rows;
+    
+    // จัดรูปแบบวันที่ในข้อมูลการลงทะเบียน
+    return rows.map(registration => {
+      if (registration.registration_date) {
+        registration.registration_date = formatDateToYMD(registration.registration_date);
+      }
+      return registration;
+    });
   },
   
   // หาข้อมูลการลงทะเบียนตาม Invoice ID
@@ -145,7 +197,18 @@ export const StudentModel = {
       [invoiceId]
     );
     
-    return rows.length > 0 ? rows[0] : null;
+    if (rows.length > 0) {
+      const registration = rows[0];
+      
+      // จัดรูปแบบวันที่
+      if (registration.registration_date) {
+        registration.registration_date = formatDateToYMD(registration.registration_date);
+      }
+      
+      return registration;
+    }
+    
+    return null;
   },
   
   // ค้นหาข้อมูลการลงทะเบียน
@@ -166,7 +229,13 @@ export const StudentModel = {
       [searchPattern, searchPattern, searchPattern, searchPattern]
     );
     
-    return rows;
+    // จัดรูปแบบวันที่ในข้อมูลการลงทะเบียน
+    return rows.map(registration => {
+      if (registration.registration_date) {
+        registration.registration_date = formatDateToYMD(registration.registration_date);
+      }
+      return registration;
+    });
   },
   
   // อัปเดตสถานะการชำระเงิน
