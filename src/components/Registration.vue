@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/authStore';
 
 const authStore = useAuthStore();
 
-// ข้อมูลการลงทะเบียน
+// ຂໍ້ມູນການລົງທະບຽນ
 const registrations = ref([]);
 const studentTableData = ref([]);
 const classroomData = ref([
@@ -17,13 +17,13 @@ const classroomData = ref([
   'ມ 6/1', 'ມ 6/2', 'ມ 6/3', 'ມ 6/4',
 ]);
 
-// URL ของ API
+// URL ຂອງ API
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-// ตัวแปรสถานะ
+// ຕົວແປສະຖານະ
 const isLoading = ref(false);
 const error = ref('');
-const apiError = ref(''); // ข้อผิดพลาดจาก API
+const apiError = ref(''); // ຂໍ້ຜິດພາດຈາກ API
 const currentRegistrationId = ref('');
 const currentSchoolYear = ref('');
 const currentClassId = ref('');
@@ -40,7 +40,7 @@ const isAuthenticated = ref(false);
 const token = ref('');
 const showClassroomDialog = ref(false);
 
-// กรองข้อมูลนักเรียนสำหรับแสดงในตาราง
+// ກອງຂໍ້ມູນນັກຮຽນສຳລັບສະແດງໃນຕາຕະລາງ
 const filteredStudents = computed(() => {
   if (!studentSearchQuery.value) {
     return studentTableData.value;
@@ -54,7 +54,7 @@ const filteredStudents = computed(() => {
   );
 });
 
-// กรองข้อมูลการลงทะเบียนสำหรับแสดงในตาราง
+// ກອງຂໍ້ມູນການລົງທະບຽນສຳລັບສະແດງໃນຕາຕະລາງ
 const filteredRegistrations = computed(() => {
   if (!searchQuery.value) {
     return [...registrations.value].reverse();
@@ -70,13 +70,13 @@ const filteredRegistrations = computed(() => {
   return filtered.slice(0, 10).reverse();
 });
 
-// ดึงข้อมูลการลงทะเบียนทั้งหมด
+// ດຶງຂໍ້ມູນການລົງທະບຽນທັງໝົດ
 const fetchRegistrations = async () => {
   try {
     isLoading.value = true;
     error.value = '';
     
-    // ถ้าไม่มีการค้นหา ให้ดึงข้อมูลทั้งหมด
+    // ຖ້າບໍ່ມີການຄົ້ນຫາ ໃຫ້ດຶງຂໍ້ມູນທັງໝົດ
     let url = `${API_URL}/registrations`;
     if (searchQuery.value) {
       url += `?search=${encodeURIComponent(searchQuery.value)}`;
@@ -89,7 +89,7 @@ const fetchRegistrations = async () => {
     });
     
     if (response.data.success) {
-      // ปรับรูปแบบข้อมูลให้ตรงกับโครงสร้างที่ใช้แสดงผล
+      // ປັບຮູບແບບຂໍ້ມູນໃຫ້ຕົງກັບໂຄງສ້າງທີ່ໃຊ້ສະແດງຜົນ
       const formattedData = response.data.data.registrations.map(reg => ({
         id: reg.id || reg.invoice_id,
         registrationDate: reg.registration_date,
@@ -102,7 +102,7 @@ const fetchRegistrations = async () => {
         paid: reg.paid || reg.is_paid || false
       }));
       
-      // กำหนดข้อมูลให้กับอาร์เรย์ที่ใช้แสดงผล
+      // ກຳນົດຂໍ້ມູນໃຫ້ກັບອາເຣເທີ່ໃຊ້ສະແດງຜົນ
       registrations.value = formattedData;
     }
   } catch (err) {
@@ -113,7 +113,7 @@ const fetchRegistrations = async () => {
   }
 };
 
-// ค้นหานักเรียน
+// ຄົ້ນຫານັກຮຽນ
 const searchStudents = async () => {
   try {
     isLoading.value = true;
@@ -135,37 +135,37 @@ const searchStudents = async () => {
     });
     
     if (response.data.success) {
-      // ปรับรูปแบบข้อมูลให้ตรงกับโครงสร้างที่ใช้แสดงผล
+      // ປັບຮູບແບບຂໍ້ມູນໃຫ້ຕົງກັບໂຄງສ້າງທີ່ໃຊ້ສະແດງຜົນ
       const formattedData = response.data.data.students.map(student => ({
         studentId: student.student_id,
         studentName: student.student_name_lao,
         studentPhone: student.guardian_phone || student.phone || ''
       }));
       
-      // กำหนดข้อมูลให้กับอาร์เรย์ที่ใช้แสดงผล
+      // ກຳນົດຂໍ້ມູນໃຫ້ກັບອາເຣເທີ່ໃຊ້ສະແດງຜົນ
       studentTableData.value = formattedData;
     }
   } catch (err) {
     console.error('Error searching students:', err);
     error.value = err.response?.data?.message || 'ເກີດຂໍ້ຜິດພາດໃນການຄົ້ນຫານັກຮຽນ';
-    studentTableData.value = []; // ล้างข้อมูลที่แสดง
+    studentTableData.value = []; // ລ້າງຂໍ້ມູນທີ່ສະແດງ
   } finally {
     isLoading.value = false;
   }
 };
 
-// เลือกนักเรียนจากตาราง
+// ເລືອກນັກຮຽນຈາກຕາຕະລາງ
 const selectStudent = (student) => {
   currentStudentId.value = student.studentId;
   currentStudentName.value = student.studentName;
   currentStudentPhone.value = student.studentPhone;
 };
 
-// สร้าง ID ใหม่สำหรับการลงทะเบียน
+// ສ້າງ ID ໃໝ່ສຳລັບການລົງທະບຽນ
 const generateNewRegistrationId = () => {
   let lastId = 0;
   
-  // หาค่า ID ล่าสุดจากข้อมูลที่มีอยู่
+  // ຫາຄ່າ ID ຫຼ້າສຸດຈາກຂໍ້ມູນທີ່ມີຢູ່
   registrations.value.forEach(reg => {
     try {
       const idParts = reg.id.split('-');
@@ -181,16 +181,16 @@ const generateNewRegistrationId = () => {
     }
   });
   
-  // สร้าง ID ใหม่
+  // ສ້າງ ID ໃໝ່
   currentRegistrationId.value = `INV-${String(lastId + 1).padStart(8, '0')}`;
 };
 
-// พิมพ์การลงทะเบียน
+// ພິມການລົງທະບຽນ
 const printRegistration = () => {
   alert('ກຳລັງສັ່ງພິມໃບລົງທະບຽນ...');
 };
 
-// ตรวจสอบความถูกต้องของข้อมูล
+// ກວດສອບຄວາມຖືກຕ້ອງຂອງຂໍ້ມູນ
 const validateForm = () => {
   if (!currentStudentId.value) {
     alert('ກະລຸນາເລືອກນັກຮຽນກ່ອນລົງທະບຽນ');
@@ -217,7 +217,7 @@ const validateForm = () => {
     return false;
   }
 
-  // กำหนดระดับชั้นจากห้องเรียน (ต้องมีค่า)
+  // ກຳນົດລະດັບຊັ້ນຈາກຫ້ອງຮຽນ (ຕ້ອງມີຄ່າ)
   let level = '';
   if (currentClassName.value.includes('/')) {
     const grade = currentClassName.value.split('/')[0].trim();
@@ -235,7 +235,7 @@ const validateForm = () => {
   return true;
 };
 
-// บันทึกการลงทะเบียน
+// ບັນທຶກການລົງທະບຽນ
 const saveRegistration = async () => {
   if (!validateForm()) return;
   
@@ -244,7 +244,7 @@ const saveRegistration = async () => {
     error.value = '';
     apiError.value = '';
     
-    // คำนวณระดับชั้นเรียนจากห้องเรียน
+    // ຄຳນວນລະດັບຊັ້ນຮຽນຈາກຫ້ອງຮຽນ
     let level = '';
     if (currentClassName.value.includes('/')) {
       const grade = currentClassName.value.split('/')[0].trim();
@@ -254,7 +254,7 @@ const saveRegistration = async () => {
       }
     }
     
-    console.log('กำลังลงทะเบียน:', {
+    console.log('ກຳລັງລົງທະບຽນ:', {
       student_id: currentStudentId.value,
       student_name: currentStudentName.value,
       student_phone: currentStudentPhone.value,
@@ -263,7 +263,7 @@ const saveRegistration = async () => {
       school_year: currentSchoolYear.value
     });
     
-    // สร้างข้อมูลการลงทะเบียนใหม่ตามโครงสร้างฐานข้อมูล
+    // ສ້າງຂໍ້ມູນການລົງທະບຽນໃໝ່ຕາມໂຄງສ້າງຖານຂໍ້ມູນ
     const registrationData = {
       student_id: currentStudentId.value,
       student_name: currentStudentName.value,
@@ -274,7 +274,7 @@ const saveRegistration = async () => {
       paid: false
     };
     
-    // ส่งข้อมูลไปยัง API
+    // ສົ່ງຂໍ້ມູນໄປຍັງ API
     const response = await axios.post(`${API_URL}/registrations`, registrationData, {
       headers: {
         Authorization: `Bearer ${authStore.user?.token}`,
@@ -282,14 +282,14 @@ const saveRegistration = async () => {
       }
     }).catch(error => {
       console.error("API Error:", error.response?.data || error.message);
-      throw error; // ส่งต่อข้อผิดพลาดเพื่อให้ catch ด้านนอกจัดการต่อ
+      throw error; // ສົ່ງຕໍ່ຂໍ້ຜິດພາດເພື່ອໃຫ້ catch ດ້ານນອກຈັດການຕໍ່
     });
     
     if (response.data.success) {
-      // ดึงข้อมูลการลงทะเบียนใหม่
+      // ດຶງຂໍ້ມູນການລົງທະບຽນໃໝ່
       await fetchRegistrations();
       
-      // ล้างฟอร์มหลังจากบันทึก
+      // ລ້າງຟອມຫຼັງຈາກບັນທຶກ
       clearForm();
       
       alert('ບັນທຶກການລົງທະບຽນສຳເລັດ');
@@ -308,33 +308,33 @@ const saveRegistration = async () => {
   }
 };
 
-// เพิ่มฟังก์ชัน clearForm สำหรับล้างข้อมูลในฟอร์ม
+// ເພີ່ມຟັງຊັນ clearForm ສຳລັບລ້າງຂໍ້ມູນໃນຟອມ
 const clearForm = () => {
   currentStudentId.value = '';
   currentStudentName.value = '';
   currentStudentPhone.value = '';
   currentClassName.value = '';
   
-  // สร้าง ID ใหม่สำหรับการลงทะเบียนครั้งต่อไป
+  // ສ້າງ ID ໃໝ່ສຳລັບການລົງທະບຽນຄັ້ງຕໍ່ໄປ
   generateNewRegistrationId();
 };
 
-// ค้นหาข้อมูลเมื่อมีการเปลี่ยนแปลงค่าในช่องค้นหา
+// ຄົ້ນຫາຂໍ້ມູນເມື່ອມີການປ່ຽນແປງຄ່າໃນຊ່ອງຄົ້ນຫາ
 const handleStudentSearch = () => {
   searchStudents();
 };
 
-// ค้นหาการลงทะเบียนเมื่อมีการเปลี่ยนแปลงค่าในช่องค้นหา
+// ຄົ້ນຫາການລົງທະບຽນເມື່ອມີການປ່ຽນແປງຄ່າໃນຊ່ອງຄົ້ນຫາ
 const handleRegistrationSearch = () => {
   fetchRegistrations();
 };
 
-// เลือกห้องเรียน
+// ເລືອກຫ້ອງຮຽນ
 const selectClassroom = (classroom) => {
   currentClassName.value = classroom;
   showClassroomDialog.value = false;
   
-  // กำหนดระดับชั้นจากห้องเรียนที่เลือก
+  // ກຳນົດລະດັບຊັ້ນຈາກຫ້ອງຮຽນທີ່ເລືອກ
   if (classroom.includes('/')) {
     const grade = classroom.split('/')[0].trim();
     if (grade.startsWith('ມ ')) {
@@ -344,26 +344,26 @@ const selectClassroom = (classroom) => {
   }
 };
 
-// เปิดหน้าต่างเลือกห้องเรียน
+// ເປີດໜ້າຕ່າງເລືອກຫ້ອງຮຽນ
 const openClassroomDialog = () => {
   showClassroomDialog.value = true;
 };
 
-// เมื่อคอมโพเนนต์โหลด
+// ເມື່ອຄອມໂພເນນໂຫລດ
 onMounted(() => {
-  // ตรวจสอบการเข้าสู่ระบบจาก authStore
+  // ກວດສອບການເຂົ້າສູ່ລະບົບຈາກ authStore
   if (authStore.isAuthenticated) {
     isAuthenticated.value = true;
     token.value = authStore.user?.token || '';
     
-    // ดึงข้อมูลการลงทะเบียนและนักเรียน
+    // ດຶງຂໍ້ມູນການລົງທະບຽນແລະນັກຮຽນ
     fetchRegistrations();
     searchStudents();
     
-    // สร้าง ID ใหม่สำหรับการลงทะเบียน
+    // ສ້າງ ID ໃໝ່ສຳລັບການລົງທະບຽນ
     generateNewRegistrationId();
     
-    // ตั้งค่าปีการศึกษาปัจจุบัน
+    // ຕັ້ງຄ່າປີການສຶກສາປັດຈຸບັນ
     const currentYear = new Date().getFullYear();
     currentSchoolYear.value = `${currentYear}-${currentYear + 1}`;
   } else {
@@ -389,7 +389,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- ส่วนแสดงปีการศึกษา -->
+    <!-- ສ່ວນແສດງປີການຨຶກສາ -->
     <div class="flex items-center mb-4 justify-end">
       <div class="w-28">ສົກຮຽນ</div>
       <div class="w-16 mr-4">
@@ -403,7 +403,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- ส่วนแสดงห้องเรียน -->
+    <!-- ສ່ວນແສດງຫ້ອງຮຽນ -->
     <div class="flex items-center mb-4 justify-end">
       <div class="w-28">ຫ້ອງຮຽນ</div>
       <div class="w-16 mr-4">
@@ -532,7 +532,7 @@ onMounted(() => {
       </button>
     </div>
 
-    <!-- Dialog เลือกห้องเรียน -->
+    <!-- Dialog ເລືອກຫ້ອງຮຽນ -->
     <div v-if="showClassroomDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div class="bg-white p-4 rounded-md shadow-lg max-w-md w-full">
         <div class="flex justify-between items-center mb-4">
