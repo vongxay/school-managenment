@@ -1,33 +1,45 @@
 import express from 'express';
 import cors from 'cors';
-import config from './config';
-import routes from './routes';
-import { testConnection } from './utils/db';
+import dotenv from 'dotenv';
+import morgan from 'morgan';
+import { checkConnection } from './utils/db';
+import apiRoutes from './routes/index';
 
-// สร้าง Express app
+// โหลดตัวแปรสภาพแวดล้อม
+dotenv.config();
+
+// สร้างแอปพลิเคชัน Express
 const app = express();
+const port = process.env.PORT || 5000;
 
-// ใช้ middleware
+// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(morgan('dev'));
 
-// ทดสอบการเชื่อมต่อฐานข้อมูล
-testConnection();
-
-// ลงทะเบียนเส้นทาง API
-app.use('/api', routes);
-
-// จัดการเส้นทางที่ไม่มี
-app.use('*', (req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'ບໍ່ພົບເສັ້ນທາງທີ່ຮ້ອງຂໍ'
+// ตรวจสอบการเชื่อมต่อฐานข้อมูล
+checkConnection()
+  .then((connected) => {
+    if (!connected) {
+      console.error('ไม่สามารถเชื่อมต่อกับฐานข้อมูลได้ กรุณาตรวจสอบการตั้งค่า');
+      process.exit(1);
+    }
+  })
+  .catch((error) => {
+    console.error('เกิดข้อผิดพลาดในการเชื่อมต่อกับฐานข้อมูล:', error);
+    process.exit(1);
   });
+
+// เส้นทาง API หลัก
+app.get('/', (req, res) => {
+  res.json({ message: 'ยินดีต้อนรับสู่ School Management API' });
 });
 
+// นำเข้าเส้นทาง API ทั้งหมด
+app.use('/api', apiRoutes);
+
 // เริ่มต้นเซิร์ฟเวอร์
-const PORT = config.port;
-app.listen(PORT, () => {
-  console.log(`ເຊີເວີ້ກຳລັງທຳງານທີ່ພອດ ${PORT}`);
+app.listen(port, () => {
+  console.log(`เซิร์ฟเวอร์กำลังทำงานที่พอร์ต ${port}`);
 }); 

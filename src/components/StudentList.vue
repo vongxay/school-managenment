@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { onMounted, watch } from '@vue/runtime-core';
 import type { Student } from '../types/student';
 import { useStudentStore } from '../stores/studentStore';
 
@@ -9,6 +10,8 @@ const studentStore = useStudentStore();
 // const students = studentStore.students;
 const searchQuery = studentStore.searchQuery;
 const selectedGender = studentStore.selectedGender;
+const isLoading = ref(false);
+const errorMessage = ref('');
 
 // Function to switch to form tab - need to be used by parent component
 const emits = defineEmits(['switch-to-form']);
@@ -56,9 +59,26 @@ const editStudent = (student: Student) => {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
-const deleteStudent = (student: Student) => {
+const deleteStudent = async (student: Student) => {
   if (confirm(`ທ່ານແນ່ໃຈບໍວ່າຕ້ອງການລຶບຂໍ້ມູນນັກຮຽນ ${student.studentNameLao}?`)) {
-    studentStore.deleteStudent(student.studentId);
+    try {
+      isLoading.value = true;
+      const success = await studentStore.deleteStudent(student.studentId);
+      if (success) {
+        alert('ລຶບຂໍ້ມູນນັກຮຽນສຳເລັດແລ້ວ');
+        // รีเซ็ตหน้าเพจถ้ารายการในหน้านั้นว่างเปล่า
+        if (paginatedStudents.value.length === 1 && currentPage.value > 1) {
+          currentPage.value--;
+        }
+      } else {
+        errorMessage.value = studentStore.errorMessage.value || 'ບໍ່ສາມາດລຶບຂໍ້ມູນນັກຮຽນໄດ້';
+      }
+    } catch (error) {
+      console.error('ເກີດຂໍ້ຜິດພາດໃນການລຶບຂໍ້ມູນນັກຮຽນ:', error);
+      errorMessage.value = 'ບໍ່ສາມາດລຶບຂໍ້ມູນນັກຮຽນໄດ້';
+    } finally {
+      isLoading.value = false;
+    }
   }
 };
 
@@ -69,12 +89,58 @@ const addNewStudent = () => {
   // Scroll to form
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
+
+// เพิ่มฟังก์ชันโหลดข้อมูลเมื่อเริ่มต้น
+const loadStudents = async () => {
+  try {
+    isLoading.value = true;
+    errorMessage.value = '';
+    await studentStore.getAllStudents();
+  } catch (error) {
+    console.error('ເກີດຂໍ້ຜິດພາດໃນການໂຫລດຂໍ້ມູນນັກຮຽນ:', error);
+    errorMessage.value = 'ບໍ່ສາມາດໂຫລດຂໍ້ມູນນັກຮຽນໄດ້';
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// เพิ่มฟังก์ชันสำหรับการค้นหา
+const searchStudents = async () => {
+  currentPage.value = 1; // รีเซ็ตหน้าเมื่อค้นหา
+  try {
+    isLoading.value = true;
+    errorMessage.value = '';
+    await studentStore.getFilteredStudents();
+  } catch (error) {
+    console.error('ເກີດຂໍ້ຜິດພາດໃນການຄົ້ນຫານັກຮຽນ:', error);
+    errorMessage.value = 'ບໍ່ສາມາດຄົ້ນຫານັກຮຽນໄດ້';
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// โหลดข้อมูลเมื่อคอมโพเนนต์ถูกสร้าง
+onMounted(loadStudents);
+
+// เพิ่ม watcher สำหรับการค้นหา
+watch([searchQuery, selectedGender], () => {
+  searchStudents();
+});
 </script>
 
 <template>
   <div class="bg-white rounded-lg shadow p-6">
+    <!-- Loading/Error states -->
+    <div v-if="isLoading" class="p-4 text-center">
+      <p class="text-lg">ກຳລັງໂຫລດຂໍ້ມູນ...</p>
+    </div>
+    
+    <div v-else-if="errorMessage" class="p-4 bg-red-100 text-red-700 rounded mb-4">
+      <p>{{ errorMessage }}</p>
+    </div>
+    
     <!-- Search and Filter Controls -->
-    <div class="flex flex-wrap justify-between items-center mb-6">
+    <div v-else class="flex flex-wrap justify-between items-center mb-6">
       <div class="flex items-center space-x-4">
         <div class="relative">
           <input
@@ -109,7 +175,7 @@ const addNewStudent = () => {
     </div>
     
     <!-- Student Table -->
-    <div class="overflow-x-auto">
+    <div v-if="!isLoading" class="overflow-x-auto">
       <table class="min-w-full border-collapse">
         <thead>
           <tr class="bg-gray-100 border-b">
@@ -162,6 +228,7 @@ const addNewStudent = () => {
                   @click="deleteStudent(student)"
                   class="p-1 text-red-600 hover:text-red-800"
                   title="ລຶບ"
+                  :disabled="isLoading"
                 >
                   🗑️
                 </button>
@@ -178,7 +245,7 @@ const addNewStudent = () => {
     </div>
     
     <!-- Pagination Controls -->
-    <div class="flex justify-between items-center mt-6">
+    <div v-if="!isLoading" class="flex justify-between items-center mt-6">
       <div class="text-sm text-gray-600">
         ສະແດງ {{ paginatedStudents.length }} ຈາກທັງໝົດ {{ filteredStudents.length }} ລາຍການ
       </div>
@@ -209,10 +276,10 @@ const addNewStudent = () => {
         
         <button 
           @click="navigateToPage(currentPage + 1)"
-          :disabled="currentPage === totalPages"
+          :disabled="currentPage === totalPages || totalPages === 0"
           :class="[
             'px-3 py-1 rounded',
-            currentPage === totalPages ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-gray-200 hover:bg-gray-300'
+            currentPage === totalPages || totalPages === 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-gray-200 hover:bg-gray-300'
           ]"
         >
           ຕໍ່ໄປ

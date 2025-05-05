@@ -25,21 +25,46 @@ const handlePhotoUpload = (event: Event) => {
   }
 };
 
-const handleSubmit = () => {
-  if (isEditing.value) {
-    studentStore.updateStudent(student);
-  } else {
-    studentStore.addStudent(student);
+const handleSubmit = async () => {
+  try {
+    if (isEditing.value) {
+      const success = await studentStore.updateStudent(student);
+      if (success) {
+        alert('ອັບເດດຂໍ້ມູນນັກຮຽນສຳເລັດແລ້ວ');
+      } else {
+        alert('ບໍ່ສາມາດອັບເດດຂໍ້ມູນນັກຮຽນໄດ້');
+      }
+    } else {
+      const newId = await studentStore.addStudent(student);
+      if (newId) {
+        alert('ບັນທຶກຂໍ້ມູນນັກຮຽນສຳເລັດແລ້ວ');
+      } else {
+        alert('ບໍ່ສາມາດບັນທຶກຂໍ້ມູນນັກຮຽນໄດ້');
+      }
+    }
+    // เคลียร์ฟอร์ม
+    studentStore.startNew();
+  } catch (error) {
+    console.error('ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກຂໍ້ມູນນັກຮຽນ:', error);
+    alert('ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກຂໍ້ມູນນັກຮຽນ');
   }
-  // เคลียร์ฟอร์ม
-  studentStore.startNew();
 };
 
-const handleDelete = () => {
+const handleDelete = async () => {
   if (isEditing.value && student.studentId) {
     if (confirm(`ທ່ານແນ່ໃຈບໍວ່າຕ້ອງການລຶບຂໍ້ມູນນັກຮຽນ ${student.studentNameLao}?`)) {
-      studentStore.deleteStudent(student.studentId);
-      studentStore.startNew();
+      try {
+        const success = await studentStore.deleteStudent(student.studentId);
+        if (success) {
+          alert('ລຶບຂໍ້ມູນນັກຮຽນສຳເລັດແລ້ວ');
+          studentStore.startNew();
+        } else {
+          alert('ບໍ່ສາມາດລຶບຂໍ້ມູນນັກຮຽນໄດ້');
+        }
+      } catch (error) {
+        console.error('ເກີດຂໍ້ຜິດພາດໃນການລຶບຂໍ້ມູນນັກຮຽນ:', error);
+        alert('ເກີດຂໍ້ຜິດພາດໃນການລຶບຂໍ້ມູນນັກຮຽນ');
+      }
     }
   }
 };

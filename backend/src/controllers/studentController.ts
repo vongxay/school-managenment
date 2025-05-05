@@ -1,220 +1,250 @@
 import { Request, Response } from 'express';
-import StudentModel, { CreateStudentDTO, UpdateStudentDTO } from '../models/studentModel';
+import { StudentModel } from '../models/student';
 
-class StudentController {
+export const StudentController = {
   // ดึงข้อมูลนักเรียนทั้งหมด
-  async getAllStudents(req: Request, res: Response): Promise<void> {
+  getAllStudents: async (req: Request, res: Response) => {
     try {
-      const search = req.query.search as string | undefined;
-      const gender = req.query.gender as 'M' | 'F' | undefined;
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
-      const offset = req.query.offset ? parseInt(req.query.offset as string) : undefined;
+      const { search } = req.query;
       
-      const result = await StudentModel.findAll({ search, gender, limit, offset });
+      let students;
+      if (search && typeof search === 'string') {
+        // ถ้ามีการค้นหา ให้เรียกใช้ฟังก์ชันค้นหา
+        students = await StudentModel.search(search);
+      } else {
+        // ถ้าไม่มีการค้นหา ให้ดึงข้อมูลทั้งหมด
+        students = await StudentModel.findAll();
+      }
       
-      res.status(200).json({
-        success: true,
-        data: {
-          students: result.students,
-          total: result.total
-        }
-      });
+      res.json({ success: true, data: { students } });
     } catch (error) {
-      console.error('Error getting all students:', error);
-      res.status(500).json({
-        success: false,
-        message: 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນນັກຮຽນ'
-      });
+      console.error('Error fetching students:', error);
+      res.status(500).json({ success: false, message: 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນນັກຮຽນ' });
     }
-  }
-
+  },
+  
   // ดึงข้อมูลนักเรียนตาม ID
-  async getStudentById(req: Request, res: Response): Promise<void> {
+  getStudentById: async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      
       const student = await StudentModel.findById(id);
       
       if (!student) {
-        res.status(404).json({
-          success: false,
-          message: 'ບໍ່ພົບຂໍ້ມູນນັກຮຽນ'
-        });
-        return;
+        return res.status(404).json({ success: false, message: 'ບໍ່ພົບຂໍ້ມູນນັກຮຽນ' });
       }
       
-      res.status(200).json({
-        success: true,
-        data: student
-      });
+      res.json({ success: true, data: student });
     } catch (error) {
-      console.error('Error getting student by ID:', error);
-      res.status(500).json({
-        success: false,
-        message: 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນນັກຮຽນ'
-      });
+      console.error('Error fetching student:', error);
+      res.status(500).json({ success: false, message: 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນນັກຮຽນ' });
     }
-  }
-
+  },
+  
   // ดึงข้อมูลนักเรียนตามรหัสนักเรียน
-  async getStudentByStudentId(req: Request, res: Response): Promise<void> {
+  getStudentByStudentId: async (req: Request, res: Response) => {
     try {
       const { studentId } = req.params;
-      
       const student = await StudentModel.findByStudentId(studentId);
       
       if (!student) {
-        res.status(404).json({
-          success: false,
-          message: 'ບໍ່ພົບຂໍ້ມູນນັກຮຽນ'
-        });
-        return;
+        return res.status(404).json({ success: false, message: 'ບໍ່ພົບຂໍ້ມູນນັກຮຽນ' });
       }
       
-      res.status(200).json({
-        success: true,
-        data: student
-      });
+      res.json({ success: true, data: student });
     } catch (error) {
-      console.error('Error getting student by student ID:', error);
-      res.status(500).json({
-        success: false,
-        message: 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນນັກຮຽນ'
-      });
+      console.error('Error fetching student:', error);
+      res.status(500).json({ success: false, message: 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນນັກຮຽນ' });
     }
-  }
-
+  },
+  
   // สร้างนักเรียนใหม่
-  async createStudent(req: Request, res: Response): Promise<void> {
+  createStudent: async (req: Request, res: Response) => {
     try {
-      const studentData: CreateStudentDTO = req.body;
+      const studentData = req.body;
       
-      // ตรวจสอบข้อมูลที่จำเป็น
+      // ตรวจสอบว่ามีข้อมูลที่จำเป็นหรือไม่
       if (!studentData.student_name_lao || !studentData.gender) {
-        res.status(400).json({
-          success: false,
-          message: 'ກະລຸນາລະບຸຂໍ້ມູນທີ່ຈຳເປັນໃຫ້ຄົບຖ້ວນ'
+        return res.status(400).json({ 
+          success: false, 
+          message: 'ກະລຸນາລະບຸຂໍ້ມູນທີ່ຈຳເປັນ (ຊື່ນັກຮຽນ, ເພດ)' 
         });
-        return;
       }
       
-      // ตรวจสอบว่ามีรหัสนักเรียนซ้ำหรือไม่ (ถ้ามี)
+      // ตรวจสอบว่ามีนักเรียนรหัสซ้ำหรือไม่ (ถ้ามีรหัส)
       if (studentData.student_id) {
         const existingStudent = await StudentModel.findByStudentId(studentData.student_id);
-        
         if (existingStudent) {
-          res.status(400).json({
-            success: false,
-            message: 'ມີນັກຮຽນທີ່ໃຊ້ລະຫັດນີ້ໃນລະບົບແລ້ວ'
+          return res.status(400).json({ 
+            success: false, 
+            message: 'ລະຫັດນັກຮຽນນີ້ມີໃນລະບົບແລ້ວ' 
           });
-          return;
         }
       }
       
-      // สร้างนักเรียนใหม่
       const studentId = await StudentModel.create(studentData);
       
-      // ดึงข้อมูลนักเรียนที่สร้างใหม่
-      const newStudent = await StudentModel.findById(studentId);
-      
-      res.status(201).json({
-        success: true,
-        message: 'ສ້າງຂໍ້ມູນນັກຮຽນສຳເລັດແລ້ວ',
-        data: newStudent
+      res.status(201).json({ 
+        success: true, 
+        message: 'ເພີ່ມຂໍ້ມູນນັກຮຽນສຳເລັດແລ້ວ', 
+        data: { id: studentId } 
       });
     } catch (error) {
       console.error('Error creating student:', error);
-      res.status(500).json({
-        success: false,
-        message: 'ເກີດຂໍ້ຜິດພາດໃນການສ້າງຂໍ້ມູນນັກຮຽນ'
-      });
+      res.status(500).json({ success: false, message: 'ເກີດຂໍ້ຜິດພາດໃນການເພີ່ມຂໍ້ມູນນັກຮຽນ' });
     }
-  }
-
+  },
+  
   // อัปเดตข้อมูลนักเรียน
-  async updateStudent(req: Request, res: Response): Promise<void> {
+  updateStudent: async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const studentData: UpdateStudentDTO = req.body;
+      const studentData = req.body;
       
-      // ตรวจสอบว่ามีนักเรียนอยู่หรือไม่
+      // ตรวจสอบว่ามีนักเรียนหรือไม่
       const existingStudent = await StudentModel.findById(id);
-      
       if (!existingStudent) {
-        res.status(404).json({
-          success: false,
-          message: 'ບໍ່ພົບຂໍ້ມູນນັກຮຽນ'
-        });
-        return;
+        return res.status(404).json({ success: false, message: 'ບໍ່ພົບຂໍ້ມູນນັກຮຽນ' });
       }
       
-      // อัปเดตข้อมูลนักเรียน
       const updated = await StudentModel.update(id, studentData);
       
       if (!updated) {
-        res.status(400).json({
-          success: false,
-          message: 'ບໍ່ສາມາດອັບເດດຂໍ້ມູນນັກຮຽນໄດ້'
-        });
-        return;
+        return res.status(400).json({ success: false, message: 'ບໍ່ສາມາດອັບເດດຂໍ້ມູນນັກຮຽນໄດ້' });
       }
       
-      // ดึงข้อมูลที่อัปเดตแล้ว
-      const updatedStudent = await StudentModel.findById(id);
-      
-      res.status(200).json({
-        success: true,
-        message: 'ອັບເດດຂໍ້ມູນນັກຮຽນສຳເລັດແລ້ວ',
-        data: updatedStudent
-      });
+      res.json({ success: true, message: 'ອັບເດດຂໍ້ມູນນັກຮຽນສຳເລັດແລ້ວ' });
     } catch (error) {
       console.error('Error updating student:', error);
-      res.status(500).json({
-        success: false,
-        message: 'ເກີດຂໍ້ຜິດພາດໃນການອັບເດດຂໍ້ມູນນັກຮຽນ'
-      });
+      res.status(500).json({ success: false, message: 'ເກີດຂໍ້ຜິດພາດໃນການອັບເດດຂໍ້ມູນນັກຮຽນ' });
     }
-  }
-
+  },
+  
   // ลบนักเรียน
-  async deleteStudent(req: Request, res: Response): Promise<void> {
+  deleteStudent: async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       
-      // ตรวจสอบว่ามีนักเรียนอยู่หรือไม่
+      // ตรวจสอบว่ามีนักเรียนหรือไม่
       const existingStudent = await StudentModel.findById(id);
-      
       if (!existingStudent) {
-        res.status(404).json({
-          success: false,
-          message: 'ບໍ່ພົບຂໍ້ມູນນັກຮຽນ'
-        });
-        return;
+        return res.status(404).json({ success: false, message: 'ບໍ່ພົບຂໍ້ມູນນັກຮຽນ' });
       }
       
-      // ลบนักเรียน
       const deleted = await StudentModel.delete(id);
       
       if (!deleted) {
-        res.status(400).json({
-          success: false,
-          message: 'ບໍ່ສາມາດລຶບຂໍ້ມູນນັກຮຽນໄດ້'
-        });
-        return;
+        return res.status(400).json({ success: false, message: 'ບໍ່ສາມາດລຶບຂໍ້ມູນນັກຮຽນໄດ້' });
       }
       
-      res.status(200).json({
-        success: true,
-        message: 'ລຶບຂໍ້ມູນນັກຮຽນສຳເລັດແລ້ວ'
-      });
+      res.json({ success: true, message: 'ລຶບຂໍ້ມູນນັກຮຽນສຳເລັດແລ້ວ' });
     } catch (error) {
       console.error('Error deleting student:', error);
-      res.status(500).json({
-        success: false,
-        message: 'ເກີດຂໍ້ຜິດພາດໃນການລຶບຂໍ້ມູນນັກຮຽນ'
+      res.status(500).json({ success: false, message: 'ເກີດຂໍ້ຜິດພາດໃນການລຶບຂໍ້ມູນນັກຮຽນ' });
+    }
+  },
+  
+  // ค้นหานักเรียน
+  searchStudents: async (req: Request, res: Response) => {
+    try {
+      const { query } = req.query;
+      
+      if (!query || typeof query !== 'string') {
+        return res.status(400).json({ success: false, message: 'ກະລຸນາລະບຸຄຳຄົ້ນຫາ' });
+      }
+      
+      const students = await StudentModel.search(query);
+      
+      res.json({ success: true, data: students });
+    } catch (error) {
+      console.error('Error searching students:', error);
+      res.status(500).json({ success: false, message: 'ເກີດຂໍ້ຜິດພາດໃນການຄົ້ນຫານັກຮຽນ' });
+    }
+  },
+  
+  // ดึงข้อมูลการลงทะเบียน
+  getRegistrations: async (req: Request, res: Response) => {
+    try {
+      const { studentId } = req.query;
+      
+      const registrations = await StudentModel.getRegistrations(
+        typeof studentId === 'string' ? studentId : undefined
+      );
+      
+      res.json({ success: true, data: registrations });
+    } catch (error) {
+      console.error('Error fetching registrations:', error);
+      res.status(500).json({ success: false, message: 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນການລົງທະບຽນ' });
+    }
+  },
+  
+  // ดึงข้อมูลการลงทะเบียนตาม Invoice ID
+  getRegistrationByInvoiceId: async (req: Request, res: Response) => {
+    try {
+      const { invoiceId } = req.params;
+      
+      const registration = await StudentModel.getRegistrationByInvoiceId(invoiceId);
+      
+      if (!registration) {
+        return res.status(404).json({ success: false, message: 'ບໍ່ພົບຂໍ້ມູນການລົງທະບຽນ' });
+      }
+      
+      res.json({ success: true, data: registration });
+    } catch (error) {
+      console.error('Error fetching registration:', error);
+      res.status(500).json({ success: false, message: 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນການລົງທະບຽນ' });
+    }
+  },
+  
+  // ค้นหาข้อมูลการลงทะเบียน
+  searchRegistrations: async (req: Request, res: Response) => {
+    try {
+      const { query } = req.query;
+      
+      if (!query || typeof query !== 'string') {
+        return res.status(400).json({ success: false, message: 'ກະລຸນາລະບຸຄຳຄົ້ນຫາ' });
+      }
+      
+      const registrations = await StudentModel.searchRegistrations(query);
+      
+      res.json({ success: true, data: registrations });
+    } catch (error) {
+      console.error('Error searching registrations:', error);
+      res.status(500).json({ success: false, message: 'ເກີດຂໍ້ຜິດພາດໃນການຄົ້ນຫາຂໍ້ມູນການລົງທະບຽນ' });
+    }
+  },
+  
+  // อัปเดตสถานะการชำระเงิน
+  updateRegistrationPaymentStatus: async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { isPaid } = req.body;
+      
+      if (typeof isPaid !== 'boolean') {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'ກະລຸນາລະບຸສະຖານະການຊຳລະເງິນ (true ຫຼື false)' 
+        });
+      }
+      
+      const updated = await StudentModel.updatePaymentStatus(id, isPaid);
+      
+      if (!updated) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'ບໍ່ສາມາດອັບເດດສະຖານະການຊຳລະເງິນໄດ້' 
+        });
+      }
+      
+      res.json({ 
+        success: true, 
+        message: `ອັບເດດສະຖານະການຊຳລະເງິນເປັນ ${isPaid ? 'ຈ່າຍແລ້ວ' : 'ຍັງບໍ່ຈ່າຍ'} ສຳເລັດແລ້ວ` 
+      });
+    } catch (error) {
+      console.error('Error updating payment status:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'ເກີດຂໍ້ຜິດພາດໃນການອັບເດດສະຖານະການຊຳລະເງິນ' 
       });
     }
   }
-}
-
-export default new StudentController(); 
+}; 

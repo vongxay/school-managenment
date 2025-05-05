@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed } from 'vue';
+import { onMounted } from '@vue/runtime-core';
 import axios from 'axios';
 
 interface ClassRoom {
@@ -8,7 +9,7 @@ interface ClassRoom {
   level: string;
 }
 
-const API_URL = 'http://localhost:3000/api';
+const API_URL = 'http://localhost:5000/api';
 const classes = reactive<ClassRoom[]>([]);
 const selectedClass = ref<ClassRoom | null>(null);
 const formClass = reactive<ClassRoom>({
@@ -16,6 +17,7 @@ const formClass = reactive<ClassRoom>({
   name: '',
   level: 'ຊັ້ນ ມ 1',
 });
+const classIdInput = ref('');
 const searchQuery = ref('');
 const isLoading = ref(false);
 const errorMessage = ref('');
@@ -65,6 +67,7 @@ const fetchClasses = async () => {
 const selectClass = (classItem: ClassRoom) => {
   selectedClass.value = classItem;
   Object.assign(formClass, classItem);
+  classIdInput.value = classItem.id;
 };
 
 const createNewClass = () => {
@@ -73,6 +76,30 @@ const createNewClass = () => {
   formClass.id = '';
   formClass.name = '';
   formClass.level = 'ຊັ້ນ ມ 1';
+  classIdInput.value = '';
+};
+
+const validateForm = () => {
+  if (!formClass.name) {
+    errorMessage.value = 'ກະລຸນາປ້ອນຊື່ຫ້ອງຮຽນ';
+    return false;
+  }
+  
+  if (!formClass.id) {
+    errorMessage.value = 'ກະລຸນາປ້ອນລະຫັດຫ້ອງຮຽນ';
+    return false;
+  }
+  
+  // ກວດສອບວ່າມີລະຫັດຊ້ຳກັນຫຼືບໍ່
+  if (!selectedClass.value) { // ກໍລະນີສ້າງໃໝ່
+    const existingClass = classes.find(c => c.id === formClass.id);
+    if (existingClass) {
+      errorMessage.value = 'ລະຫັດຫ້ອງຮຽນນີ້ມີຢູ່ແລ້ວ';
+      return false;
+    }
+  }
+  
+  return true;
 };
 
 const saveClass = async () => {
@@ -80,8 +107,8 @@ const saveClass = async () => {
     isLoading.value = true;
     errorMessage.value = '';
     
-    if (!formClass.name) {
-      errorMessage.value = 'ກະລຸນາປ້ອນຊື່ຫ້ອງຮຽນ';
+    if (!validateForm()) {
+      isLoading.value = false;
       return;
     }
     
@@ -93,6 +120,7 @@ const saveClass = async () => {
         if (index !== -1) {
           classes[index] = { ...formClass };
         }
+        alert('ອັບເດດຂໍ້ມູນຫ້ອງຮຽນສຳເລັດແລ້ວ');
       } else {
         errorMessage.value = 'ບໍ່ສາມາດອັບເດດຂໍ້ມູນຫ້ອງຮຽນໄດ້';
       }
@@ -102,6 +130,7 @@ const saveClass = async () => {
       if (response.data.success) {
         classes.push({ ...response.data.data });
         selectClass(response.data.data);
+        alert('ເພີ່ມຂໍ້ມູນຫ້ອງຮຽນໃໝ່ສຳເລັດແລ້ວ');
       } else {
         errorMessage.value = 'ບໍ່ສາມາດເພີ່ມຂໍ້ມູນຫ້ອງຮຽນໄດ້';
       }
@@ -134,11 +163,13 @@ const deleteClass = async () => {
         formClass.id = '';
         formClass.name = '';
         formClass.level = 'ຊັ້ນ ມ 1';
+        classIdInput.value = '';
         
         if (classes.length > 0) {
           selectClass(classes[0]);
         }
       }
+      alert('ລຶບຂໍ້ມູນຫ້ອງຮຽນສຳເລັດແລ້ວ');
     } else {
       errorMessage.value = 'ບໍ່ສາມາດລຶບຂໍ້ມູນຫ້ອງຮຽນໄດ້';
     }
@@ -193,7 +224,7 @@ onMounted(fetchClasses);
         <div class="mb-1">ຊັ້ນຮຽນ</div>
         <div class="flex space-x-2">
           <input 
-            v-model="formClass.id" 
+            v-model="classIdInput" 
             type="text" 
             class="w-20 px-3 py-2 border border-gray-300 rounded"
           />

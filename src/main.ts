@@ -1,11 +1,23 @@
 import { createApp } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
+import axios from 'axios'
 import App from './App.vue'
 import './style.css'
 
 import AdminLogin from './components/AdminLogin.vue'
 import AdminRegister from './components/AdminRegister.vue'
 import Dashboard from './components/Dashboard.vue'
+
+// กำหนดค่าพื้นฐานสำหรับ axios
+axios.defaults.baseURL = 'http://localhost:5000/api'
+// เพิ่ม interceptor เพื่อแนบ token กับทุกคำขอ
+axios.interceptors.request.use(config => {
+  const token = localStorage.getItem('token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
 
 // Define routes
 const routes = [

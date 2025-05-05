@@ -4,7 +4,7 @@ import type { User } from '../types/student';
 import axios from 'axios';
 import { useAuthStore } from '../stores/authStore';
 
-const API_URL = 'http://localhost:3000/api';
+const API_URL = 'http://localhost:5000/api';
 const authStore = useAuthStore();
 
 const users = reactive<User[]>([]);
