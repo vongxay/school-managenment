@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue';
+import { onMounted } from '@vue/runtime-core';
+import axios from 'axios';
 
 interface Tuition {
   id: string;
@@ -9,29 +11,19 @@ interface Tuition {
   amount: number;
 }
 
-const tuitions = reactive<Tuition[]>([
-  { id: '001', name: 'ຄ່າຮຽນຊັ້ນ ມ 2', year: '2023-2024', level: 'ຊັ້ນ ມ 2', amount: 100000 },
-  { id: '002', name: 'ຄ່າຮຽນຊັ້ນ ມ 3', year: '2023-2024', level: 'ຊັ້ນ ມ 3', amount: 100000 },
-  { id: '003', name: 'ຄ່າຮຽນຊັ້ນ ມ 4', year: '2023-2024', level: 'ຊັ້ນ ມ 4', amount: 100000 },
-  { id: '004', name: 'ຄ່າຮຽນຊັ້ນ ມ 5', year: '2023-2024', level: 'ຊັ້ນ ມ 5', amount: 100000 },
-  { id: '005', name: 'ຄ່າຮຽນຊັ້ນ ມ 1', year: '2023-2024', level: 'ຊັ້ນ ມ 1', amount: 110000 },
-  { id: '006', name: 'ຄ່າຮຽນຊັ້ນ ມ 2', year: '2023-2024', level: 'ຊັ້ນ ມ 2', amount: 100000 },
-  { id: '007', name: 'ຄ່າຮຽນຊັ້ນ ມ 3', year: '2023-2024', level: 'ຊັ້ນ ມ 3', amount: 100000 },
-  { id: '008', name: 'ຄ່າຮຽນຊັ້ນ ມ 4', year: '2023-2024', level: 'ຊັ້ນ ມ 4', amount: 100000 },
-  { id: '009', name: 'ຄ່າຮຽນຊັ້ນ ມ 5', year: '2023-2024', level: 'ຊັ້ນ ມ 5', amount: 100000 },
-  { id: '010', name: 'ຄ່າຮຽນຊັ້ນ ມ 6', year: '2023-2024', level: 'ຊັ້ນ ມ 6', amount: 100000 },
-  { id: '011', name: 'ຄ່າຮຽນຊັ້ນ ມ 7', year: '2023-2024', level: 'ຊັ້ນ ມ 7', amount: 110000 },
-]);
-
-const selectedTuition = ref<Tuition | null>(tuitions.find(t => t.id === '005') || null);
+const API_URL = 'http://localhost:5000/api';
+const tuitions = reactive<Tuition[]>([]);
+const selectedTuition = ref<Tuition | null>(null);
 const formTuition = reactive<Tuition>({
-  id: selectedTuition.value?.id || '005',
-  name: selectedTuition.value?.name || 'ຄ່າຮຽນຊັ້ນ ມ 1',
-  year: selectedTuition.value?.year || '2023-2024',
-  level: selectedTuition.value?.level || 'ຊັ້ນ ມ 1',
-  amount: selectedTuition.value?.amount || 110000
+  id: '',
+  name: '',
+  year: '',
+  level: 'ຊັ້ນ ມ 1',
+  amount: 0
 });
 const searchQuery = ref('');
+const isLoading = ref(false);
+const errorMessage = ref('');
 
 const years = [
   '2022-2023',
@@ -61,32 +53,116 @@ const filteredTuitions = computed(() => {
   );
 });
 
+// ດຶງຂໍ້ມູນຄ່າຮຽນທັງໝົດ
+const fetchTuitions = async () => {
+  try {
+    isLoading.value = true;
+    errorMessage.value = '';
+    const response = await axios.get(`${API_URL}/tuitions`);
+    if (response.data.success) {
+      Object.assign(tuitions, response.data.data);
+      if (tuitions.length > 0 && !selectedTuition.value) {
+        selectTuition(tuitions[0]);
+      }
+    } else {
+      errorMessage.value = 'ບໍ່ສາມາດດຶງຂໍ້ມູນຄ່າຮຽນໄດ້';
+    }
+  } catch (error) {
+    console.error('Error fetching tuitions:', error);
+    errorMessage.value = 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນຄ່າຮຽນ';
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 const selectTuition = (tuition: Tuition) => {
   selectedTuition.value = tuition;
   Object.assign(formTuition, tuition);
 };
 
-const saveTuition = () => {
-  if (!formTuition.name || !formTuition.year || !formTuition.level || formTuition.amount <= 0) {
-    alert('ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບຖ້ວນ');
-    return;
+const validateForm = () => {
+  if (!formTuition.name) {
+    errorMessage.value = 'ກະລຸນາປ້ອນຊື່ຄ່າຮຽນ';
+    return false;
   }
   
-  if (selectedTuition.value) {
-    // Update existing tuition
-    const index = tuitions.findIndex(t => t.id === selectedTuition.value?.id);
-    if (index !== -1) {
-      tuitions[index] = { ...formTuition };
+  if (formTuition.amount <= 0) {
+    errorMessage.value = 'ກະລຸນາປ້ອນຈຳນວນເງິນທີ່ຖືກຕ້ອງ';
+    return false;
+  }
+  
+  // ກວດສອບລະຫັດເມື່ອເພີ່ມໃໝ່
+  if (!selectedTuition.value && !formTuition.id) {
+    errorMessage.value = 'ກະລຸນາປ້ອນລະຫັດຄ່າຮຽນ';
+    return false;
+  }
+  
+  // ກວດສອບວ່າມີລະຫັດຊ້ຳກັນຫຼືບໍ່
+  if (!selectedTuition.value) { // ກໍລະນີສ້າງໃໝ່
+    const existingTuition = tuitions.find(t => t.id === formTuition.id);
+    if (existingTuition) {
+      errorMessage.value = 'ລະຫັດຄ່າຮຽນນີ້ມີຢູ່ແລ້ວ';
+      return false;
     }
-  } else {
-    // Add new tuition
-    tuitions.push({ ...formTuition });
+  }
+  
+  return true;
+};
+
+const saveTuition = async () => {
+  try {
+    isLoading.value = true;
+    errorMessage.value = '';
+    
+    if (!validateForm()) {
+      isLoading.value = false;
+      return;
+    }
+    
+    if (selectedTuition.value) {
+      // ອັບເດດຄ່າຮຽນທີ່ມີຢູ່ແລ້ວ
+      const response = await axios.put(`${API_URL}/tuitions/${selectedTuition.value.id}`, formTuition);
+      if (response.data.success) {
+        const index = tuitions.findIndex(t => t.id === selectedTuition.value?.id);
+        if (index !== -1) {
+          tuitions[index] = { ...formTuition };
+        }
+        alert('ອັບເດດຂໍ້ມູນຄ່າຮຽນສຳເລັດແລ້ວ');
+      } else {
+        errorMessage.value = 'ບໍ່ສາມາດອັບເດດຂໍ້ມູນຄ່າຮຽນໄດ້';
+      }
+    } else {
+      // ເພີ່ມຄ່າຮຽນໃໝ່
+      const response = await axios.post(`${API_URL}/tuitions`, formTuition);
+      if (response.data.success) {
+        tuitions.push({ ...response.data.data });
+        selectTuition(response.data.data);
+        alert('ເພີ່ມຂໍ້ມູນຄ່າຮຽນໃໝ່ສຳເລັດແລ້ວ');
+      } else {
+        errorMessage.value = 'ບໍ່ສາມາດເພີ່ມຂໍ້ມູນຄ່າຮຽນໄດ້';
+      }
+    }
+  } catch (error) {
+    console.error('Error saving tuition:', error);
+    errorMessage.value = 'ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກຂໍ້ມູນຄ່າຮຽນ';
+  } finally {
+    isLoading.value = false;
   }
 };
 
-const deleteTuition = () => {
-  if (selectedTuition.value) {
-    if (confirm(`ທ່ານແນ່ໃຈບໍວ່າຕ້ອງການລຶບຂໍ້ມູນຄ່າຮຽນ ${selectedTuition.value.name}?`)) {
+const deleteTuition = async () => {
+  if (!selectedTuition.value) return;
+  
+  if (!confirm(`ທ່ານແນ່ໃຈບໍ່ວ່າຕ້ອງການລຶບຂໍ້ມູນຄ່າຮຽນ ${selectedTuition.value.name}?`)) {
+    return;
+  }
+  
+  try {
+    isLoading.value = true;
+    errorMessage.value = '';
+    
+    const response = await axios.delete(`${API_URL}/tuitions/${selectedTuition.value.id}`);
+    if (response.data.success) {
       const index = tuitions.findIndex(t => t.id === selectedTuition.value!.id);
       if (index !== -1) {
         tuitions.splice(index, 1);
@@ -94,20 +170,34 @@ const deleteTuition = () => {
         formTuition.id = '';
         formTuition.name = '';
         formTuition.level = 'ຊັ້ນ ມ 1';
-        formTuition.year = '2023-2024';
+        formTuition.year = '';
         formTuition.amount = 0;
+        
+        if (tuitions.length > 0) {
+          selectTuition(tuitions[0]);
+        }
       }
+      alert('ລຶບຂໍ້ມູນຄ່າຮຽນສຳເລັດແລ້ວ');
+    } else {
+      errorMessage.value = 'ບໍ່ສາມາດລຶບຂໍ້ມູນຄ່າຮຽນໄດ້';
     }
+  } catch (error) {
+    console.error('Error deleting tuition:', error);
+    errorMessage.value = 'ເກີດຂໍ້ຜິດພາດໃນການລຶບຂໍ້ມູນຄ່າຮຽນ';
+  } finally {
+    isLoading.value = false;
   }
 };
 
 const createNewTuition = () => {
   // Generate a unique ID
-  const maxId = Math.max(...tuitions.map(t => parseInt(t.id, 10)), 0);
+  const maxId = tuitions.length > 0 
+    ? Math.max(...tuitions.map(t => parseInt(t.id, 10)), 0)
+    : 0;
   formTuition.id = (maxId + 1).toString().padStart(3, '0');
   formTuition.name = '';
   formTuition.level = 'ຊັ້ນ ມ 1';
-  formTuition.year = '2023-2024';
+  formTuition.year = years[1]; // Default to current year (2023-2024)
   formTuition.amount = 0;
   selectedTuition.value = null;
 };
@@ -116,6 +206,9 @@ const createNewTuition = () => {
 const updateName = () => {
   formTuition.name = `ຄ່າຮຽນ${formTuition.level}`;
 };
+
+// ໂຫລດຂໍ້ມູນເມື່ອຄອມໂພເນັນຖືກສ້າງ
+onMounted(fetchTuitions);
 </script>
 
 <template>

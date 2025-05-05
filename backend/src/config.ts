@@ -1,5 +1,5 @@
 export default {
-  port: 3000,
+  port: 5000,
   db: {
     host: 'localhost',
     user: 'root',

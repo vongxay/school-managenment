@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed } from 'vue';
+import { onMounted } from '@vue/runtime-core';
 import axios from 'axios';
 
 interface SchoolYear {
@@ -61,13 +62,50 @@ const createNewYear = () => {
   formYear.period = '';
 };
 
+const validateYearForm = () => {
+  if (!formYear.period) {
+    errorMessage.value = 'ກະລຸນາປ້ອນສົກຮຽນ';
+    return false;
+  }
+  
+  // ກວດສອບຮູບແບບຂອງສົກຮຽນ (YYYY-YYYY)
+  const yearPattern = /^\d{4}-\d{4}$/;
+  if (!yearPattern.test(formYear.period)) {
+    errorMessage.value = 'ກະລຸນາປ້ອນສົກຮຽນໃນຮູບແບບ YYYY-YYYY';
+    return false;
+  }
+  
+  // ກວດສອບວ່າປີເລີ່ມຕົ້ນຕ້ອງນ້ອຍກວ່າປີສິ້ນສຸດ
+  const years = formYear.period.split('-');
+  if (parseInt(years[0]) >= parseInt(years[1])) {
+    errorMessage.value = 'ປີເລີ່ມຕົ້ນຕ້ອງນ້ອຍກວ່າປີສິ້ນສຸດ';
+    return false;
+  }
+  
+  // ກວດສອບລະຫັດເມື່ອສ້າງໃໝ່
+  if (!selectedYear.value && !formYear.id) {
+    errorMessage.value = 'ກະລຸນາປ້ອນລະຫັດສົກຮຽນ';
+    return false;
+  }
+  
+  // ກວດສອບວ່າມີລະຫັດຊ້ຳກັນຫຼືບໍ່
+  if (!selectedYear.value) { // ກໍລະນີສ້າງໃໝ່
+    const existingYear = schoolYears.find(y => y.id === formYear.id);
+    if (existingYear) {
+      errorMessage.value = 'ລະຫັດສົກຮຽນນີ້ມີຢູ່ແລ້ວ';
+      return false;
+    }
+  }
+  
+  return true;
+};
+
 const saveYear = async () => {
   try {
     isLoading.value = true;
     errorMessage.value = '';
     
-    if (!formYear.period) {
-      errorMessage.value = 'ກະລຸນາປ້ອນສົກຮຽນ';
+    if (!validateYearForm()) {
       isLoading.value = false;
       return;
     }
@@ -80,6 +118,7 @@ const saveYear = async () => {
         if (index !== -1) {
           schoolYears[index] = { ...formYear };
         }
+        alert('ອັບເດດຂໍ້ມູນສົກຮຽນສຳເລັດແລ້ວ');
       } else {
         errorMessage.value = 'ບໍ່ສາມາດອັບເດດຂໍ້ມູນສົກຮຽນໄດ້';
       }
@@ -89,6 +128,7 @@ const saveYear = async () => {
       if (response.data.success) {
         schoolYears.push({ ...response.data.data });
         selectYear(response.data.data);
+        alert('ເພີ່ມຂໍ້ມູນສົກຮຽນໃໝ່ສຳເລັດແລ້ວ');
       } else {
         errorMessage.value = 'ບໍ່ສາມາດເພີ່ມຂໍ້ມູນສົກຮຽນໄດ້';
       }
@@ -104,7 +144,7 @@ const saveYear = async () => {
 const deleteYear = async () => {
   if (!selectedYear.value) return;
   
-  if (!confirm(`ທ່ານແນ່ໃຈບໍວ່າຕ້ອງການລຶບຂໍ້ມູນສົກຮຽນ ${selectedYear.value.period}?`)) {
+  if (!confirm(`ທ່ານແນ່ໃຈບໍ່ວ່າຕ້ອງການລຶບຂໍ້ມູນສົກຮຽນ ${selectedYear.value.period}?`)) {
     return;
   }
   
@@ -125,6 +165,7 @@ const deleteYear = async () => {
           selectYear(schoolYears[0]);
         }
       }
+      alert('ລຶບຂໍ້ມູນສົກຮຽນສຳເລັດແລ້ວ');
     } else {
       errorMessage.value = 'ບໍ່ສາມາດລຶບຂໍ້ມູນສົກຮຽນໄດ້';
     }
@@ -133,6 +174,19 @@ const deleteYear = async () => {
     errorMessage.value = 'ເກີດຂໍ້ຜິດພາດໃນການລຶບຂໍ້ມູນສົກຮຽນ';
   } finally {
     isLoading.value = false;
+  }
+};
+
+// ເພີ່ມຟັງຊັນສຳລັບສ້າງຂໍ້ມູນປີປັດຈຸບັນ
+const createCurrentSchoolYear = () => {
+  const currentYear = new Date().getFullYear();
+  formYear.period = `${currentYear}-${currentYear + 1}`;
+  // ສ້າງລະຫັດໃໝ່ຕາມລຳດັບປັດຈຸບັນ
+  if (schoolYears.length > 0) {
+    const maxId = Math.max(...schoolYears.map(y => parseInt(y.id)));
+    formYear.id = (maxId + 1).toString().padStart(3, '0');
+  } else {
+    formYear.id = '001';
   }
 };
 
@@ -168,12 +222,22 @@ onMounted(fetchYears);
       <!-- Period -->
       <div class="mb-8">
         <div class="mb-1">ສົກຮຽນ</div>
-        <input 
-          v-model="formYear.period" 
-          type="text" 
-          placeholder="YYYY-YYYY"
-          class="w-full px-3 py-2 border border-gray-300 rounded"
-        />
+        <div class="flex">
+          <input 
+            v-model="formYear.period" 
+            type="text" 
+            placeholder="YYYY-YYYY"
+            class="flex-1 px-3 py-2 border border-gray-300 rounded"
+          />
+          <button 
+            @click="createCurrentSchoolYear" 
+            class="px-3 py-2 bg-gray-200 rounded ml-2"
+            title="ສ້າງສົກຮຽນປັດຈຸບັນ"
+            :disabled="isLoading"
+          >
+            ປະຈຸບັນ
+          </button>
+        </div>
       </div>
       
       <!-- Buttons -->

@@ -1,133 +1,251 @@
-<script setup lang="ts">
-import { ref, reactive, computed } from 'vue';
+<script setup>
+import { ref, reactive, computed, onMounted } from 'vue';
+import axios from 'axios';
+import { useAuthStore } from '../stores/authStore';
 
-interface StudentRegistration {
-  id: string;
-  registrationDate: string;
-  studentId: string;
-  studentName: string;
-  studentPhone: string;
-  classroom: string;
-  level: string;
-  schoolYear: string;
-  paid: boolean;
-}
+const authStore = useAuthStore();
 
-const registrations = reactive<StudentRegistration[]>([
-  { 
-    id: 'INV-00000031', 
-    registrationDate: '2022-6-11', 
-    studentId: '008', 
-    studentName: 'ທ້າວ ກັນ ໄຊສະຫຸຼດ', 
-    studentPhone: '02059874624', 
-    classroom: 'ມ 3/1', 
-    level: 'ຊັ້ນ ມ 3', 
-    schoolYear: '2024-2025', 
-    paid: true 
-  },
-  { 
-    id: 'INV-00000032', 
-    registrationDate: '2022-6-11', 
-    studentId: '009', 
-    studentName: 'ທ້າວ ບີ ບຸນມີໃຈ', 
-    studentPhone: '02026345982', 
-    classroom: 'ມ 3/1', 
-    level: 'ຊັ້ນ ມ 3', 
-    schoolYear: '2024-2025', 
-    paid: true 
-  },
-  { 
-    id: 'INV-00000033', 
-    registrationDate: '2022-6-11', 
-    studentId: '010', 
-    studentName: 'ທ້າວ ເອ ແສງຈັນ', 
-    studentPhone: '02056234895', 
-    classroom: 'ມ 3/1', 
-    level: 'ຊັ້ນ ມ 3', 
-    schoolYear: '2024-2025', 
-    paid: true 
-  },
-  { 
-    id: 'INV-00000034', 
-    registrationDate: '2023-6-15', 
-    studentId: '020', 
-    studentName: 'ທ້າວ ຊິງຕາ ຈັນມາລີ', 
-    studentPhone: '0205689234', 
-    classroom: 'ມ 1/1', 
-    level: 'ຊັ້ນ ມ 1', 
-    schoolYear: '2023-2024', 
-    paid: true 
-  },
+// ข้อมูลการลงทะเบียน
+const registrations = ref([]);
+const studentTableData = ref([]);
+const classroomData = ref([
+  'ມ 1/1', 'ມ 1/2', 'ມ 1/3', 'ມ 1/4',
+  'ມ 2/1', 'ມ 2/2', 'ມ 2/3', 'ມ 2/4',
+  'ມ 3/1', 'ມ 3/2', 'ມ 3/3', 'ມ 3/4',
+  'ມ 4/1', 'ມ 4/2', 'ມ 4/3', 'ມ 4/4',
+  'ມ 5/1', 'ມ 5/2', 'ມ 5/3', 'ມ 5/4',
+  'ມ 6/1', 'ມ 6/2', 'ມ 6/3', 'ມ 6/4',
 ]);
 
-// เพิ่มข้อมูลนักเรียนในตารางสำหรับค้นหา
-const studentTableData = reactive([
-  { studentId: '020', studentName: 'ທ້າວ ຊິງຕາ ຈັນມາລີ', studentPhone: '020 56234891' },
-  { studentId: '019', studentName: 'ນາງ ບີ ຈັນທະລີ', studentPhone: '020 56974325' }
-]);
+// URL ของ API
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-const currentRegistrationId = ref('INV-00000034');
-const currentSchoolYear = ref('2023-2024');
-const currentClassId = ref('002');
-const currentClassSection = ref('004');
-const currentStudentId = ref('020');
-const currentStudentName = ref('ທ້າວ ຊິງຕາ ຈັນມາລີ');
-const currentStudentPhone = ref('0205689234');
-const currentClassName = ref('ມ 1/1');
+// ตัวแปรสถานะ
+const isLoading = ref(false);
+const error = ref('');
+const apiError = ref(''); // ข้อผิดพลาดจาก API
+const currentRegistrationId = ref('');
+const currentSchoolYear = ref('');
+const currentClassId = ref('');
+const currentClassSection = ref('');
+const currentStudentId = ref('');
+const currentStudentName = ref('');
+const currentStudentPhone = ref('');
+const currentClassName = ref('');
 const numberOfBills = ref('');
 const description = ref('');
 const searchQuery = ref('');
-const studentSearchQuery = ref(''); // เพิ่มตัวแปรสำหรับค้นหานักเรียนในตาราง
+const studentSearchQuery = ref('');
+const isAuthenticated = ref(false);
+const token = ref('');
+const showClassroomDialog = ref(false);
 
-const filteredRegistrations = computed(() => {
-  if (!searchQuery.value) {
-    return [...registrations].reverse();
-  }
-  
-  const query = searchQuery.value.toLowerCase();
-  const filtered = registrations.filter(reg => 
-    reg.studentName.toLowerCase().includes(query) || 
-    reg.studentId.toLowerCase().includes(query) ||
-    reg.id.toLowerCase().includes(query)
-  );
-  
-  return filtered.slice(0, 10).reverse();
-});
-
-// เพิ่ม computed property สำหรับกรองข้อมูลนักเรียนในตาราง
+// กรองข้อมูลนักเรียนสำหรับแสดงในตาราง
 const filteredStudents = computed(() => {
   if (!studentSearchQuery.value) {
-    return studentTableData;
+    return studentTableData.value;
   }
   
   const query = studentSearchQuery.value.toLowerCase();
-  return studentTableData.filter(student => 
+  return studentTableData.value.filter(student => 
     student.studentName.toLowerCase().includes(query) || 
     student.studentId.toLowerCase().includes(query) ||
     student.studentPhone.toLowerCase().includes(query)
   );
 });
 
+// กรองข้อมูลการลงทะเบียนสำหรับแสดงในตาราง
+const filteredRegistrations = computed(() => {
+  if (!searchQuery.value) {
+    return [...registrations.value].reverse();
+  }
+  
+  const query = searchQuery.value.toLowerCase();
+  const filtered = registrations.value.filter(reg => 
+    (reg.studentName?.toLowerCase() || '').includes(query) || 
+    (reg.studentId?.toLowerCase() || '').includes(query) ||
+    reg.id.toLowerCase().includes(query)
+  );
+  
+  return filtered.slice(0, 10).reverse();
+});
+
+// ดึงข้อมูลการลงทะเบียนทั้งหมด
+const fetchRegistrations = async () => {
+  try {
+    isLoading.value = true;
+    error.value = '';
+    
+    // ถ้าไม่มีการค้นหา ให้ดึงข้อมูลทั้งหมด
+    let url = `${API_URL}/registrations`;
+    if (searchQuery.value) {
+      url += `?search=${encodeURIComponent(searchQuery.value)}`;
+    }
+    
+    const response = await axios.get(url, {
+      headers: {
+        Authorization: `Bearer ${authStore.user?.token}`
+      }
+    });
+    
+    if (response.data.success) {
+      // ปรับรูปแบบข้อมูลให้ตรงกับโครงสร้างที่ใช้แสดงผล
+      const formattedData = response.data.data.registrations.map(reg => ({
+        id: reg.id || reg.invoice_id,
+        registrationDate: reg.registration_date,
+        studentId: reg.student_id,
+        studentName: reg.student_name || '',
+        studentPhone: reg.student_phone || '',
+        classroom: reg.classroom || '',
+        level: reg.level || '',
+        schoolYear: reg.school_year || '',
+        paid: reg.paid || reg.is_paid || false
+      }));
+      
+      // กำหนดข้อมูลให้กับอาร์เรย์ที่ใช้แสดงผล
+      registrations.value = formattedData;
+    }
+  } catch (err) {
+    console.error('Error fetching registrations:', err);
+    error.value = err.response?.data?.message || 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນການລົງທະບຽນ';
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// ค้นหานักเรียน
+const searchStudents = async () => {
+  try {
+    isLoading.value = true;
+    error.value = '';
+    
+    let url = `${API_URL}/students`;
+    if (studentSearchQuery.value) {
+      url += `?search=${encodeURIComponent(studentSearchQuery.value)}`;
+    }
+    
+    const response = await axios.get(url, {
+      headers: {
+        Authorization: `Bearer ${authStore.user?.token}`,
+        'Content-Type': 'application/json'
+      }
+    }).catch(error => {
+      console.error("Search API Error:", error.response?.data || error.message);
+      throw error;
+    });
+    
+    if (response.data.success) {
+      // ปรับรูปแบบข้อมูลให้ตรงกับโครงสร้างที่ใช้แสดงผล
+      const formattedData = response.data.data.students.map(student => ({
+        studentId: student.student_id,
+        studentName: student.student_name_lao,
+        studentPhone: student.guardian_phone || student.phone || ''
+      }));
+      
+      // กำหนดข้อมูลให้กับอาร์เรย์ที่ใช้แสดงผล
+      studentTableData.value = formattedData;
+    }
+  } catch (err) {
+    console.error('Error searching students:', err);
+    error.value = err.response?.data?.message || 'ເກີດຂໍ້ຜິດພາດໃນການຄົ້ນຫານັກຮຽນ';
+    studentTableData.value = []; // ล้างข้อมูลที่แสดง
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// เลือกนักเรียนจากตาราง
+const selectStudent = (student) => {
+  currentStudentId.value = student.studentId;
+  currentStudentName.value = student.studentName;
+  currentStudentPhone.value = student.studentPhone;
+};
+
+// สร้าง ID ใหม่สำหรับการลงทะเบียน
+const generateNewRegistrationId = () => {
+  let lastId = 0;
+  
+  // หาค่า ID ล่าสุดจากข้อมูลที่มีอยู่
+  registrations.value.forEach(reg => {
+    try {
+      const idParts = reg.id.split('-');
+      if (idParts.length > 1) {
+        const numericPart = idParts[1].replace(/^0+/, '');
+        const currentId = parseInt(numericPart);
+        if (!isNaN(currentId) && currentId > lastId) {
+          lastId = currentId;
+        }
+      }
+    } catch (error) {
+      console.error("Error parsing ID:", error);
+    }
+  });
+  
+  // สร้าง ID ใหม่
+  currentRegistrationId.value = `INV-${String(lastId + 1).padStart(8, '0')}`;
+};
+
+// พิมพ์การลงทะเบียน
 const printRegistration = () => {
   alert('ກຳລັງສັ່ງພິມໃບລົງທະບຽນ...');
 };
 
+// ตรวจสอบความถูกต้องของข้อมูล
 const validateForm = () => {
-  if (!currentStudentId.value || !currentStudentName.value || !currentStudentPhone.value || 
-      !currentClassName.value || !currentSchoolYear.value) {
-    alert('ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບຖ້ວນ');
+  if (!currentStudentId.value) {
+    alert('ກະລຸນາເລືອກນັກຮຽນກ່ອນລົງທະບຽນ');
     return false;
   }
+  
+  if (!currentStudentName.value) {
+    alert('ກະລຸນາລະບຸຊື່ນັກຮຽນກ່ອນລົງທະບຽນ');
+    return false;
+  }
+  
+  if (!currentStudentPhone.value) {
+    alert('ກະລຸນາລະບຸເບີໂທຜູ້ປົກຄອງກ່ອນລົງທະບຽນ');
+    return false;
+  }
+  
+  if (!currentClassName.value) {
+    alert('ກະລຸນາລະບຸຫ້ອງຮຽນກ່ອນລົງທະບຽນ');
+    return false;
+  }
+  
+  if (!currentSchoolYear.value) {
+    alert('ກະລຸນາລະບຸສົກຮຽນກ່ອນລົງທະບຽນ');
+    return false;
+  }
+
+  // กำหนดระดับชั้นจากห้องเรียน (ต้องมีค่า)
+  let level = '';
+  if (currentClassName.value.includes('/')) {
+    const grade = currentClassName.value.split('/')[0].trim();
+    if (grade.startsWith('ມ ')) {
+      const gradeNumber = grade.substring(2);
+      level = `ຊັ້ນ ມ ${gradeNumber}`;
+    }
+  }
+
+  if (!level) {
+    alert('ບໍ່ສາມາດກຳນົດລະດັບຊັ້ນໄດ້ ກະລຸນາເລືອກຫ້ອງຮຽນໃຫ້ຖືກຕ້ອງ');
+    return false;
+  }
+  
   return true;
 };
 
-const saveRegistration = () => {
+// บันทึกการลงทะเบียน
+const saveRegistration = async () => {
   if (!validateForm()) return;
   
   try {
-    // ດຶງຂໍ້ມູນລະດັບຊັ້ນຮຽນຈາກຫ້ອງຮຽນ
-    let level = 'ຊັ້ນ ມ';
+    isLoading.value = true;
+    error.value = '';
+    apiError.value = '';
     
+    // คำนวณระดับชั้นเรียนจากห้องเรียน
+    let level = '';
     if (currentClassName.value.includes('/')) {
       const grade = currentClassName.value.split('/')[0].trim();
       if (grade.startsWith('ມ ')) {
@@ -136,80 +254,166 @@ const saveRegistration = () => {
       }
     }
     
-    // ສ້າງຂໍ້ມູນການລົງທະບຽນໃໝ່
-    const newRegistration: StudentRegistration = {
-      id: currentRegistrationId.value,
-      registrationDate: new Date().toISOString().split('T')[0],
-      studentId: currentStudentId.value,
-      studentName: currentStudentName.value,
-      studentPhone: currentStudentPhone.value,
+    console.log('กำลังลงทะเบียน:', {
+      student_id: currentStudentId.value,
+      student_name: currentStudentName.value,
+      student_phone: currentStudentPhone.value,
+      classroom: currentClassName.value,
+      level,
+      school_year: currentSchoolYear.value
+    });
+    
+    // สร้างข้อมูลการลงทะเบียนใหม่ตามโครงสร้างฐานข้อมูล
+    const registrationData = {
+      student_id: currentStudentId.value,
+      student_name: currentStudentName.value,
+      student_phone: currentStudentPhone.value,
       classroom: currentClassName.value,
       level: level,
-      schoolYear: currentSchoolYear.value,
+      school_year: currentSchoolYear.value,
       paid: false
     };
     
-    // ເພີ່ມລົງໃນອາເຣລົງທະບຽນ
-    registrations.push(newRegistration);
-    
-    // ສ້າງ ID ໃໝ່ສຳລັບການລົງທະບຽນຄັ້ງຕໍ່ໄປ
-    let lastId = 34;  // ຄ່າເລີ່ມຕົ້ນຈາກໄອດີສຸດທ້າຍທີ່ມີຢູ່
-    try {
-      const idParts = currentRegistrationId.value.split('-');
-      if (idParts.length > 1) {
-        const numericPart = idParts[1].replace(/^0+/, '');
-        lastId = parseInt(numericPart) || lastId;
+    // ส่งข้อมูลไปยัง API
+    const response = await axios.post(`${API_URL}/registrations`, registrationData, {
+      headers: {
+        Authorization: `Bearer ${authStore.user?.token}`,
+        'Content-Type': 'application/json'
       }
-    } catch (error) {
-      console.error("Error parsing ID:", error);
+    }).catch(error => {
+      console.error("API Error:", error.response?.data || error.message);
+      throw error; // ส่งต่อข้อผิดพลาดเพื่อให้ catch ด้านนอกจัดการต่อ
+    });
+    
+    if (response.data.success) {
+      // ดึงข้อมูลการลงทะเบียนใหม่
+      await fetchRegistrations();
+      
+      // ล้างฟอร์มหลังจากบันทึก
+      clearForm();
+      
+      alert('ບັນທຶກການລົງທະບຽນສຳເລັດ');
+    } else {
+      apiError.value = response.data.message || 'ເກີດຂໍ້ຜິດພາດໃນການລົງທະບຽນ';
+      alert(apiError.value);
     }
-    
-    currentRegistrationId.value = `INV-${String(lastId + 1).padStart(8, '0')}`;
-    
-    // ລ້າງຟອມຫຼັງຈາກບັນທຶກ
-    currentStudentId.value = '';
-    currentStudentName.value = '';
-    currentStudentPhone.value = '';
-    
-    alert('ບັນທຶກການລົງທະບຽນສຳເລັດ');
-  } catch (error) {
-    console.error("Error in registration:", error);
-    alert('ມີຂໍ້ຜິດພາດໃນການລົງທະບຽນ');
+  } catch (err) {
+    console.error("Error in registration:", err);
+    const errorMessage = err.response?.data?.message || 'ເກີດຂໍ້ຜິດພາດໃນການລົງທະບຽນ';
+    apiError.value = errorMessage;
+    error.value = errorMessage;
+    alert(errorMessage);
+  } finally {
+    isLoading.value = false;
   }
 };
+
+// เพิ่มฟังก์ชัน clearForm สำหรับล้างข้อมูลในฟอร์ม
+const clearForm = () => {
+  currentStudentId.value = '';
+  currentStudentName.value = '';
+  currentStudentPhone.value = '';
+  currentClassName.value = '';
+  
+  // สร้าง ID ใหม่สำหรับการลงทะเบียนครั้งต่อไป
+  generateNewRegistrationId();
+};
+
+// ค้นหาข้อมูลเมื่อมีการเปลี่ยนแปลงค่าในช่องค้นหา
+const handleStudentSearch = () => {
+  searchStudents();
+};
+
+// ค้นหาการลงทะเบียนเมื่อมีการเปลี่ยนแปลงค่าในช่องค้นหา
+const handleRegistrationSearch = () => {
+  fetchRegistrations();
+};
+
+// เลือกห้องเรียน
+const selectClassroom = (classroom) => {
+  currentClassName.value = classroom;
+  showClassroomDialog.value = false;
+  
+  // กำหนดระดับชั้นจากห้องเรียนที่เลือก
+  if (classroom.includes('/')) {
+    const grade = classroom.split('/')[0].trim();
+    if (grade.startsWith('ມ ')) {
+      const gradeNumber = grade.substring(2);
+      currentClassId.value = gradeNumber;
+    }
+  }
+};
+
+// เปิดหน้าต่างเลือกห้องเรียน
+const openClassroomDialog = () => {
+  showClassroomDialog.value = true;
+};
+
+// เมื่อคอมโพเนนต์โหลด
+onMounted(() => {
+  // ตรวจสอบการเข้าสู่ระบบจาก authStore
+  if (authStore.isAuthenticated) {
+    isAuthenticated.value = true;
+    token.value = authStore.user?.token || '';
+    
+    // ดึงข้อมูลการลงทะเบียนและนักเรียน
+    fetchRegistrations();
+    searchStudents();
+    
+    // สร้าง ID ใหม่สำหรับการลงทะเบียน
+    generateNewRegistrationId();
+    
+    // ตั้งค่าปีการศึกษาปัจจุบัน
+    const currentYear = new Date().getFullYear();
+    currentSchoolYear.value = `${currentYear}-${currentYear + 1}`;
+  } else {
+    error.value = 'ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນໃຊ້ງານ';
+  }
+});
 </script>
 
 <template>
   <div class="bg-gray-200 p-4 rounded-lg">
+    <div v-if="error" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 mb-4 rounded">
+      {{ error }}
+    </div>
+    
+    <div v-if="apiError" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 mb-4 rounded">
+      <strong>API Error:</strong> {{ apiError }}
+    </div>
+
     <div class="flex items-center mb-4">
       <div class="w-28 mr-2">ລະຫັດລົງທະບຽນ</div>
       <div class="w-40 mr-4">
         <input type="text" class="w-full px-2 py-1 border rounded bg-white" v-model="currentRegistrationId" />
       </div>
-      <div class="w-16 mr-2">ລະຫັດສາຍ</div>
+    </div>
+
+    <!-- ส่วนแสดงปีการศึกษา -->
+    <div class="flex items-center mb-4 justify-end">
+      <div class="w-28">ສົກຮຽນ</div>
       <div class="w-16 mr-4">
-        <input type="text" class="w-full px-2 py-1 border rounded bg-white" v-model="currentClassId" />
+        <input type="text" class="w-full px-2 py-1 border rounded bg-white" v-model="currentClassId" placeholder="002" />
       </div>
-      <div class="w-20 mr-4"></div>
-      <div class="w-40 mr-2">
+      <div class="w-56 mr-2">
         <input type="text" class="w-full px-2 py-1 border rounded bg-white" v-model="currentSchoolYear" />
       </div>
       <div class="w-12">
-        <button class="w-full px-2 py-1 bg-white border rounded">...</button>
+        <button class="w-full px-2 py-1 bg-white border rounded hover:bg-gray-100">...</button>
       </div>
     </div>
 
-    <div class="flex items-center mb-4">
-      <div class="w-28 mr-2">ຫ້ອງສາຍ</div>
+    <!-- ส่วนแสดงห้องเรียน -->
+    <div class="flex items-center mb-4 justify-end">
+      <div class="w-28">ຫ້ອງຮຽນ</div>
       <div class="w-16 mr-4">
-        <input type="text" class="w-full px-2 py-1 border rounded bg-white" v-model="currentClassSection" />
+        <input type="text" class="w-full px-2 py-1 border rounded bg-white" v-model="currentClassSection" placeholder="004" />
       </div>
-      <div class="flex-grow"></div>
-      <div class="w-40 mr-2">
-        <input type="text" class="w-full px-2 py-1 border rounded bg-white" v-model="currentClassName" />
+      <div class="w-56 mr-2">
+        <input type="text" class="w-full px-2 py-1 border rounded bg-white" v-model="currentClassName" readonly />
       </div>
       <div class="w-12">
-        <button class="w-full px-2 py-1 bg-white border rounded">...</button>
+        <button class="w-full px-2 py-1 bg-white border rounded hover:bg-gray-100" @click="openClassroomDialog">...</button>
       </div>
     </div>
 
@@ -232,7 +436,12 @@ const saveRegistration = () => {
       <div class="w-28 mr-2">ຂໍ້ມູນຂອງນັກຮຽນ</div>
       <div class="w-28 mr-2">search</div>
       <div class="w-40">
-        <input type="text" class="w-full px-2 py-1 border rounded bg-white" v-model="studentSearchQuery" />
+        <input 
+          type="text" 
+          class="w-full px-2 py-1 border rounded bg-white" 
+          v-model="studentSearchQuery" 
+          @input="handleStudentSearch"
+        />
       </div>
     </div>
 
@@ -243,7 +452,12 @@ const saveRegistration = () => {
         <div>ເບີໂທຜູ້ປົກຄອງ</div>
       </div>
       <div class="bg-white">
-        <div v-for="student in filteredStudents" :key="student.studentId" class="grid grid-cols-3 p-2" :class="{'bg-gray-100': student.studentId === '019'}">
+        <div 
+          v-for="student in filteredStudents" 
+          :key="student.studentId" 
+          class="grid grid-cols-3 p-2 cursor-pointer hover:bg-gray-200" 
+          @click="selectStudent(student)"
+        >
           <div>{{ student.studentId }}</div>
           <div>{{ student.studentName }}</div>
           <div>{{ student.studentPhone }}</div>
@@ -261,6 +475,7 @@ const saveRegistration = () => {
             class="w-full px-2 py-1 border rounded bg-white" 
             v-model="searchQuery" 
             placeholder="ຄົ້ນຫາຕາມລະຫັດ ຫຼື ຊື່ນັກຮຽນ..." 
+            @input="handleRegistrationSearch"
           />
         </div>
       </div>
@@ -275,7 +490,13 @@ const saveRegistration = () => {
         <div>ສົກຮຽນ</div>
         <div>ສະຖານະ</div>
       </div>
-      <div class="bg-white text-sm">
+      <div class="bg-white text-sm" v-if="isLoading">
+        <div class="p-4 text-center">ກຳລັງໂຫລດຂໍ້ມູນ...</div>
+      </div>
+      <div class="bg-white text-sm" v-else-if="filteredRegistrations.length === 0">
+        <div class="p-4 text-center">ບໍ່ພົບຂໍ້ມູນການລົງທະບຽນ</div>
+      </div>
+      <div class="bg-white text-sm" v-else>
         <div 
           v-for="reg in filteredRegistrations" 
           :key="reg.id"
@@ -295,12 +516,42 @@ const saveRegistration = () => {
     </div>
 
     <div class="flex justify-center space-x-4">
-      <button class="px-6 py-2 border bg-gray-300 text-black rounded hover:bg-gray-400" @click="saveRegistration">
-        ລົງທະບຽນ
+      <button 
+        class="px-6 py-2 border bg-gray-300 text-black rounded hover:bg-gray-400 disabled:opacity-50" 
+        @click="saveRegistration"
+        :disabled="isLoading || !isAuthenticated"
+      >
+        {{ isLoading ? 'ກຳລັງລົງທະບຽນ...' : 'ລົງທະບຽນ' }}
       </button>
-      <button class="px-6 py-2 border bg-gray-300 text-black rounded hover:bg-gray-400" @click="printRegistration">
+      <button 
+        class="px-6 py-2 border bg-gray-300 text-black rounded hover:bg-gray-400 disabled:opacity-50" 
+        @click="printRegistration"
+        :disabled="isLoading || !isAuthenticated"
+      >
         ພິມໃບລົງທະບຽນ
       </button>
+    </div>
+
+    <!-- Dialog เลือกห้องเรียน -->
+    <div v-if="showClassroomDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white p-4 rounded-md shadow-lg max-w-md w-full">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-bold">ເລືອກຫ້ອງຮຽນ</h3>
+          <button @click="showClassroomDialog = false" class="text-gray-500 hover:text-gray-700">
+            &times;
+          </button>
+        </div>
+        <div class="grid grid-cols-4 gap-2 mb-4">
+          <button 
+            v-for="classroom in classroomData" 
+            :key="classroom"
+            @click="selectClassroom(classroom)"
+            class="px-2 py-1 border rounded hover:bg-gray-100"
+          >
+            {{ classroom }}
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template> 

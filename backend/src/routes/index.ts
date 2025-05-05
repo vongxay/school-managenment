@@ -5,6 +5,8 @@ import studentRoutes from './studentRoutes';
 import classRoutes from './classRoutes';
 import yearRoutes from './yearRoutes';
 import levelRoutes from './levelRoutes';
+import registrationRoutes from './registrationRoutes';
+import tuitionRoutes from './tuitionRoutes';
 
 const router = Router();
 
@@ -15,6 +17,8 @@ router.use('/students', studentRoutes);
 router.use('/classes', classRoutes);
 router.use('/years', yearRoutes);
 router.use('/levels', levelRoutes);
+router.use('/registrations', registrationRoutes);
+router.use('/tuitions', tuitionRoutes);
 
 // เส้นทางทดสอบ API
 router.get('/health', (req, res) => {

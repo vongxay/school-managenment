@@ -125,6 +125,8 @@ const updatePaidAmount = (event: Event) => {
   const value = Number((event.target as HTMLInputElement)?.value || 0);
   if (value < 0) {
     paidAmount.value = 0;
+  } else {
+    paidAmount.value = value;
   }
 };
 
@@ -191,6 +193,8 @@ const resetForm = () => {
   studentSearchQuery.value = '';
   filteredStudents.value = [];
   filteredRegistrations.value = [];
+  hasError.value = false;
+  errorMessage.value = '';
 };
 
 // เพิ่มฟังก์ชันสำหรับค้นหานักเรียน

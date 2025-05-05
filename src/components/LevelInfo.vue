@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed } from 'vue';
+import { onMounted } from '@vue/runtime-core';
 import axios from 'axios';
 
 interface Level {
@@ -61,13 +62,53 @@ const createNewLevel = () => {
   formLevel.name = '';
 };
 
+const validateLevelForm = () => {
+  if (!formLevel.name) {
+    errorMessage.value = 'ກະລຸນາປ້ອນຊື່ຊັ້ນຮຽນ';
+    return false;
+  }
+  
+  // ກວດສອບວ່າຊື່ຊັ້ນຮຽນເລີ່ມຕົ້ນດ້ວຍ "ຊັ້ນ ມ" ຫຼືບໍ່
+  if (!formLevel.name.startsWith('ຊັ້ນ ມ')) {
+    errorMessage.value = 'ກະລຸນາປ້ອນຊື່ຊັ້ນຮຽນທີ່ເລີ່ມຕົ້ນດ້ວຍ "ຊັ້ນ ມ"';
+    return false;
+  }
+  
+  // ກວດສອບລະຫັດເມື່ອເພີ່ມໃໝ່
+  if (!selectedLevel.value && !formLevel.id) {
+    errorMessage.value = 'ກະລຸນາປ້ອນລະຫັດຊັ້ນຮຽນ';
+    return false;
+  }
+  
+  // ກວດສອບວ່າມີລະຫັດຊ້ຳກັນຫຼືບໍ່
+  if (!selectedLevel.value) { // ກໍລະນີສ້າງໃໝ່
+    const existingLevel = levels.find(l => l.id === formLevel.id);
+    if (existingLevel) {
+      errorMessage.value = 'ລະຫັດຊັ້ນຮຽນນີ້ມີຢູ່ແລ້ວ';
+      return false;
+    }
+  }
+  
+  return true;
+};
+
+const generateLevelId = () => {
+  if (levels.length === 0) {
+    formLevel.id = '001';
+    return;
+  }
+  
+  // ຄົ້ນຫາ ID ລ່າສຸດແລະບວກ 1
+  const maxId = Math.max(...levels.map(l => parseInt(l.id)));
+  formLevel.id = (maxId + 1).toString().padStart(3, '0');
+};
+
 const saveLevel = async () => {
   try {
     isLoading.value = true;
     errorMessage.value = '';
     
-    if (!formLevel.name) {
-      errorMessage.value = 'ກະລຸນາປ້ອນຊື່ຊັ້ນຮຽນ';
+    if (!validateLevelForm()) {
       isLoading.value = false;
       return;
     }
@@ -80,6 +121,7 @@ const saveLevel = async () => {
         if (index !== -1) {
           levels[index] = { ...formLevel };
         }
+        alert('ອັບເດດຂໍ້ມູນຊັ້ນຮຽນສຳເລັດແລ້ວ');
       } else {
         errorMessage.value = 'ບໍ່ສາມາດອັບເດດຂໍ້ມູນຊັ້ນຮຽນໄດ້';
       }
@@ -89,6 +131,7 @@ const saveLevel = async () => {
       if (response.data.success) {
         levels.push({ ...response.data.data });
         selectLevel(response.data.data);
+        alert('ເພີ່ມຂໍ້ມູນຊັ້ນຮຽນໃໝ່ສຳເລັດແລ້ວ');
       } else {
         errorMessage.value = 'ບໍ່ສາມາດເພີ່ມຂໍ້ມູນຊັ້ນຮຽນໄດ້';
       }
@@ -125,6 +168,7 @@ const deleteLevel = async () => {
           selectLevel(levels[0]);
         }
       }
+      alert('ລຶບຂໍ້ມູນຊັ້ນຮຽນສຳເລັດແລ້ວ');
     } else {
       errorMessage.value = 'ບໍ່ສາມາດລຶບຂໍ້ມູນຊັ້ນຮຽນໄດ້';
     }
@@ -157,12 +201,23 @@ onMounted(fetchLevels);
       <!-- ID -->
       <div class="mb-4">
         <div class="mb-1">ລະຫັດຊັ້ນຮຽນ</div>
-        <input 
-          v-model="formLevel.id" 
-          type="text" 
-          class="w-full px-3 py-2 border border-gray-300 rounded"
-          :disabled="!!selectedLevel"
-        />
+        <div class="flex">
+          <input 
+            v-model="formLevel.id" 
+            type="text" 
+            class="flex-1 px-3 py-2 border border-gray-300 rounded"
+            :disabled="!!selectedLevel"
+          />
+          <button 
+            v-if="!selectedLevel"
+            @click="generateLevelId" 
+            class="px-3 py-2 bg-gray-200 rounded ml-2"
+            title="ສ້າງລະຫັດອັດຕະໂນມັດ"
+            :disabled="isLoading"
+          >
+            ສ້າງ ID
+          </button>
+        </div>
       </div>
       
       <!-- Name -->
@@ -171,6 +226,7 @@ onMounted(fetchLevels);
         <input 
           v-model="formLevel.name" 
           type="text" 
+          placeholder="ຊັ້ນ ມ 1"
           class="w-full px-3 py-2 border border-gray-300 rounded"
         />
       </div>
