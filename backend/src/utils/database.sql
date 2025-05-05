@@ -120,12 +120,15 @@ CREATE TABLE `registrations` (
   `id` varchar(36) NOT NULL,
   `invoice_id` varchar(50) NOT NULL,
   `student_id` varchar(36) NOT NULL,
-  `classroom_id` varchar(36) NOT NULL,
-  `school_year_id` varchar(36) NOT NULL,
+  `student_name` varchar(100) DEFAULT NULL,
+  `student_phone` varchar(20) DEFAULT NULL,
+  `classroom` varchar(36) NOT NULL,
+  `level` varchar(50) NOT NULL, 
+  `school_year` varchar(20) NOT NULL,
   `registration_date` date NOT NULL,
   `tuition_fee` decimal(10,2) NOT NULL,
   `is_paid` tinyint(1) DEFAULT 0,
-  `registered_by` varchar(36) NOT NULL,
+  `registered_by` varchar(36) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -295,11 +298,7 @@ ALTER TABLE `payments`
 --
 ALTER TABLE `registrations`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `invoice_id` (`invoice_id`),
-  ADD KEY `student_id` (`student_id`),
-  ADD KEY `classroom_id` (`classroom_id`),
-  ADD KEY `school_year_id` (`school_year_id`),
-  ADD KEY `registered_by` (`registered_by`);
+  ADD UNIQUE KEY `invoice_id` (`invoice_id`);
 
 --
 -- Indexes for table `school_years`
@@ -350,11 +349,8 @@ ALTER TABLE `payments`
 --
 -- Constraints for table `registrations`
 --
-ALTER TABLE `registrations`
-  ADD CONSTRAINT `registrations_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`),
-  ADD CONSTRAINT `registrations_ibfk_2` FOREIGN KEY (`classroom_id`) REFERENCES `classrooms` (`id`),
-  ADD CONSTRAINT `registrations_ibfk_3` FOREIGN KEY (`school_year_id`) REFERENCES `school_years` (`id`),
-  ADD CONSTRAINT `registrations_ibfk_4` FOREIGN KEY (`registered_by`) REFERENCES `users` (`id`);
+-- ໄດ້ລຶບ constraint ອອກ ເພື່ອໃຫ້ສາມາດລົງທະບຽນໂດຍບໍ່ຕ້ອງມີນັກຮຽນໃນຕາຕະລາງ students
+
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

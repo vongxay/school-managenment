@@ -78,16 +78,9 @@ class RegistrationController {
         return;
       }
       
-      // ตรวจสอบว่ามีนักเรียนอยู่ในระบบหรือไม่
-      const student = await StudentModel.findByStudentId(registrationData.student_id);
-      
-      if (!student) {
-        res.status(400).json({
-          success: false,
-          message: 'ບໍ່ພົບຂໍ້ມູນນັກຮຽນໃນລະບົບ'
-        });
-        return;
-      }
+      // ໄດ້ລຶບການກວດສອບຂໍ້ມູນນັກຮຽນຈາກຖານຂໍ້ມູນ
+      // ສາມາດລົງທະບຽນໄດ້ເລີຍໂດຍໃຊ້ຂໍ້ມູນທີ່ສົ່ງມາຈາກຟອມ
+      console.log('ກຳລັງລົງທະບຽນ:', registrationData);
       
       // สร้างการลงทะเบียนใหม่
       const registrationId = await RegistrationModel.create(registrationData);
@@ -126,18 +119,7 @@ class RegistrationController {
         return;
       }
       
-      // ถ้ามีการเปลี่ยนแปลงรหัสนักเรียน ตรวจสอบว่ามีนักเรียนอยู่ในระบบหรือไม่
-      if (registrationData.student_id && registrationData.student_id !== existingRegistration.student_id) {
-        const student = await StudentModel.findByStudentId(registrationData.student_id);
-        
-        if (!student) {
-          res.status(400).json({
-            success: false,
-            message: 'ບໍ່ພົບຂໍ້ມູນນັກຮຽນໃນລະບົບ'
-          });
-          return;
-        }
-      }
+      // ໄດ້ລຶບການກວດສອບຂໍ້ມູນນັກຮຽນຈາກຖານຂໍ້ມູນ
       
       // อัปเดตข้อมูลการลงทะเบียน
       const updated = await RegistrationModel.update(id, registrationData);

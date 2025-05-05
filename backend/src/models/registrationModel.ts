@@ -52,9 +52,20 @@ class RegistrationModel {
       connection = await db.getConnection();
       
       let query = `
-        SELECT r.*, s.student_name_lao as student_name, s.guardian_phone as student_phone
+        SELECT 
+          r.id, 
+          r.invoice_id,
+          r.registration_date, 
+          r.student_id, 
+          r.student_name, 
+          r.student_phone,
+          r.classroom, 
+          r.level, 
+          r.school_year, 
+          r.is_paid as paid,
+          r.created_at,
+          r.updated_at
         FROM registrations r
-        LEFT JOIN students s ON r.student_id = s.student_id
         WHERE 1=1
       `;
       
@@ -64,7 +75,7 @@ class RegistrationModel {
       if (filters.search) {
         query += ` AND (
           r.student_id LIKE ? OR 
-          s.student_name_lao LIKE ? OR
+          r.student_name LIKE ? OR
           r.id LIKE ?
         )`;
         const searchPattern = `%${filters.search}%`;
@@ -77,7 +88,7 @@ class RegistrationModel {
       }
       
       if (filters.paid !== undefined) {
-        query += ` AND r.paid = ?`;
+        query += ` AND r.is_paid = ?`;
         queryParams.push(filters.paid);
       }
       
@@ -117,9 +128,20 @@ class RegistrationModel {
       connection = await db.getConnection();
       
       const query = `
-        SELECT r.*, s.student_name_lao as student_name, s.guardian_phone as student_phone
+        SELECT 
+          r.id, 
+          r.invoice_id,
+          r.registration_date, 
+          r.student_id, 
+          r.student_name, 
+          r.student_phone,
+          r.classroom, 
+          r.level, 
+          r.school_year, 
+          r.is_paid as paid,
+          r.created_at,
+          r.updated_at
         FROM registrations r
-        LEFT JOIN students s ON r.student_id = s.student_id
         WHERE r.id = ?
       `;
       const [rows] = await connection.query(query, [id]);
@@ -141,20 +163,68 @@ class RegistrationModel {
       const id = `INV-${uuidv4().substring(0, 8)}`;
       const registrationDate = new Date().toISOString().split('T')[0];
       
+      // ກວດສອບວ່ານັກຮຽນມີໃນລະບົບຫຼືບໍ່
+      const [studentRows] = await connection.query(
+        'SELECT * FROM students WHERE student_id = ?',
+        [data.student_id]
+      );
+      
+      // ຖ້າບໍ່ພົບນັກຮຽນ, ໃຫ້ສ້າງນັກຮຽນໃໝ່
+      if ((studentRows as any[]).length === 0) {
+        console.log(`ບໍ່ພົບນັກຮຽນ ID: ${data.student_id}, ກຳລັງສ້າງນັກຮຽນໃໝ່...`);
+        
+        const studentId = uuidv4();
+        const insertStudentQuery = `
+          INSERT INTO students (
+            id, 
+            student_id, 
+            student_name_lao, 
+            guardian_phone, 
+            gender,
+            nationality
+          ) VALUES (?, ?, ?, ?, ?, ?)
+        `;
+        
+        await connection.query(insertStudentQuery, [
+          studentId,
+          data.student_id,
+          data.student_name,
+          data.student_phone,
+          'M', // ກຳນົດເປັນເພດຊາຍໂດຍຄ່າເລີ່ມຕົ້ນ, ສາມາດແກ້ໄຂໄດ້ພາຍຫຼັງ
+          'ລາວ'
+        ]);
+        
+        console.log(`ສ້າງນັກຮຽນໃໝ່ສຳເລັດ: ${data.student_name}`);
+      }
+      
       const insertQuery = `
         INSERT INTO registrations (
-          id, registration_date, student_id, classroom, level, school_year, paid, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+          id, 
+          invoice_id, 
+          student_id, 
+          student_name, 
+          student_phone, 
+          classroom, 
+          level, 
+          school_year, 
+          is_paid, 
+          registration_date,
+          created_at, 
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
       `;
       
       const values = [
         id,
-        registrationDate,
+        id, // ใช้ id เดียวกันสำหรับ invoice_id
         data.student_id,
+        data.student_name,
+        data.student_phone,
         data.classroom,
         data.level,
         data.school_year,
-        data.paid || false
+        data.paid || false,
+        registrationDate
       ];
       
       await connection.query(insertQuery, values);
@@ -186,6 +256,16 @@ class RegistrationModel {
         queryParams.push(data.student_id);
       }
       
+      if (data.student_name !== undefined) {
+        updateQuery += `, student_name = ?`;
+        queryParams.push(data.student_name);
+      }
+      
+      if (data.student_phone !== undefined) {
+        updateQuery += `, student_phone = ?`;
+        queryParams.push(data.student_phone);
+      }
+      
       if (data.classroom !== undefined) {
         updateQuery += `, classroom = ?`;
         queryParams.push(data.classroom);
@@ -202,7 +282,7 @@ class RegistrationModel {
       }
       
       if (data.paid !== undefined) {
-        updateQuery += `, paid = ?`;
+        updateQuery += `, is_paid = ?`;
         queryParams.push(data.paid);
       }
       
