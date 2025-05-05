@@ -5,8 +5,18 @@ export const StudentController = {
   // ดึงข้อมูลนักเรียนทั้งหมด
   getAllStudents: async (req: Request, res: Response) => {
     try {
-      const students = await StudentModel.findAll();
-      res.json({ success: true, data: students });
+      const { search } = req.query;
+      
+      let students;
+      if (search && typeof search === 'string') {
+        // ถ้ามีการค้นหา ให้เรียกใช้ฟังก์ชันค้นหา
+        students = await StudentModel.search(search);
+      } else {
+        // ถ้าไม่มีการค้นหา ให้ดึงข้อมูลทั้งหมด
+        students = await StudentModel.findAll();
+      }
+      
+      res.json({ success: true, data: { students } });
     } catch (error) {
       console.error('Error fetching students:', error);
       res.status(500).json({ success: false, message: 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນນັກຮຽນ' });
