@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue';
+import { onMounted } from '@vue/runtime-core';
 import { useStudentStore } from '../stores/studentStore';
 import { useRouter } from 'vue-router';
 import type { Student } from '../types/student';
+import axios from 'axios';
 
 const studentStore = useStudentStore();
 const router = useRouter();
@@ -58,6 +60,10 @@ const isLoading = ref(false);
 const hasError = ref(false);
 const errorMessage = ref('');
 
+// เพิ่มตัวแปรสำหรับเก็บข้อมูลค่าเรียน
+const tuitionInfo = ref<{id: string, amount: number}>({ id: '', amount: 0 });
+const API_URL = 'http://localhost:5000/api';
+
 // โหลดข้อมูลนักเรียนเมื่อคอมโพเนนต์ถูกโหลด
 const loadData = async () => {
   if (props.studentId) {
@@ -89,6 +95,33 @@ const loadData = async () => {
 // เรียกใช้ฟังก์ชันโหลดข้อมูลเมื่อคอมโพเนนต์ถูกโหลด
 loadData();
 
+// โหลดข้อมูลค่าเรียน
+const loadTuitionInfo = async () => {
+  try {
+    isLoading.value = true;
+    const response = await axios.get(`${API_URL}/tuitions`);
+    if (response.data.success && response.data.data.length > 0) {
+      // ใช้ค่าแรกที่ได้
+      tuitionInfo.value = { 
+        id: response.data.data[0].id,
+        amount: response.data.data[0].amount
+      };
+      
+      // อัปเดตค่า amount จาก tuitionInfo
+      amount.value = tuitionInfo.value.amount;
+    }
+  } catch (error) {
+    console.error('ບໍ່ສາມາດໂຫລດຂໍ້ມູນຄ່າຮຽນໄດ້:', error);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// เรียกใช้ฟังก์ชันโหลดข้อมูลค่าเรียนเมื่อคอมโพเนนต์ถูกโหลด
+onMounted(() => {
+  loadTuitionInfo();
+});
+
 // ฟังก์ชันโหลดข้อมูลนักเรียน
 async function loadStudentData(studentId: string) {
   try {
@@ -109,8 +142,28 @@ async function loadStudentData(studentId: string) {
       payment.academicYear = `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
       payment.tuitionId = student.studentId || '';
       
-      // เรียกค่าเรียนตามระดับชั้น
-      amount.value = await studentStore.getTuitionFee(payment.level) || 0;
+      // เรียกหาค่าเรียนตามระดับชั้นจาก API
+      try {
+        const response = await axios.get(`${API_URL}/tuitions`);
+        if (response.data.success && response.data.data.length > 0) {
+          // หาค่าเรียนตามระดับชั้น
+          const matchingTuition = response.data.data.find((t: any) => t.level === payment.level);
+          if (matchingTuition) {
+            amount.value = matchingTuition.amount;
+            tuitionInfo.value = {
+              id: matchingTuition.id,
+              amount: matchingTuition.amount
+            };
+          } else {
+            // ถ้าไม่พบค่าเรียนที่ตรงกับระดับชั้น ใช้ค่าเรียนเริ่มต้น
+            amount.value = tuitionInfo.value.amount;
+          }
+        }
+      } catch (error) {
+        console.error('ບໍ່ສາມາດດຶງຂໍ້ມູນຄ່າຮຽນໄດ້:', error);
+        // ใช้วิธีเดิมถ้าเรียก API ไม่สำเร็จ
+        amount.value = await studentStore.getTuitionFee(payment.level) || 0;
+      }
     } else {
       throw new Error('ບໍ່ພົບຂໍ້ມູນນັກສຶກສາ');
     }
@@ -268,8 +321,28 @@ const selectRegistration = async (registrationId: string) => {
     payment.level = registration.level;
     payment.academicYear = registration.school_year;
     
-    // ดึงค่าเรียนตามระดับชั้น
-    amount.value = await studentStore.getTuitionFee(registration.level) || 0;
+    // ดึงค่าเรียนตามระดับชั้นจาก API
+    try {
+      const response = await axios.get(`${API_URL}/tuitions`);
+      if (response.data.success && response.data.data.length > 0) {
+        // หาค่าเรียนตามระดับชั้น
+        const matchingTuition = response.data.data.find((t: any) => t.level === registration.level);
+        if (matchingTuition) {
+          amount.value = matchingTuition.amount;
+          tuitionInfo.value = {
+            id: matchingTuition.id,
+            amount: matchingTuition.amount
+          };
+        } else {
+          // ถ้าไม่พบค่าเรียนที่ตรงกับระดับชั้น ใช้ค่าเรียนเริ่มต้น
+          amount.value = tuitionInfo.value.amount;
+        }
+      }
+    } catch (error) {
+      console.error('ບໍ່ສາມາດດຶງຂໍ້ມູນຄ່າຮຽນໄດ້:', error);
+      // ใช้วิธีเดิมถ้าเรียก API ไม่สำเร็จ
+      amount.value = await studentStore.getTuitionFee(registration.level) || 0;
+    }
     
     showStudentSearch.value = false;
     isLoading.value = false;
@@ -404,7 +477,7 @@ const validatePaymentInput = () => {
           </div>
           <div>
             <span class="mb-1 mr-2 text-sm">ລະຫັດຄ່າຮຽນ</span>
-            <input type="text" value="007" class="px-2 py-1 border rounded" readonly />
+            <input type="text" :value="tuitionInfo.id" class="px-2 py-1 border rounded" readonly />
           </div>
           <div>
             <span class="mb-1 mr-2 text-sm">ຊື່ຊັ້ນຮຽນ</span>
@@ -464,7 +537,7 @@ const validatePaymentInput = () => {
             <div class="text-right">ຈໍານວນ</div>
             <input 
               type="text" 
-              v-model="amount" 
+              :value="tuitionInfo.amount.toLocaleString()" 
               class="w-32 px-2 py-1 border rounded text-right" 
               readonly
             />
