@@ -136,10 +136,10 @@ onMounted(() => {
                   ລາຍຊື່ນັກຮຽນ
                 </button>
                 <button 
-                  @click="activeMenu = 'registration'"
+                  @click="activeMenu = 'studentInfo'; studentTab = 'form'"
                   :class="[
                     'px-4 py-2 rounded-lg',
-                    activeMenu === 'registration'
+                    activeMenu === 'studentInfo' && studentTab === 'form' 
                       ? 'bg-blue-600 text-white' 
                       : 'bg-gray-200 hover:bg-gray-300'
                   ]"
