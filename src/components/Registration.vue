@@ -69,6 +69,25 @@ const filteredRegistrations = computed(() => {
   return filtered.slice(0, 10).reverse();
 });
 
+// ເພີ່ມຟັງຊັນแปลงรูปแบบวันที่
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString; // ถ้าแปลงไม่ได้ให้แสดงเป็นข้อความเดิม
+    
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    
+    return `${day}/${month}/${year}`;
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return dateString;
+  }
+};
+
 // ດຶງຂໍ້ມູນການລົງທະບຽນທັງໝົດ
 const fetchRegistrations = async () => {
   try {
@@ -141,8 +160,28 @@ const searchStudents = async () => {
         studentPhone: student.guardian_phone || student.phone || ''
       }));
       
-      // ກຳນົດຂໍ້ມູນໃຫ້ກັບອາເຣເທີ່ໃຊ້ສະແດງຜົນ
-      studentTableData.value = formattedData;
+      // ດຶງຂໍ້ມູນການລົງທະບຽນເພື່ອກອງນັກຮຽນທີ່ລົງທະບຽນແລ້ວ
+      const regResponse = await axios.get(`${API_URL}/registrations?school_year=${currentSchoolYear.value || ''}`, {
+        headers: {
+          Authorization: `Bearer ${authStore.user?.token}`
+        }
+      });
+      
+      if (regResponse.data.success) {
+        // ສ້າງລາຍຊື່ລະຫັດນັກຮຽນທີ່ລົງທະບຽນແລ້ວໃນປີການສຶກສາປັດຈຸບັນ
+        const registeredStudentIds = regResponse.data.data.registrations.map(reg => reg.student_id);
+        
+        // ກອງນັກຮຽນທີ່ຍັງບໍ່ໄດ້ລົງທະບຽນໃນປີການສຶກສາປັດຈຸບັນ
+        const filteredData = formattedData.filter(student => 
+          !registeredStudentIds.includes(student.studentId)
+        );
+        
+        // ກຳນົດຂໍ້ມູນໃຫ້ກັບອາເຣເທີ່ໃຊ້ສະແດງຜົນ
+        studentTableData.value = filteredData;
+      } else {
+        // ຖ້າບໍ່ສາມາດດຶງຂໍ້ມູນການລົງທະບຽນໄດ້ ໃຫ້ສະແດງຂໍ້ມູນນັກຮຽນທັງໝົດ
+        studentTableData.value = formattedData;
+      }
     }
   } catch (err) {
     console.error('Error searching students:', err);
@@ -672,7 +711,7 @@ onMounted(() => {
           class="grid grid-cols-9 p-1 border-b"
         >
           <div>{{ reg.id }}</div>
-          <div>{{ reg.registrationDate }}</div>
+          <div>{{ formatDate(reg.registrationDate) }}</div>
           <div>{{ reg.studentId }}</div>
           <div>{{ reg.studentName }}</div>
           <div>{{ reg.studentPhone }}</div>
