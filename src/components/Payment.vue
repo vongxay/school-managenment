@@ -2,12 +2,10 @@
 import { ref, reactive, computed } from 'vue';
 import { onMounted } from '@vue/runtime-core';
 import { useStudentStore } from '../stores/studentStore';
-import { useRouter } from 'vue-router';
 import type { Student } from '../types/student';
 import axios from 'axios';
 
 const studentStore = useStudentStore();
-const router = useRouter();
 
 interface Payment {
   invoiceNo: string;
@@ -196,35 +194,53 @@ const confirmPayment = async () => {
     payment.status = 'ຈ່າຍແລ້ວ';
     
     // บันทึกการชำระเงิน
-    await studentStore.savePayment({
-      invoiceNo: payment.invoiceNo,
-      studentId: payment.tuitionId,
+    const paymentData = {
+      invoice_id: payment.invoiceNo,
+      registration_id: payment.invoiceNo,
+      student_id: payment.tuitionId,
       amount: amount.value,
-      paidAmount: paidAmount.value,
-      changeAmount: changeAmount.value,
-      paymentDate: payment.date,
-      status: payment.status
+      payment_date: payment.date,
+      payment_method: 'cash', // ค่าเริ่มต้นเป็นเงินสด
+      received_by: localStorage.getItem('userId') || 'admin',
+      receipt_number: 'R-' + Math.floor(Math.random() * 1000000).toString().padStart(8, '0')
+    };
+    
+    const paymentResponse = await axios.post(`${API_URL}/payments`, paymentData, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      }
     });
     
-    // อัปเดตสถานะการชำระเงินในการลงทะเบียน
-    try {
-      await studentStore.updateRegistrationPaymentStatus(payment.tuitionId, true);
-    } catch (regError) {
-      console.error('ບໍ່ສາມາດອັບເດດສະຖານະການລົງທະບຽນໄດ້:', regError);
+    if (paymentResponse.data.success) {
+      // อัปเดตสถานะการชำระเงินในการลงทะเบียน
+      const updateData = { is_paid: true };
+      
+      try {
+        await axios.put(`${API_URL}/registrations/${payment.invoiceNo}/payment-status`, updateData, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        alert('บันทึกการชำระเงินสำเร็จแล้ว');
+      } catch (updateError) {
+        console.error('ບໍ່ສາມາດອັບເດດສະຖານະການລົງທະບຽນໄດ້:', updateError);
+        alert('บันทึกการชำระเงินสำเร็จ แต่ไม่สามารถอัปเดตสถานะการลงทะเบียนได้');
+      }
+    } else {
+      alert('เกิดข้อผิดพลาดในการบันทึกการชำระเงิน');
     }
     
-    alert('ບັນທຶກການຊຳລະເງິນສຳເລັດແລ້ວ');
-    isLoading.value = false;
-    
-    // Reset form สำหรับการชำระครั้งต่อไป
+    // รีเซ็ตฟอร์มสำหรับการชำระครั้งต่อไป
     resetForm();
-    
-    // นำทางไปยังหน้ารายการชำระเงิน
-    router.push('/payments');
   } catch (error) {
     isLoading.value = false;
     console.error('ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກການຊຳລະເງິນ:', error);
     alert('ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກການຊຳລະເງິນ');
+  } finally {
+    isLoading.value = false;
   }
 };
 
@@ -301,18 +317,23 @@ const selectRegistration = async (registrationId: string) => {
   try {
     isLoading.value = true;
     
-    console.log('ກຳລັງໂຫລດຂໍ້ມູນລົງທະບຽນ:', registrationId);
-    const registration = await studentStore.getRegistrationByInvoiceId(registrationId);
+    console.log('กำลังโหลดข้อมูลลงทะเบียน:', registrationId);
+    const response = await axios.get(`${API_URL}/registrations/${registrationId}`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      }
+    });
     
-    if (!registration) {
-      console.error('ບໍ່ພົບຂໍ້ມູນການລົງທະບຽນ:', registrationId);
-      throw new Error('ບໍ່ພົບຂໍ້ມູນການລົງທະບຽນ');
+    if (!response.data.success || !response.data.data) {
+      console.error('ไม่พบข้อมูลการลงทะเบียน:', registrationId);
+      throw new Error('ไม่พบข้อมูลการลงทะเบียน');
     }
     
-    console.log('ພົບຂໍ້ມູນການລົງທະບຽນ:', registration);
+    const registration = response.data.data;
+    console.log('พบข้อมูลการลงทะเบียน:', registration);
     
     // อัปเดตข้อมูลใบเสร็จตามการลงทะเบียน
-    payment.invoiceNo = registration.id;
+    payment.invoiceNo = registration.invoice_id || registration.id;
     payment.date = new Date().toISOString().split('T')[0];
     payment.tuitionId = registration.student_id;
     payment.studentName = registration.student_name;
@@ -320,28 +341,40 @@ const selectRegistration = async (registrationId: string) => {
     payment.classLevel = registration.classroom;
     payment.level = registration.level;
     payment.academicYear = registration.school_year;
+    payment.status = registration.is_paid ? 'ຈ່າຍແລ້ວ' : 'ລໍຖ້າຊໍາລະ';
     
-    // ดึงค่าเรียนตามระดับชั้นจาก API
-    try {
-      const response = await axios.get(`${API_URL}/tuitions`);
-      if (response.data.success && response.data.data.length > 0) {
-        // หาค่าเรียนตามระดับชั้น
-        const matchingTuition = response.data.data.find((t: any) => t.level === registration.level);
-        if (matchingTuition) {
-          amount.value = matchingTuition.amount;
-          tuitionInfo.value = {
-            id: matchingTuition.id,
-            amount: matchingTuition.amount
-          };
-        } else {
-          // ถ้าไม่พบค่าเรียนที่ตรงกับระดับชั้น ใช้ค่าเรียนเริ่มต้น
-          amount.value = tuitionInfo.value.amount;
+    // ใช้ค่าเรียนจากใบลงทะเบียนถ้ามี
+    if (registration.tuition_fee && parseFloat(registration.tuition_fee) > 0) {
+      amount.value = parseFloat(registration.tuition_fee);
+      tuitionInfo.value = {
+        id: registration.tuition_id || '',
+        amount: parseFloat(registration.tuition_fee)
+      };
+    } else {
+      // ถ้าไม่มีค่าเรียนในใบลงทะเบียน ดึงค่าเรียนตามระดับชั้นจาก API
+      try {
+        const tuitionResponse = await axios.get(`${API_URL}/tuitions`);
+        if (tuitionResponse.data.success && tuitionResponse.data.data.length > 0) {
+          // หาค่าเรียนตามระดับชั้นและปีการศึกษา
+          const matchingTuition = tuitionResponse.data.data.find((t: any) => 
+            t.level === registration.level && 
+            t.year === registration.school_year
+          );
+          
+          if (matchingTuition) {
+            amount.value = matchingTuition.amount;
+            tuitionInfo.value = {
+              id: matchingTuition.id,
+              amount: matchingTuition.amount
+            };
+          } else {
+            // ถ้าไม่พบค่าเรียนที่ตรงกับระดับชั้น ใช้ค่าเรียนเริ่มต้น
+            amount.value = tuitionInfo.value.amount;
+          }
         }
+      } catch (error) {
+        console.error('ບໍ່ສາມາດດຶງຂໍ້ມູນຄ່າຮຽນໄດ້:', error);
       }
-    } catch (error) {
-      console.error('ບໍ່ສາມາດດຶງຂໍ້ມູນຄ່າຮຽນໄດ້:', error);
-      // ใช้วิธีเดิมถ้าเรียก API ไม่สำเร็จ
-      amount.value = await studentStore.getTuitionFee(registration.level) || 0;
     }
     
     showStudentSearch.value = false;

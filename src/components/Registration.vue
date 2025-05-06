@@ -249,6 +249,32 @@ const saveRegistration = async () => {
       school_year: currentSchoolYear.value
     });
     
+    // ດຶງຂໍ້ມູນຄ່າເຣີຢນຕາມລະດັບຊັ້ນແລະປີການສຶກສາ
+    let tuitionFee = 0;
+    try {
+      const tuitionResponse = await axios.get(`${API_URL}/tuitions`, {
+        headers: {
+          Authorization: `Bearer ${authStore.user?.token}`
+        }
+      });
+      
+      if (tuitionResponse.data.success) {
+        // ຄ້ນຫາຄ່າເຣີຢນຕາມລະດັບຊັ້ນແລະປີການສຶກສາ
+        const matchingTuition = tuitionResponse.data.data.find((t) => 
+          t.level === currentClassLevel.value && 
+          t.year === currentSchoolYear.value
+        );
+        
+        if (matchingTuition) {
+          tuitionFee = matchingTuition.amount;
+        } else {
+          console.warn('ໄມ່ພບຂ້ອມູນຄ່າເຣີຢນສຳຫຣັບລະດັບຊັ້ນແລະປີການສຶກສານີ້');
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching tuition info:', err);
+    }
+    
     // ສ້າງຂໍ້ມູນການລົງທະບຽນໃໝ່ຕາມໂຄງສ້າງຖານຂໍ້ມູນ
     const registrationData = {
       student_id: currentStudentId.value,
@@ -257,10 +283,13 @@ const saveRegistration = async () => {
       classroom: currentClassName.value,
       level: currentClassLevel.value, // ໃຊ້ຄ່າຈາກຕົວແປທີ່ເກັບລະດັບຊັ້ນ
       school_year: currentSchoolYear.value,
-      paid: false
+      paid: false,
+      tuition_fee: tuitionFee, // ເພີ່ມຄ່າເຣີຢນທີ່ຈະເຣີຢກເກ໇ບ
+      invoice_id: currentRegistrationId.value,
+      registration_date: new Date().toISOString().split('T')[0]
     };
     
-    // ສົ່ງຂໍ້ມູນໄປຍັງ API
+    // ສ່ງຂໍ້ມູນໄປຍັງ API
     const response = await axios.post(`${API_URL}/registrations`, registrationData, {
       headers: {
         Authorization: `Bearer ${authStore.user?.token}`,
@@ -268,7 +297,7 @@ const saveRegistration = async () => {
       }
     }).catch(error => {
       console.error("API Error:", error.response?.data || error.message);
-      throw error; // ສົ່ງຕໍ່ຂໍ້ຜິດພາດເພື່ອໃຫ້ catch ດ້ານນອກຈັດການຕໍ່
+      throw error; // ສ່ງຕໍ່ຂໍ້ຜິດພາດເພື່ອໃຫ້ catch ດ້ານນອກຈັດການຕໍ່
     });
     
     if (response.data.success) {

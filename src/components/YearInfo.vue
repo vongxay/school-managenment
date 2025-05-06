@@ -6,6 +6,7 @@ import axios from 'axios';
 interface SchoolYear {
   id: string;
   period: string;
+  is_current?: boolean;
 }
 
 const API_URL = 'http://localhost:5000/api';
@@ -192,6 +193,54 @@ const createCurrentSchoolYear = () => {
 
 // ໂຫຼດຂໍ້ມູນເມື່ອຄອມໂພເນັນຖືກສ້າງ
 onMounted(fetchYears);
+
+// เพิ่มฟังก์ชันสำหรับกำหนดปีการศึกษาปัจจุบัน
+const setCurrentYear = async (year: SchoolYear) => {
+  if (!year || !confirm(`ต้องการกำหนดให้ "${year.period}" เป็นปีการศึกษาปัจจุบันหรือไม่?`)) {
+    return;
+  }
+  
+  try {
+    isLoading.value = true;
+    errorMessage.value = '';
+    
+    // อัปเดตทุกปีการศึกษาให้ไม่เป็นปีปัจจุบัน
+    for (const y of schoolYears) {
+      if (y.is_current && y.id !== year.id) {
+        try {
+          await axios.put(`${API_URL}/years/${y.id}`, {
+            ...y,
+            is_current: false
+          });
+        } catch (error) {
+          console.error('Error updating year current status:', error);
+        }
+      }
+    }
+    
+    // ตั้งค่าปีที่เลือกเป็นปีปัจจุบัน
+    const response = await axios.put(`${API_URL}/years/${year.id}`, {
+      ...year,
+      is_current: true
+    });
+    
+    if (response.data.success) {
+      // อัปเดตข้อมูลในอาร์เรย์
+      schoolYears.forEach(y => {
+        y.is_current = y.id === year.id;
+      });
+      
+      alert(`ตั้งค่า "${year.period}" เป็นปีการศึกษาปัจจุบันเรียบร้อยแล้ว`);
+    } else {
+      errorMessage.value = 'ไม่สามารถตั้งค่าปีการศึกษาปัจจุบันได้';
+    }
+  } catch (error) {
+    console.error('Error setting current year:', error);
+    errorMessage.value = 'เกิดข้อผิดพลาดในการตั้งค่าปีการศึกษาปัจจุบัน';
+  } finally {
+    isLoading.value = false;
+  }
+};
 </script>
 
 <template>
@@ -281,9 +330,10 @@ onMounted(fetchYears);
       </div>
       
       <!-- Table headers -->
-      <div class="grid grid-cols-2 bg-gray-400 p-2 text-left">
+      <div class="grid grid-cols-3 bg-gray-400 p-2 text-left">
         <div>ລະຫັດສົກຮຽນ</div>
         <div>ສົກຮຽນ</div>
+        <div>ສະຖານະ</div>
       </div>
       
       <!-- Table rows -->
@@ -293,12 +343,24 @@ onMounted(fetchYears);
           :key="year.id"
           @click="selectYear(year)"
           :class="[
-            'grid grid-cols-2 p-2 cursor-pointer',
+            'grid grid-cols-3 p-2 cursor-pointer',
             selectedYear?.id === year.id ? 'bg-blue-600 text-white' : ''
           ]"
         >
           <div>{{ year.id }}</div>
           <div>{{ year.period }}</div>
+          <div class="flex items-center justify-between">
+            <span v-if="year.is_current" class="text-green-600 font-bold">ປີປັດຈຸບັນ</span>
+            <span v-else>-</span>
+            <button 
+              v-if="!year.is_current"
+              @click.stop="setCurrentYear(year)" 
+              class="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+              :disabled="isLoading"
+            >
+              ຕັ້ງເປັນປີປັດຈຸບັນ
+            </button>
+          </div>
         </div>
       </div>
     </div>
