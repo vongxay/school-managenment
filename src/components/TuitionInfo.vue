@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue';
-import { onMounted } from '@vue/runtime-core';
+import { onMounted, watch } from '@vue/runtime-core';
 import axios from 'axios';
 
 interface Tuition {
@@ -34,6 +34,8 @@ const formTuition = reactive<Tuition>({
 const schoolYears = reactive<SchoolYear[]>([]);
 const levels = reactive<Level[]>([]);
 const searchQuery = ref('');
+const yearFilter = ref('');
+const levelFilter = ref('');
 const isLoading = ref(false);
 const errorMessage = ref('');
 
@@ -67,6 +69,18 @@ const fetchYears = async () => {
     const response = await axios.get(`${API_URL}/years`);
     if (response.data.success) {
       Object.assign(schoolYears, response.data.data);
+      // ຕັ້ງຄ່າປີການສຶກສາປັດຈຸບັນເປັນຄ່າເລີ່ມຕົ້ນສຳລັບຕົວກອງ
+      if (schoolYears.length > 0 && !yearFilter.value) {
+        // ຫາປີການສຶກສາປັດຈຸບັນ
+        const currentYear = new Date().getFullYear();
+        const currentSchoolYear = schoolYears.find(y => 
+          y.period === `${currentYear}-${currentYear + 1}` || 
+          y.period === `${currentYear-1}-${currentYear}`
+        );
+        if (currentSchoolYear) {
+          yearFilter.value = currentSchoolYear.period;
+        }
+      }
     } else {
       errorMessage.value = 'ບໍ່ສາມາດດຶງຂໍ້ມູນສົກຮຽນໄດ້';
     }
@@ -101,15 +115,99 @@ const fetchLevels = async () => {
   }
 };
 
+// ຕົວກອງຂໍ້ມູນຄ່າຮຽນ
 const filteredTuitions = computed(() => {
-  if (!searchQuery.value) return tuitions;
-  const query = searchQuery.value.toLowerCase();
-  return tuitions.filter(t => 
-    t.id.toLowerCase().includes(query) || 
-    t.name.toLowerCase().includes(query) || 
-    t.level.toLowerCase().includes(query) ||
-    t.year.toLowerCase().includes(query)
-  );
+  let result = tuitions;
+  
+  // ກອງຕາມຂໍ້ຄວາມຄົ້ນຫາ
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase();
+    result = result.filter(t => 
+      t.id.toLowerCase().includes(query) || 
+      t.name.toLowerCase().includes(query) || 
+      t.level.toLowerCase().includes(query) ||
+      t.year.toLowerCase().includes(query)
+    );
+  }
+  
+  // ກອງຕາມປີການສຶກສາ
+  if (yearFilter.value) {
+    result = result.filter(t => t.year === yearFilter.value);
+  }
+  
+  // ກອງຕາມລະດັບຊັ້ນ
+  if (levelFilter.value) {
+    result = result.filter(t => t.level === levelFilter.value);
+  }
+  
+  return result;
+});
+
+// ຄ້ນຫາຄ່າຮຽນຕາມຊັ້ນຮຽນແລະປີການສຶກສາ
+const findTuitionByLevelAndYear = (level: string, year: string): Tuition | undefined => {
+  return tuitions.find(t => t.level === level && t.year === year);
+};
+
+// เพิ่มฟังก์ชันสำหรับค้นหาค่าเรียนที่สามารถใช้ได้กับ API
+const searchTuitionByLevelAndYear = async (level: string, year: string): Promise<Tuition | undefined> => {
+  try {
+    // ค้นหาในข้อมูลในท้องถิ่นก่อน
+    const localTuition = findTuitionByLevelAndYear(level, year);
+    if (localTuition) {
+      return localTuition;
+    }
+    
+    // ถ้าไม่พบในข้อมูลท้องถิ่น ค้นหาจาก API
+    isLoading.value = true;
+    errorMessage.value = '';
+    
+    const response = await axios.get(`${API_URL}/tuitions?level=${encodeURIComponent(level)}&year=${encodeURIComponent(year)}`);
+    
+    if (response.data.success && response.data.data.length > 0) {
+      return response.data.data[0];
+    }
+    
+    return undefined;
+  } catch (error) {
+    console.error('Error searching tuition by level and year:', error);
+    errorMessage.value = 'เกิดข้อผิดพลาดในการค้นหาข้อมูลค่าเรียน';
+    return undefined;
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// แสดงความสัมพันธ์ระหว่างค่าเรียน ระดับชั้น และปีการศึกษาในตารางสรุป
+const showTuitionSummary = ref(false);
+const tuitionSummaryData = computed(() => {
+  // สร้างข้อมูลสำหรับตารางสรุป
+  const summary: {
+    level: string;
+    years: {[year: string]: number};
+  }[] = [];
+  
+  // จัดกลุ่มตามระดับชั้น
+  const levelGroups = new Map<string, Tuition[]>();
+  tuitions.forEach(tuition => {
+    if (!levelGroups.has(tuition.level)) {
+      levelGroups.set(tuition.level, []);
+    }
+    levelGroups.get(tuition.level)!.push(tuition);
+  });
+  
+  // สร้างข้อมูลสรุป
+  levelGroups.forEach((tuitions, level) => {
+    const yearAmount: {[year: string]: number} = {};
+    tuitions.forEach(tuition => {
+      yearAmount[tuition.year] = tuition.amount;
+    });
+    summary.push({
+      level,
+      years: yearAmount
+    });
+  });
+  
+  return summary;
 });
 
 const selectTuition = (tuition: Tuition) => {
@@ -128,16 +226,38 @@ const validateForm = () => {
     return false;
   }
   
+  if (!formTuition.level) {
+    errorMessage.value = 'ກະລຸນາເລືອກລະດັບຊັ້ນຮຽນ';
+    return false;
+  }
+  
+  if (!formTuition.year) {
+    errorMessage.value = 'ກະລຸນາເລືອກສົກຮຽນ';
+    return false;
+  }
+  
   // ກວດສອບລະຫັດເມື່ອເພີ່ມໃໝ່
   if (!selectedTuition.value && !formTuition.id) {
     errorMessage.value = 'ກະລຸນາປ້ອນລະຫັດຄ່າຮຽນ';
     return false;
   }
   
-  // ກວດສອບວ່າມີລະຫັດຊ້ຳກັນຫຼືບໍ່
+  // ກວດສອບວ່າມີຄ່າຮຽນສຳລັບຊັ້ນຮຽນແລະປີການສຶກສານີ້ແລ້ວຫຼືບໍ່
   if (!selectedTuition.value) { // ກໍລະນີສ້າງໃໝ່
-    const existingTuition = tuitions.find(t => t.id === formTuition.id);
+    const existingTuition = tuitions.find(
+      t => t.level === formTuition.level && 
+      t.year === formTuition.year && 
+      t.id !== formTuition.id
+    );
+    
     if (existingTuition) {
+      errorMessage.value = `ມີຄ່າຮຽນສຳລັບ ${formTuition.level} ໃນສົກຮຽນ ${formTuition.year} ແລ້ວ`;
+      return false;
+    }
+    
+    // ກວດສອບລະຫັດຊ້ຳ
+    const existingId = tuitions.find(t => t.id === formTuition.id);
+    if (existingId) {
       errorMessage.value = 'ລະຫັດຄ່າຮຽນນີ້ມີຢູ່ແລ້ວ';
       return false;
     }
@@ -239,19 +359,49 @@ const createNewTuition = () => {
   selectedTuition.value = null;
 };
 
-// Update name based on level change
+// ສ້າງຊື່ຄ່າຮຽນຕາມລະດັບຊັ້ນທີ່ເລືອກ
 const updateName = () => {
   formTuition.name = `ຄ່າຮຽນ${formTuition.level}`;
 };
+
+// ເມື່ອປ່ຽນລະດັບຊັ້ນ ໃຫ້ອັບເດດຊື່ຄ່າຮຽນອັດຕະໂນມັດ
+watch(() => formTuition.level, updateName);
+
+// ກວດສອບການເລືອກປີການສຶກສາແລະລະດັບຊັ້ນແລ້ວ
+const checkForExistingTuition = () => {
+  if (formTuition.level && formTuition.year && !selectedTuition.value) {
+    const existingTuition = findTuitionByLevelAndYear(formTuition.level, formTuition.year);
+    if (existingTuition) {
+      // ແຈ້ງເຕືອນວ່າມີຄ່າຮຽນນີ້ແລ້ວ
+      alert(`ມີຄ່າຮຽນສຳລັບ ${formTuition.level} ໃນສົກຮຽນ ${formTuition.year} ແລ້ວ`);
+      
+      // ເລືອກຄ່າຮຽນທີ່ມີແລ້ວມາແກ້ໄຂ
+      selectTuition(existingTuition);
+    }
+  }
+};
+
+// ເມື່ອປ່ຽນລະດັບຊັ້ນຫຼືປີການສຶກສາ ໃຫ້ກວດສອບວ່າມີຄ່າຮຽນນີ້ແລ້ວຫຼືບໍ່
+watch([() => formTuition.level, () => formTuition.year], checkForExistingTuition);
 
 // ໂຫລດຂໍ້ມູນເມື່ອຄອມໂພເນັນຖືກສ້າງ
 onMounted(async () => {
   await Promise.all([fetchTuitions(), fetchYears(), fetchLevels()]);
 });
+
+// ส่งออกฟังก์ชันเพื่อให้ใช้งานจากภายนอกได้
+defineExpose({
+  searchTuitionByLevelAndYear
+});
 </script>
 
 <template>
   <div class="flex">
+    <!-- ສ່ວນແຈ້ງເຕືອນຄວາມຜິດພາດ -->
+    <div v-if="errorMessage" class="w-full bg-red-100 text-red-700 p-2 mb-4 rounded">
+      {{ errorMessage }}
+    </div>
+    
     <!-- Left Form Section -->
     <div class="w-1/3 p-4 border-r">
       <div class="mb-4">
@@ -260,6 +410,7 @@ onMounted(async () => {
           v-model="formTuition.id" 
           type="text" 
           class="w-full px-3 py-2 border border-gray-300 rounded"
+          :disabled="selectedTuition !== null"
         />
       </div>
       
@@ -276,7 +427,8 @@ onMounted(async () => {
         <div class="mb-1">ຄ່າຮຽນ</div>
         <input 
           v-model.number="formTuition.amount" 
-          type="text" 
+          type="number" 
+          min="0"
           class="w-full px-3 py-2 border border-gray-300 rounded"
         />
       </div>
@@ -327,13 +479,15 @@ onMounted(async () => {
       <div class="flex space-x-4">
         <button 
           @click="deleteTuition" 
-          class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+          class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          :disabled="!selectedTuition"
         >
           ຍົກເລີກ
         </button>
         <button 
           @click="saveTuition" 
-          class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+          class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          :disabled="isLoading"
         >
           ບັນທຶກ
         </button>
@@ -342,21 +496,92 @@ onMounted(async () => {
     
     <!-- Right Table Section -->
     <div class="w-2/3 p-4">
-      <div class="flex items-center space-x-1 justify-between mb-4">
-        <div class="flex items-center space-x-1 flex-grow">
-          <div class="mb-1">ຄົ້ນຫາລະຫັດຄ່າຮຽນ</div>
-          <input 
-            v-model="searchQuery" 
-            type="text" 
-            class="flex-1 px-3 py-2 border border-gray-300 rounded"
-          />
+      <div class="mb-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2 flex-grow">
+            <div class="whitespace-nowrap">ຄົ້ນຫາ</div>
+            <input 
+              v-model="searchQuery" 
+              type="text" 
+              placeholder="ຄົ້ນຫາລະຫັດຄ່າຮຽນ, ຊື່, ລະດັບຊັ້ນ, ປີການສຶກສາ..."
+              class="flex-1 px-3 py-2 border border-gray-300 rounded"
+            />
+          </div>
+          <button
+            @click="createNewTuition"
+            class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 ml-2"
+          >
+            ເພີ່ມ
+          </button>
         </div>
-        <button
-          @click="createNewTuition"
-          class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 ml-2"
+        
+        <!-- ຕົວກອງເພີ່ມເຕີມ -->
+        <div class="flex mt-2 space-x-4">
+          <div class="flex items-center space-x-2">
+            <div>ປີການສຶກສາ:</div>
+            <select 
+              v-model="yearFilter" 
+              class="px-3 py-1 border border-gray-300 rounded"
+            >
+              <option value="">ທັງໝົດ</option>
+              <option v-for="year in schoolYears" :key="year.id" :value="year.period">
+                {{ year.period }}
+              </option>
+            </select>
+          </div>
+          
+          <div class="flex items-center space-x-2">
+            <div>ລະດັບຊັ້ນ:</div>
+            <select 
+              v-model="levelFilter" 
+              class="px-3 py-1 border border-gray-300 rounded"
+            >
+              <option value="">ທັງໝົດ</option>
+              <option v-for="level in levels" :key="level.id" :value="level.name">
+                {{ level.name }}
+              </option>
+            </select>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Summary button -->
+      <div class="flex justify-end mb-2">
+        <button 
+          @click="showTuitionSummary = !showTuitionSummary" 
+          class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
         >
-          ເພີ່ມ
+          {{ showTuitionSummary ? 'ຊ່ອນສະຫຼຸບ' : 'ສະຫຼຸບຄ່າຮຽນ' }}
         </button>
+      </div>
+      
+      <!-- Tuition Summary Table -->
+      <div v-if="showTuitionSummary" class="mb-4 border p-2 bg-gray-50 rounded">
+        <h3 class="text-lg font-bold mb-2">ສະຫຼຸບຄ່າຮຽນຕາມຊັ້ນຮຽນແລະສົກຮຽນ</h3>
+        
+        <div class="overflow-x-auto">
+          <table class="min-w-full">
+            <thead>
+              <tr class="bg-gray-300">
+                <th class="py-2 px-3 text-left">ຊັ້ນຮຽນ</th>
+                <th v-for="year in schoolYears" :key="year.id" class="py-2 px-3 text-center">
+                  {{ year.period }}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in tuitionSummaryData" :key="row.level" class="border-b">
+                <td class="py-2 px-3 font-medium">{{ row.level }}</td>
+                <td v-for="year in schoolYears" :key="year.id" class="py-2 px-3 text-center">
+                  <span v-if="row.years[year.period]" class="font-medium text-blue-700">
+                    {{ row.years[year.period].toLocaleString() }}
+                  </span>
+                  <span v-else class="text-gray-400">-</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
       
       <!-- Table -->
@@ -370,8 +595,18 @@ onMounted(async () => {
           <div>ຄ່າຮຽນ</div>
         </div>
         
+        <!-- Loading indicator -->
+        <div v-if="isLoading" class="p-4 text-center">
+          <p>ກຳລັງໂຫລດຂໍ້ມູນ...</p>
+        </div>
+        
+        <!-- Empty state -->
+        <div v-else-if="filteredTuitions.length === 0" class="p-4 text-center text-gray-500">
+          <p>ບໍ່ພົບຂໍ້ມູນຄ່າຮຽນ</p>
+        </div>
+        
         <!-- Table rows -->
-        <div class="max-h-96 overflow-y-auto">
+        <div v-else class="max-h-96 overflow-y-auto">
           <div 
             v-for="tuition in filteredTuitions" 
             :key="tuition.id"

@@ -69,6 +69,25 @@ const filteredRegistrations = computed(() => {
   return filtered.slice(0, 10).reverse();
 });
 
+// ເພີ່ມຟັງຊັນแปลงรูปแบบวันที่
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString; // ถ้าแปลงไม่ได้ให้แสดงเป็นข้อความเดิม
+    
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    
+    return `${day}/${month}/${year}`;
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return dateString;
+  }
+};
+
 // ດຶງຂໍ້ມູນການລົງທະບຽນທັງໝົດ
 const fetchRegistrations = async () => {
   try {
@@ -138,11 +157,31 @@ const searchStudents = async () => {
       const formattedData = response.data.data.students.map(student => ({
         studentId: student.student_id,
         studentName: student.student_name_lao,
-        studentPhone: student.guardian_phone || student.phone || ''
+        studentPhone: student.guardian_phone || student.phone_number || ''
       }));
       
-      // ກຳນົດຂໍ້ມູນໃຫ້ກັບອາເຣເທີ່ໃຊ້ສະແດງຜົນ
-      studentTableData.value = formattedData;
+      // ດຶງຂໍ້ມູນການລົງທະບຽນເພື່ອກອງນັກຮຽນທີ່ລົງທະບຽນແລ້ວ
+      const regResponse = await axios.get(`${API_URL}/registrations?school_year=${currentSchoolYear.value || ''}`, {
+        headers: {
+          Authorization: `Bearer ${authStore.user?.token}`
+        }
+      });
+      
+      if (regResponse.data.success) {
+        // ສ້າງລາຍຊື່ລະຫັດນັກຮຽນທີ່ລົງທະບຽນແລ້ວໃນປີການສຶກສາປັດຈຸບັນ
+        const registeredStudentIds = regResponse.data.data.registrations.map(reg => reg.student_id);
+        
+        // ກອງນັກຮຽນທີ່ຍັງບໍ່ໄດ້ລົງທະບຽນໃນປີການສຶກສາປັດຈຸບັນ
+        const filteredData = formattedData.filter(student => 
+          !registeredStudentIds.includes(student.studentId)
+        );
+        
+        // ກຳນົດຂໍ້ມູນໃຫ້ກັບອາເຣເທີ່ໃຊ້ສະແດງຜົນ
+        studentTableData.value = filteredData;
+      } else {
+        // ຖ້າບໍ່ສາມາດດຶງຂໍ້ມູນການລົງທະບຽນໄດ້ ໃຫ້ສະແດງຂໍ້ມູນນັກຮຽນທັງໝົດ
+        studentTableData.value = formattedData;
+      }
     }
   } catch (err) {
     console.error('Error searching students:', err);
@@ -249,6 +288,32 @@ const saveRegistration = async () => {
       school_year: currentSchoolYear.value
     });
     
+    // ດຶງຂໍ້ມູນຄ່າເຣີຢນຕາມລະດັບຊັ້ນແລະປີການສຶກສາ
+    let tuitionFee = 0;
+    try {
+      const tuitionResponse = await axios.get(`${API_URL}/tuitions`, {
+        headers: {
+          Authorization: `Bearer ${authStore.user?.token}`
+        }
+      });
+      
+      if (tuitionResponse.data.success) {
+        // ຄ້ນຫາຄ່າເຣີຢນຕາມລະດັບຊັ້ນແລະປີການສຶກສາ
+        const matchingTuition = tuitionResponse.data.data.find((t) => 
+          t.level === currentClassLevel.value && 
+          t.year === currentSchoolYear.value
+        );
+        
+        if (matchingTuition) {
+          tuitionFee = matchingTuition.amount;
+        } else {
+          console.warn('ໄມ່ພບຂ້ອມູນຄ່າເຣີຢນສຳຫຣັບລະດັບຊັ້ນແລະປີການສຶກສານີ້');
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching tuition info:', err);
+    }
+    
     // ສ້າງຂໍ້ມູນການລົງທະບຽນໃໝ່ຕາມໂຄງສ້າງຖານຂໍ້ມູນ
     const registrationData = {
       student_id: currentStudentId.value,
@@ -257,10 +322,13 @@ const saveRegistration = async () => {
       classroom: currentClassName.value,
       level: currentClassLevel.value, // ໃຊ້ຄ່າຈາກຕົວແປທີ່ເກັບລະດັບຊັ້ນ
       school_year: currentSchoolYear.value,
-      paid: false
+      paid: false,
+      tuition_fee: tuitionFee, // ເພີ່ມຄ່າເຣີຢນທີ່ຈະເຣີຢກເກ໇ບ
+      invoice_id: currentRegistrationId.value,
+      registration_date: new Date().toISOString().split('T')[0]
     };
     
-    // ສົ່ງຂໍ້ມູນໄປຍັງ API
+    // ສ່ງຂໍ້ມູນໄປຍັງ API
     const response = await axios.post(`${API_URL}/registrations`, registrationData, {
       headers: {
         Authorization: `Bearer ${authStore.user?.token}`,
@@ -268,7 +336,7 @@ const saveRegistration = async () => {
       }
     }).catch(error => {
       console.error("API Error:", error.response?.data || error.message);
-      throw error; // ສົ່ງຕໍ່ຂໍ້ຜິດພາດເພື່ອໃຫ້ catch ດ້ານນອກຈັດການຕໍ່
+      throw error; // ສ່ງຕໍ່ຂໍ້ຜິດພາດເພື່ອໃຫ້ catch ດ້ານນອກຈັດການຕໍ່
     });
     
     if (response.data.success) {
@@ -482,6 +550,40 @@ const openSchoolYearDialog = () => {
   showSchoolYearDialog.value = true;
 };
 
+// เลือกการลงทะเบียน
+const selectRegistration = async (registrationId) => {
+  try {
+    isLoading.value = true;
+    
+    const response = await axios.get(`${API_URL}/registrations/${registrationId}`, {
+      headers: {
+        Authorization: `Bearer ${authStore.user?.token}`
+      }
+    });
+    
+    if (response.data.success && response.data.data) {
+      const registration = response.data.data;
+      
+      // อัปเดตข้อมูลใบเสร็จตามการลงทะเบียน
+      currentRegistrationId.value = registration.invoice_id || registration.id;
+      currentStudentId.value = registration.student_id;
+      currentStudentName.value = registration.student_name;
+      currentStudentPhone.value = registration.student_phone;
+      currentClassName.value = registration.classroom;
+      currentClassLevel.value = registration.level;
+      currentSchoolYear.value = registration.school_year;
+      
+    } else {
+      throw new Error('ບໍ່ພົບຂໍ້ມູນການລົງທະບຽນ');
+    }
+  } catch (err) {
+    console.error('ເກີດຂໍ້ຜິດພາດໃນການໂຫລດຂໍ້ມູນການລົງທະບຽນ:', err);
+    error.value = 'ບໍ່ສາມາດໂຫລດຂໍ້ມູນການລົງທະບຽນໄດ້';
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 // ເມື່ອຄອມໂພເນນໂຫລດ
 onMounted(() => {
   // ກວດສອບການເຂົ້າສູ່ລະບົບຈາກ authStore
@@ -585,6 +687,29 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- ปุ่มตัวอย่างเลือกการลงทะเบียน -->
+    <div class="mb-4 mt-2 flex flex-wrap gap-2 text-sm">
+      <span class="text-gray-600">ຕົວຢ່າງລະຫັດ:</span>
+      <button 
+        @click="selectRegistration('INV-00000031')" 
+        class="px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+      >
+        INV-00000031
+      </button>
+      <button 
+        @click="selectRegistration('INV-00000032')" 
+        class="px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+      >
+        INV-00000032
+      </button>
+      <button 
+        @click="selectRegistration('INV-00000033')" 
+        class="px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+      >
+        INV-00000033
+      </button>
+    </div>
+
     <div class="mb-4">
       <div class="grid grid-cols-3 bg-gray-400 p-2">
         <div>ລະຫັດນັກຮຽນ</div>
@@ -643,7 +768,7 @@ onMounted(() => {
           class="grid grid-cols-9 p-1 border-b"
         >
           <div>{{ reg.id }}</div>
-          <div>{{ reg.registrationDate }}</div>
+          <div>{{ formatDate(reg.registrationDate) }}</div>
           <div>{{ reg.studentId }}</div>
           <div>{{ reg.studentName }}</div>
           <div>{{ reg.studentPhone }}</div>

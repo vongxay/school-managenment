@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue';
-import { onMounted } from '@vue/runtime-core';
+import { onMounted, watch } from '@vue/runtime-core';
 import axios from 'axios';
 
 interface ClassRoom {
@@ -70,31 +70,64 @@ const selectClass = (classItem: ClassRoom) => {
   classIdInput.value = classItem.id;
 };
 
-const createNewClass = () => {
-  // ຕັ້ງຄ່າຟອມໃຫ້ເປັນຄ່າເລີ່ມຕົ້ນສຳລັບການສ້າງໃໝ່
-  selectedClass.value = null;
-  formClass.id = '';
-  formClass.name = '';
-  formClass.level = 'ຊັ້ນ ມ 1';
-  classIdInput.value = '';
+// เพิ่มฟังก์ชันเพื่อเชื่อมโยงชั้นเรียนกับระดับชั้น
+const updateClassLevel = () => {
+  // เมื่อเลือกระดับชั้น ให้อัปเดตชื่อชั้นเรียนอัตโนมัติ
+  if (formClass.level && !selectedClass.value) {
+    // ดึงเลขของระดับชั้น (เช่น M1, M2)
+    const levelMatch = formClass.level.match(/ຊັ້ນ\s+ມ\s+(\d+)/);
+    if (levelMatch && levelMatch[1]) {
+      // ตั้งชื่อชั้นเรียนเป็น "M{level}/{section}" เช่น "ມ 1/1"
+      formClass.name = `ມ ${levelMatch[1]}/1`;
+    }
+  }
 };
 
+// ติดตามการเปลี่ยนแปลงของระดับชั้น
+watch(() => formClass.level, updateClassLevel);
+
+// เพิ่มฟังก์ชันในการตรวจสอบการเชื่อมโยงระดับชั้นกับชั้นเรียน
+const validateClassLevel = () => {
+  if (!formClass.level) {
+    errorMessage.value = 'กรุณาเลือกระดับชั้น';
+    return false;
+  }
+  
+  // ตรวจสอบว่าชื่อชั้นเรียนสอดคล้องกับระดับชั้นหรือไม่
+  const levelMatch = formClass.level.match(/ຊັ້ນ\s+ມ\s+(\d+)/);
+  const nameMatch = formClass.name.match(/ມ\s+(\d+)/);
+  
+  if (levelMatch && nameMatch && levelMatch[1] !== nameMatch[1]) {
+    if (!confirm(`ชั้นเรียน ${formClass.name} ไม่สอดคล้องกับระดับชั้น ${formClass.level} ต้องการดำเนินการต่อหรือไม่?`)) {
+      return false;
+    }
+  }
+  
+  return true;
+};
+
+// ปรับปรุงฟังก์ชัน validateForm เพื่อรวมการตรวจสอบเกี่ยวกับระดับชั้น
 const validateForm = () => {
-  if (!formClass.name) {
-    errorMessage.value = 'ກະລຸນາປ້ອນຊື່ຫ້ອງຮຽນ';
-    return false;
-  }
-  
   if (!formClass.id) {
-    errorMessage.value = 'ກະລຸນາປ້ອນລະຫັດຫ້ອງຮຽນ';
+    errorMessage.value = 'กรุณาระบุรหัสชั้นเรียน';
     return false;
   }
   
-  // ກວດສອບວ່າມີລະຫັດຊ້ຳກັນຫຼືບໍ່
-  if (!selectedClass.value) { // ກໍລະນີສ້າງໃໝ່
+  if (!formClass.name) {
+    errorMessage.value = 'กรุณาระบุชื่อชั้นเรียน';
+    return false;
+  }
+  
+  // เพิ่มการตรวจสอบความสัมพันธ์ระหว่างชั้นเรียนกับระดับชั้น
+  if (!validateClassLevel()) {
+    return false;
+  }
+  
+  // ตรวจสอบรหัสซ้ำเมื่อสร้างใหม่
+  if (!selectedClass.value) {
     const existingClass = classes.find(c => c.id === formClass.id);
     if (existingClass) {
-      errorMessage.value = 'ລະຫັດຫ້ອງຮຽນນີ້ມີຢູ່ແລ້ວ';
+      errorMessage.value = 'รหัสชั้นเรียนนี้มีอยู่แล้ว';
       return false;
     }
   }
@@ -183,6 +216,18 @@ const deleteClass = async () => {
 
 // ໂຫຼດຂໍ້ມູນເມື່ອຄອມໂພເນັນຖືກສ້າງ
 onMounted(fetchClasses);
+
+// อัปเดตฟังก์ชันสร้างชั้นเรียนใหม่เพื่อตั้งค่าระดับชั้นเริ่มต้น
+const createNewClass = () => {
+  selectedClass.value = null;
+  formClass.id = '';
+  formClass.name = '';
+  formClass.level = levelOptions.length > 0 ? levelOptions[0] : '';
+  classIdInput.value = '';
+  
+  // หลังจากตั้งค่าระดับชั้น ให้อัปเดตชื่อชั้นเรียนอัตโนมัติ
+  updateClassLevel();
+};
 </script>
 
 <template>
