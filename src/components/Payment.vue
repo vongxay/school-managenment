@@ -2,7 +2,6 @@
 import { ref, reactive, computed } from 'vue';
 import { onMounted } from '@vue/runtime-core';
 import { useStudentStore } from '../stores/studentStore';
-import type { Student } from '../types/student';
 import axios from 'axios';
 
 const studentStore = useStudentStore();
@@ -49,9 +48,11 @@ const changeAmount = computed(() => {
 
 // เพิ่ม state สำหรับการค้นหานักเรียน
 const studentSearchQuery = ref('');
-const filteredStudents = ref<Student[]>([]);
 const filteredRegistrations = ref<any[]>([]);
 const showStudentSearch = ref(false);
+
+// เพิ่มตัวแปรสำหรับเก็บข้อมูลการลงทะเบียนที่ยังไม่ชำระเงิน
+const unpaidRegistrations = ref<any[]>([]);
 
 // เพิ่ม loading state
 const isLoading = ref(false);
@@ -77,21 +78,52 @@ const loadData = async () => {
       isLoading.value = false;
     }
   } else {
-    // ถ้าไม่มี studentId ให้ใช้ข้อมูลตัวอย่าง (สำหรับการพัฒนา)
-    payment.invoiceNo = 'INV-' + Math.floor(Math.random() * 1000000).toString().padStart(9, '0');
-    payment.tuitionId = '010';
-    payment.studentName = 'ທ້າວ ເອ ສະຫວັນ';
-    payment.studentPhone = '02058947234';
-    payment.classLevel = 'ມ 3/1';
-    payment.level = 'ມ 3';
-    payment.yearLevel = payment.classLevel;
-    payment.academicYear = '2024-2025';
-    amount.value = 70000;
+    // ถ้าไม่มี studentId ให้ดึงข้อมูลการลงทะเบียนที่ยังไม่ชำระเงินมาแสดง
+    await fetchUnpaidRegistrations();
   }
 };
 
-// เรียกใช้ฟังก์ชันโหลดข้อมูลเมื่อคอมโพเนนต์ถูกโหลด
-loadData();
+// เพิ่มฟังก์ชันใหม่สำหรับดึงข้อมูลการลงทะเบียนที่ยังไม่ชำระเงิน
+const fetchUnpaidRegistrations = async () => {
+  try {
+    isLoading.value = true;
+    // เรียก API เพื่อดึงข้อมูลการลงทะเบียนที่ยังไม่ชำระเงิน
+    const response = await axios.get(`${API_URL}/registrations?paid=false`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+
+    if (response.data.success && response.data.data.registrations.length > 0) {
+      // เก็บข้อมูลไว้ในตัวแปร
+      unpaidRegistrations.value = response.data.data.registrations.map((reg: any) => ({
+        id: reg.id || reg.invoice_id,
+        registrationDate: reg.registration_date,
+        studentId: reg.student_id,
+        studentName: reg.student_name || '',
+        studentPhone: reg.student_phone || '',
+        classroom: reg.classroom || '',
+        level: reg.level || '',
+        schoolYear: reg.school_year || '',
+        paid: reg.paid || reg.is_paid || false,
+        tuition_fee: reg.tuition_fee || 0
+      }));
+      
+      // แสดงข้อมูลการลงทะเบียนแรกในรายการ
+      if (unpaidRegistrations.value.length > 0) {
+        const firstReg = unpaidRegistrations.value[0];
+        // เลือกการลงทะเบียนนี้เพื่อแสดงในฟอร์ม
+        await selectRegistration(firstReg.id);
+      }
+    }
+  } catch (error) {
+    console.error('ບໍ່ສາມາດໂຫລດຂໍ້ມູນການລົງທະບຽນໄດ້:', error);
+    hasError.value = true;
+    errorMessage.value = 'ບໍ່ສາມາດໂຫລດຂໍ້ມູນການລົງທະບຽນໄດ້';
+  } finally {
+    isLoading.value = false;
+  }
+};
 
 // โหลดข้อมูลค่าเรียน
 const loadTuitionInfo = async () => {
@@ -118,6 +150,7 @@ const loadTuitionInfo = async () => {
 // เรียกใช้ฟังก์ชันโหลดข้อมูลค่าเรียนเมื่อคอมโพเนนต์ถูกโหลด
 onMounted(() => {
   loadTuitionInfo();
+  loadData();
 });
 
 // ฟังก์ชันโหลดข้อมูลนักเรียน
@@ -261,7 +294,6 @@ const resetForm = () => {
   paidAmount.value = 0;
   showStudentSearch.value = false;
   studentSearchQuery.value = '';
-  filteredStudents.value = [];
   filteredRegistrations.value = [];
   hasError.value = false;
   errorMessage.value = '';
@@ -270,7 +302,6 @@ const resetForm = () => {
 // เพิ่มฟังก์ชันสำหรับค้นหานักเรียน
 const searchStudents = async () => {
   if (!studentSearchQuery.value.trim()) {
-    filteredStudents.value = [];
     filteredRegistrations.value = [];
     return;
   }
@@ -278,38 +309,27 @@ const searchStudents = async () => {
   const query = studentSearchQuery.value.toLowerCase();
   
   try {
-    // ค้นหาในข้อมูลนักเรียน
-    const students = await studentStore.getAllStudents();
-    filteredStudents.value = students.filter(student => 
-      student.studentId.toLowerCase().includes(query) || 
-      student.studentNameLao.toLowerCase().includes(query) ||
-      student.phoneNumber.toLowerCase().includes(query)
-    ).slice(0, 3); // แสดงแค่ 3 คนแรกเพื่อไม่ให้รายการยาวเกินไป
-    
-    // ค้นหาในข้อมูลการลงทะเบียน
-    const registrations = await studentStore.searchRegistrations(query);
-    filteredRegistrations.value = registrations.slice(0, 3);
+    // ค้นหาเฉพาะในข้อมูลการลงทะเบียนที่ยังไม่ชำระเงิน (ตัดการค้นหาในข้อมูลนักเรียนออก)
+    if (unpaidRegistrations.value.length > 0) {
+      // ค้นหาในข้อมูลในแอพ
+      filteredRegistrations.value = unpaidRegistrations.value.filter(reg => 
+        reg.id.toLowerCase().includes(query) || 
+        reg.studentName.toLowerCase().includes(query) || 
+        reg.studentId.toLowerCase().includes(query) ||
+        reg.studentPhone.toLowerCase().includes(query)
+      ).slice(0, 5);
+    } else {
+      // ถ้ายังไม่มีข้อมูลในแอพ ให้ค้นหาผ่าน API
+      const registrations = await studentStore.searchRegistrations(query);
+      filteredRegistrations.value = registrations
+        .filter(reg => !reg.is_paid) // กรองเฉพาะที่ยังไม่ชำระเงิน
+        .slice(0, 5);
+    }
     
     showStudentSearch.value = true;
   } catch (error) {
     console.error('ເກີດຂໍ້ຜິດພາດໃນການຄົ້ນຫາ:', error);
-    filteredStudents.value = [];
     filteredRegistrations.value = [];
-  }
-};
-
-// เพิ่มฟังก์ชันสำหรับเลือกนักเรียน
-const selectStudent = async (studentId: string) => {
-  try {
-    isLoading.value = true;
-    await loadStudentData(studentId);
-    showStudentSearch.value = false;
-    isLoading.value = false;
-  } catch (error) {
-    console.error('ບໍ່ສາມາດໂຫລດຂໍ້ມູນນັກສຶກສາໄດ້:', error);
-    hasError.value = true;
-    errorMessage.value = 'ບໍ່ສາມາດໂຫລດຂໍ້ມູນນັກສຶກສາໄດ້';
-    isLoading.value = false;
   }
 };
 
@@ -408,6 +428,12 @@ const validatePaymentInput = () => {
   
   return null;
 };
+
+// เพิ่มฟังก์ชันสำหรับแสดงรายการลงทะเบียนที่ยังไม่ชำระเงิน
+const showUnpaidRegistrationsSearch = () => {
+  filteredRegistrations.value = unpaidRegistrations.value.slice(0, 5); // แสดงเพียง 5 รายการแรก
+  showStudentSearch.value = true;
+};
 </script>
 
 <template>
@@ -438,32 +464,14 @@ const validatePaymentInput = () => {
           </button>
         </div>
         
-        <!-- ปุ่มทดสอบค้นหาด้วยรหัสลงทะเบียนตัวอย่าง -->
+        <!-- ปุ่มแสดงรายการลงทะเบียนที่ยังไม่ชำระเงิน -->
         <div class="mt-2 flex flex-wrap gap-2 text-sm">
-          <span class="text-gray-600">ຕົວຢ່າງລະຫັດ:</span>
+          <span class="text-gray-600">ຣາຍການ:</span>
           <button 
-            @click="selectRegistration('INV-00000031')" 
+            @click="showUnpaidRegistrationsSearch" 
             class="px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
           >
-            INV-00000031
-          </button>
-          <button 
-            @click="selectRegistration('INV-00000032')" 
-            class="px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
-          >
-            INV-00000032
-          </button>
-          <button 
-            @click="selectRegistration('INV-00000033')" 
-            class="px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
-          >
-            INV-00000033
-          </button>
-          <button 
-            @click="selectRegistration('INV-00000034')" 
-            class="px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
-          >
-            INV-00000034
+            ລາຍການລົງທະບຽນທີ່ຍັງບໍ່ຊຳລະເງິນ
           </button>
         </div>
         
@@ -481,23 +489,9 @@ const validatePaymentInput = () => {
               {{ reg.id }} - {{ reg.studentName }} ({{ reg.level }})
             </div>
           </div>
-          
-          <!-- ผลการค้นหานักเรียน -->
-          <div v-if="filteredStudents.length > 0">
-            <div class="p-2 font-bold bg-gray-200">ຂໍ້ມູນນັກສຶກສາ</div>
-            <div 
-              v-for="student in filteredStudents" 
-              :key="student.studentId"
-              @click="selectStudent(student.studentId)"
-              class="p-2 hover:bg-gray-100 cursor-pointer border-b"
-            >
-              {{ student.studentId }} - {{ student.studentNameLao }} ({{ student.phoneNumber }})
-            </div>
-          </div>
-          
           <!-- ไม่พบข้อมูล -->
-          <div v-if="filteredStudents.length === 0 && filteredRegistrations.length === 0" class="p-2 text-gray-500">
-            ບໍ່ພົບຂໍ້ມູນ
+          <div v-if="filteredRegistrations.length === 0" class="p-2 text-gray-500">
+            ບໍ່ພົບຂໍ້ມູນການລົງທະບຽນທີ່ຍັງບໍ່ໄດ້ຊຳລະເງິນ
           </div>
         </div>
       </div>

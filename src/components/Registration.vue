@@ -687,29 +687,6 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- ปุ่มตัวอย่างเลือกการลงทะเบียน -->
-    <div class="mb-4 mt-2 flex flex-wrap gap-2 text-sm">
-      <span class="text-gray-600">ຕົວຢ່າງລະຫັດ:</span>
-      <button 
-        @click="selectRegistration('INV-00000031')" 
-        class="px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
-      >
-        INV-00000031
-      </button>
-      <button 
-        @click="selectRegistration('INV-00000032')" 
-        class="px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
-      >
-        INV-00000032
-      </button>
-      <button 
-        @click="selectRegistration('INV-00000033')" 
-        class="px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
-      >
-        INV-00000033
-      </button>
-    </div>
-
     <div class="mb-4">
       <div class="grid grid-cols-3 bg-gray-400 p-2">
         <div>ລະຫັດນັກຮຽນ</div>
@@ -750,7 +727,7 @@ onMounted(() => {
         <div>ລະຫັດນັກຮຽນ</div>
         <div>ຊື່ນັກຮຽນ(La)</div>
         <div>ເບີໂທຜູ້ປົກຄອງ</div>
-        <div>ຫ້ອງສາຍ</div>
+        <div>ຫ້ອງຮຽນ</div>
         <div>ຊັ້ນຮຽນ</div>
         <div>ສົກຮຽນ</div>
         <div>ສະຖານະ</div>

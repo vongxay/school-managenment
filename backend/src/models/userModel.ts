@@ -11,6 +11,7 @@ export interface User extends RowDataPacket {
   name: string;
   role: 'admin' | 'teacher' | 'staff';
   active: boolean;
+  image: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -22,6 +23,7 @@ export interface CreateUserDTO {
   name: string;
   role: 'admin' | 'teacher' | 'staff';
   active?: boolean;
+  image?: string | null;
 }
 
 // กำหนดชนิดข้อมูลสำหรับอัปเดตผู้ใช้
@@ -31,6 +33,7 @@ export interface UpdateUserDTO {
   name?: string;
   role?: 'admin' | 'teacher' | 'staff';
   active?: boolean;
+  image?: string | null;
 }
 
 class UserModel {
@@ -66,7 +69,7 @@ class UserModel {
   async findAll(): Promise<User[]> {
     try {
       const [rows] = await db.query<User[]>(
-        'SELECT id, username, name, role, active, created_at, updated_at FROM users'
+        'SELECT id, username, name, role, active, image, created_at, updated_at FROM users'
       );
       return rows;
     } catch (error) {
@@ -83,14 +86,15 @@ class UserModel {
       const id = uuidv4();
 
       await db.execute(
-        'INSERT INTO users (id, username, password, name, role, active) VALUES (?, ?, ?, ?, ?, ?)',
+        'INSERT INTO users (id, username, password, name, role, active, image) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [
           id,
           userData.username,
           hashedPassword,
           userData.name,
           userData.role,
-          userData.active !== undefined ? userData.active : true
+          userData.active !== undefined ? userData.active : true,
+          userData.image || null
         ]
       );
 
@@ -132,6 +136,11 @@ class UserModel {
       if (userData.active !== undefined) {
         updateFields.push('active = ?');
         values.push(userData.active);
+      }
+
+      if (userData.image !== undefined) {
+        updateFields.push('image = ?');
+        values.push(userData.image);
       }
 
       if (updateFields.length === 0) {
