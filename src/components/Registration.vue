@@ -157,7 +157,7 @@ const searchStudents = async () => {
       const formattedData = response.data.data.students.map(student => ({
         studentId: student.student_id,
         studentName: student.student_name_lao,
-        studentPhone: student.guardian_phone || student.phone || ''
+        studentPhone: student.guardian_phone || student.phone_number || ''
       }));
       
       // ດຶງຂໍ້ມູນການລົງທະບຽນເພື່ອກອງນັກຮຽນທີ່ລົງທະບຽນແລ້ວ
@@ -550,6 +550,40 @@ const openSchoolYearDialog = () => {
   showSchoolYearDialog.value = true;
 };
 
+// เลือกการลงทะเบียน
+const selectRegistration = async (registrationId) => {
+  try {
+    isLoading.value = true;
+    
+    const response = await axios.get(`${API_URL}/registrations/${registrationId}`, {
+      headers: {
+        Authorization: `Bearer ${authStore.user?.token}`
+      }
+    });
+    
+    if (response.data.success && response.data.data) {
+      const registration = response.data.data;
+      
+      // อัปเดตข้อมูลใบเสร็จตามการลงทะเบียน
+      currentRegistrationId.value = registration.invoice_id || registration.id;
+      currentStudentId.value = registration.student_id;
+      currentStudentName.value = registration.student_name;
+      currentStudentPhone.value = registration.student_phone;
+      currentClassName.value = registration.classroom;
+      currentClassLevel.value = registration.level;
+      currentSchoolYear.value = registration.school_year;
+      
+    } else {
+      throw new Error('ບໍ່ພົບຂໍ້ມູນການລົງທະບຽນ');
+    }
+  } catch (err) {
+    console.error('ເກີດຂໍ້ຜິດພາດໃນການໂຫລດຂໍ້ມູນການລົງທະບຽນ:', err);
+    error.value = 'ບໍ່ສາມາດໂຫລດຂໍ້ມູນການລົງທະບຽນໄດ້';
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 // ເມື່ອຄອມໂພເນນໂຫລດ
 onMounted(() => {
   // ກວດສອບການເຂົ້າສູ່ລະບົບຈາກ authStore
@@ -651,6 +685,29 @@ onMounted(() => {
           @input="handleStudentSearch"
         />
       </div>
+    </div>
+
+    <!-- ปุ่มตัวอย่างเลือกการลงทะเบียน -->
+    <div class="mb-4 mt-2 flex flex-wrap gap-2 text-sm">
+      <span class="text-gray-600">ຕົວຢ່າງລະຫັດ:</span>
+      <button 
+        @click="selectRegistration('INV-00000031')" 
+        class="px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+      >
+        INV-00000031
+      </button>
+      <button 
+        @click="selectRegistration('INV-00000032')" 
+        class="px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+      >
+        INV-00000032
+      </button>
+      <button 
+        @click="selectRegistration('INV-00000033')" 
+        class="px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+      >
+        INV-00000033
+      </button>
     </div>
 
     <div class="mb-4">

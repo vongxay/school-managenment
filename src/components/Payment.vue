@@ -205,7 +205,8 @@ const confirmPayment = async () => {
       receipt_number: 'R-' + Math.floor(Math.random() * 1000000).toString().padStart(8, '0')
     };
     
-    const paymentResponse = await axios.post(`${API_URL}/payments`, paymentData, {
+    // ใช้เส้นทาง API ที่ถูกต้องสำหรับการบันทึกการชำระเงิน
+    const paymentResponse = await axios.post(`${API_URL}/registrations/${payment.invoiceNo}/payment`, paymentData, {
       headers: {
         Authorization: `Bearer ${localStorage.getItem('token')}`,
         'Content-Type': 'application/json'
@@ -224,13 +225,13 @@ const confirmPayment = async () => {
           }
         });
         
-        alert('บันทึกการชำระเงินสำเร็จแล้ว');
+        alert('ບັນທຶກການຊຳລະເງິນສຳເລັດແລ້ວ');
       } catch (updateError) {
         console.error('ບໍ່ສາມາດອັບເດດສະຖານະການລົງທະບຽນໄດ້:', updateError);
-        alert('บันทึกการชำระเงินสำเร็จ แต่ไม่สามารถอัปเดตสถานะการลงทะเบียนได้');
+        alert('ບັນທຶກການຊຳລະເງິນສຳເລັດ ແຕ່ບໍ່ສາມາດອັບເດດສະຖານະການລົງທະບຽນໄດ້');
       }
     } else {
-      alert('เกิดข้อผิดพลาดในการบันทึกการชำระเงิน');
+      alert('ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກການຊຳລະເງິນ');
     }
     
     // รีเซ็ตฟอร์มสำหรับการชำระครั้งต่อไป

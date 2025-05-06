@@ -171,7 +171,7 @@ export const studentApi = {
   // ค้นหาข้อมูลการลงทะเบียน
   searchRegistrations: async (query: string): Promise<StudentRegistration[]> => {
     try {
-      const response = await axios.get(`/registrations/search?q=${query}`);
+      const response = await axios.get(`/students/registrations/search?q=${query}`);
       return response.data.data;
     } catch (error) {
       console.error('Error searching registrations:', error);
@@ -182,7 +182,7 @@ export const studentApi = {
   // อัพเดทสถานะการชำระเงิน
   updateRegistrationPaymentStatus: async (id: string, isPaid: boolean): Promise<boolean> => {
     try {
-      await axios.patch(`/registrations/${id}/payment-status`, { is_paid: isPaid });
+      await axios.put(`/registrations/${id}/payment-status`, { is_paid: isPaid });
       return true;
     } catch (error) {
       console.error('Error updating payment status:', error);
