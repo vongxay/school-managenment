@@ -2,9 +2,11 @@
 import { ref, reactive, computed } from 'vue';
 import { onMounted } from '@vue/runtime-core';
 import { useStudentStore } from '../stores/studentStore';
+import { useAuthStore } from '../stores/authStore';
 import axios from 'axios';
 
 const studentStore = useStudentStore();
+const authStore = useAuthStore();
 
 interface Payment {
   invoiceNo: string;
@@ -68,6 +70,10 @@ const tuitionInfo = ref<{id: string, amount: number, level: string, year: string
 });
 const API_URL = 'http://localhost:5000/api';
 
+// เพิ่มตัวแปรใหม่สำหรับเก็บประวัติการชำระเงิน
+const paymentHistory = ref<any[]>([]);
+const showPaymentHistory = ref(false);
+
 // โหลดข้อมูลนักเรียนเมื่อคอมโพเนนต์ถูกโหลด
 const loadData = async () => {
   if (props.studentId) {
@@ -95,24 +101,31 @@ const fetchUnpaidRegistrations = async () => {
     // เรียก API เพื่อดึงข้อมูลการลงทะเบียนที่ยังไม่ชำระเงิน
     const response = await axios.get(`${API_URL}/registrations?paid=false`, {
       headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`
+        Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`
       }
     });
 
     if (response.data.success && response.data.data.registrations.length > 0) {
+      console.log('ພົບການລົງທະບຽນທີ່ຍັງບໍ່ຊຳລະເງິນ:', response.data.data.registrations);
+      
       // เก็บข้อมูลไว้ในตัวแปร
-      unpaidRegistrations.value = response.data.data.registrations.map((reg: any) => ({
-        id: reg.id || reg.invoice_id,
-        registrationDate: reg.registration_date,
-        studentId: reg.student_id,
-        studentName: reg.student_name || '',
-        studentPhone: reg.student_phone || '',
-        classroom: reg.classroom || '',
-        level: reg.level || '',
-        schoolYear: reg.school_year || '',
-        paid: reg.paid || reg.is_paid || false,
-        tuition_fee: reg.tuition_fee || 0
-      }));
+      unpaidRegistrations.value = response.data.data.registrations.map((reg: any) => {
+        // ແນ່ໃຈວ່າໃຊ້ field id ທີ່ຖືກຕ້ອງ
+        const regId = reg.id; 
+        
+        return {
+          id: regId,
+          registrationDate: reg.registration_date,
+          studentId: reg.student_id,
+          studentName: reg.student_name || '',
+          studentPhone: reg.student_phone || '',
+          classroom: reg.classroom || '',
+          level: reg.level || '',
+          schoolYear: reg.school_year || '',
+          paid: reg.paid || reg.is_paid || false,
+          tuition_fee: reg.tuition_fee || 0
+        };
+      });
       
       // แสดงข้อมูลการลงทะเบียนแรกในรายการ
       if (unpaidRegistrations.value.length > 0) {
@@ -120,6 +133,9 @@ const fetchUnpaidRegistrations = async () => {
         // เลือกการลงทะเบียนนี้เพื่อแสดงในฟอร์ม
         await selectRegistration(firstReg.id);
       }
+    } else {
+      console.log('ບໍ່ພົບການລົງທະບຽນທີ່ຍັງບໍ່ຊຳລະເງິນ');
+      unpaidRegistrations.value = [];
     }
   } catch (error) {
     console.error('ບໍ່ສາມາດໂຫລດຂໍ້ມູນການລົງທະບຽນໄດ້:', error);
@@ -134,7 +150,11 @@ const fetchUnpaidRegistrations = async () => {
 const loadTuitionInfo = async () => {
   try {
     isLoading.value = true;
-    const response = await axios.get(`${API_URL}/tuitions`);
+    const response = await axios.get(`${API_URL}/tuitions`, {
+      headers: {
+        Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`
+      }
+    });
     if (response.data.success && response.data.data.length > 0) {
       // เก็บข้อมูลค่าเรียนทั้งหมดไว้ใช้
       const allTuitions = response.data.data;
@@ -185,6 +205,11 @@ const loadTuitionInfo = async () => {
 
 // เรียกใช้ฟังก์ชันโหลดข้อมูลค่าเรียนเมื่อคอมโพเนนต์ถูกโหลด
 onMounted(() => {
+  // ຕັ້ງຄ່າ default headers ສຳລັບ axios ຖ້າມີ token
+  if (authStore.user?.token) {
+    axios.defaults.headers.common['Authorization'] = `Bearer ${authStore.user.token}`;
+  }
+  
   loadTuitionInfo();
   loadData();
 });
@@ -211,7 +236,11 @@ async function loadStudentData(studentId: string) {
       
       // เรียกหาค่าเรียนตามระดับชั้นจาก API
       try {
-        const response = await axios.get(`${API_URL}/tuitions`);
+        const response = await axios.get(`${API_URL}/tuitions`, {
+          headers: {
+            Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`
+          }
+        });
         if (response.data.success && response.data.data.length > 0) {
           // หาค่าเรียนตามระดับชั้น
           const matchingTuition = response.data.data.find((t: any) => t.level === payment.level);
@@ -266,52 +295,58 @@ const confirmPayment = async () => {
     
     // บันทึกการชำระเงิน
     const paymentData = {
-      invoice_id: payment.invoiceNo,
       registration_id: payment.invoiceNo,
-      student_id: payment.tuitionId,
       amount: amount.value,
       payment_date: payment.date,
       payment_method: 'cash', // ค่าเริ่มต้นเป็นเงินสด
-      received_by: localStorage.getItem('userId') || 'admin',
+      received_by: authStore.user?.id || '',
       receipt_number: 'R-' + Math.floor(Math.random() * 1000000).toString().padStart(8, '0'),
-      tuition_id: tuitionInfo.value.id // เพิ่มรหัสค่าเรียนที่ใช้ชำระ
+      note: `ชำระค่าเรียน ${payment.level} ปีการศึกษา ${payment.academicYear}`
     };
     
-    // ใช้เส้นทาง API ที่ถูกต้องสำหรับการบันทึกการชำระเงิน
-    const paymentResponse = await axios.post(`${API_URL}/registrations/${payment.invoiceNo}/payment`, paymentData, {
+    console.log("ກຳລັງສ້າງການຊຳລະເງິນກັບ registration_id:", paymentData.registration_id);
+    
+    // เรียกใช้ API endpoint ใหม่สำหรับบันทึกการชำระเงิน
+    const paymentResponse = await axios.post(`${API_URL}/payments`, paymentData, {
       headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
+        Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`,
         'Content-Type': 'application/json'
       }
     });
     
     if (paymentResponse.data.success) {
-      // อัปเดตสถานะการชำระเงินในการลงทะเบียน
-      const updateData = { 
-        is_paid: true,
-        tuition_id: tuitionInfo.value.id,  // บันทึกรหัสค่าเรียนที่ใช้
-        tuition_fee: amount.value          // บันทึกจำนวนเงินที่ชำระ
-      };
+      alert('ບັນທຶກການຊຳລະເງິນສຳເລັດແລ້ວ');
       
+      // ດຶງຂໍ້ມູນການລົງທະບຽນເພື່ອອັບເດດສະຖານະ (ກໍລະນີທີ່ໃນຝັ່ງ backend ບໍ່ໄດ້ອັບເດດສະຖານະການຊຳລະເງິນອັດຕະໂນມັດ)
       try {
-        await axios.put(`${API_URL}/registrations/${payment.invoiceNo}/payment-status`, updateData, {
+        // ດຶງຂໍ້ມູນການລົງທະບຽນໃໝ່ເພື່ອກວດສອບສະຖານະ
+        const registrationResponse = await axios.get(`${API_URL}/registrations/${payment.invoiceNo}`, {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json'
+            Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`
           }
         });
         
-        alert('ບັນທຶກການຊຳລະເງິນສຳເລັດແລ້ວ');
-      } catch (updateError) {
-        console.error('ບໍ່ສາມາດອັບເດດສະຖານະການລົງທະບຽນໄດ້:', updateError);
-        alert('ບັນທຶກການຊຳລະເງິນສຳເລັດ ແຕ່ບໍ່ສາມາດອັບເດດສະຖານະການລົງທະບຽນໄດ້');
+        if (registrationResponse.data.success && registrationResponse.data.data) {
+          // ອັບເດດສະຖານະໃນໜ້າຈໍ
+          payment.status = registrationResponse.data.data.is_paid ? 'ຈ່າຍແລ້ວ' : 'ລໍຖ້າຊໍາລະ';
+        } 
+      } catch (error) {
+        console.error('ບໍ່ສາມາດດຶງຂໍ້ມູນການລົງທະບຽນຫຼັງຈາກຊຳລະເງິນ:', error);
+      }
+      
+      // ດຶງປະຫວັດການຊຳລະເງິນ
+      await getPaymentHistory(payment.invoiceNo);
+      
+      // ດຶງຂໍ້ມູນການລົງທະບຽນທີ່ຍັງບໍ່ໄດ້ຊຳລະເງິນໃໝ່
+      await fetchUnpaidRegistrations();
+      
+      // ຖາມຜູ້ໃຊ້ວ່າຕ້ອງການລ້າງຟອມເພື່ອຊຳລະເງິນຄົນໃໝ່ຫຼືບໍ່
+      if (confirm('ທ່ານຕ້ອງການລ້າງຟອມເພື່ອຊຳລະເງິນຄົນໃໝ່ຫຼືບໍ່?')) {
+        resetForm();
       }
     } else {
       alert('ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກການຊຳລະເງິນ');
     }
-    
-    // รีเซ็ตฟอร์มสำหรับการชำระครั้งต่อไป
-    resetForm();
   } catch (error) {
     isLoading.value = false;
     console.error('ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກການຊຳລະເງິນ:', error);
@@ -361,11 +396,23 @@ const searchStudents = async () => {
         reg.studentId.toLowerCase().includes(query) ||
         reg.studentPhone.toLowerCase().includes(query)
       ).slice(0, 5);
+      
+      console.log('ຄົ້ນຫາພົບ:', filteredRegistrations.value.length, 'ລາຍການ');
     } else {
       // ถ้ายังไม่มีข้อมูลในแอพ ให้ค้นหาผ่าน API
       const registrations = await studentStore.searchRegistrations(query);
+      
+      console.log('ຜົນການຄົ້ນຫາຈາກ API:', registrations);
+      
+      // ແນ່ໃຈວ່າໃຊ້ field id ທີ່ຖືກຕ້ອງ ແລະກວດສອບຄ່າ is_paid
       filteredRegistrations.value = registrations
-        .filter(reg => !reg.is_paid) // กรองเฉพาะที่ยังไม่ชำระเงิน
+        .filter(reg => reg.is_paid === false) // ກອງສະເພາະທີ່ຍັງບໍ່ຊຳລະເງິນ
+        .map(reg => ({
+          id: reg.id,
+          studentName: reg.student_name || '',
+          studentId: reg.student_id || '',
+          studentPhone: reg.student_phone || ''
+        }))
         .slice(0, 5);
     }
     
@@ -376,7 +423,7 @@ const searchStudents = async () => {
   }
 };
 
-// เพิ่มฟังก์ชันเลือกการลงทะเบียน
+// แก้ไขฟังก์ชัน selectRegistration ดั้งเดิมให้ใช้ getPaymentHistory
 const selectRegistration = async (registrationId: string) => {
   try {
     isLoading.value = true;
@@ -384,7 +431,7 @@ const selectRegistration = async (registrationId: string) => {
     console.log('กำลังโหลดข้อมูลลงทะเบียน:', registrationId);
     const response = await axios.get(`${API_URL}/registrations/${registrationId}`, {
       headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`
+        Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`
       }
     });
     
@@ -397,7 +444,7 @@ const selectRegistration = async (registrationId: string) => {
     console.log('ພົບຂໍ້ມູນການລົງທະບຽນ:', registration);
     
     // อัปเดตข้อมูลใบเสร็จตามการลงทะเบียน
-    payment.invoiceNo = registration.invoice_id || registration.id;
+    payment.invoiceNo = registration.id;
     payment.date = new Date().toISOString().split('T')[0];
     payment.tuitionId = registration.student_id;
     payment.studentName = registration.student_name;
@@ -421,7 +468,11 @@ const selectRegistration = async (registrationId: string) => {
     } else {
       // ถ้าไม่มีค่าเรียนในใบลงทะเบียน ดึงค่าเรียนตามระดับชั้นจาก API
       try {
-        const tuitionResponse = await axios.get(`${API_URL}/tuitions`);
+        const tuitionResponse = await axios.get(`${API_URL}/tuitions`, {
+          headers: {
+            Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`
+          }
+        });
         if (tuitionResponse.data.success && tuitionResponse.data.data.length > 0) {
           // หาค่าเรียนตามระดับชั้นและปีการศึกษา
           const matchingTuition = tuitionResponse.data.data.find((t: any) => 
@@ -456,6 +507,9 @@ const selectRegistration = async (registrationId: string) => {
       }
     }
     
+    // ดึงประวัติการชำระเงิน
+    await getPaymentHistory(registrationId);
+    
     showStudentSearch.value = false;
     isLoading.value = false;
   } catch (error) {
@@ -487,7 +541,37 @@ const validatePaymentInput = () => {
   return null;
 };
 
-// เพิ่มฟังก์ชันสำหรับแสดงรายการลงทะเบียนที่ยังไม่ชำระเงิน
+// เพิ่มฟังก์ชันใหม่สำหรับดึงประวัติการชำระเงิน
+const getPaymentHistory = async (registrationId: string) => {
+  try {
+    isLoading.value = true;
+    console.log('ກຳລັງດຶງປະຫວັດການຊຳລະເງິນສຳລັບການລົງທະບຽນ ID:', registrationId);
+    
+    const response = await axios.get(`${API_URL}/payments/registration/${registrationId}`, {
+      headers: {
+        Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`
+      }
+    });
+    
+    if (response.data.success) {
+      console.log('ພົບປະຫວັດການຊຳລະເງິນ:', response.data.data.payments);
+      paymentHistory.value = response.data.data.payments;
+      showPaymentHistory.value = true;
+    } else {
+      console.log('ບໍ່ພົບປະຫວັດການຊຳລະເງິນ');
+      paymentHistory.value = [];
+      showPaymentHistory.value = false;
+    }
+  } catch (error) {
+    console.error('ບໍ່ສາມາດດຶງຂໍ້ມູນປະຫວັດການຊຳລະເງິນໄດ້:', error);
+    paymentHistory.value = [];
+    showPaymentHistory.value = false;
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// เพิ่มฟังก์ชันเลือกการลงทะเบียน
 const showUnpaidRegistrationsSearch = () => {
   filteredRegistrations.value = unpaidRegistrations.value.slice(0, 5); // แสดงเพียง 5 รายการแรก
   showStudentSearch.value = true;
@@ -629,6 +713,35 @@ const showUnpaidRegistrationsSearch = () => {
             <div class="mb-1 text-sm">ຄ່າຮຽນ:</div>
             <div class="p-2 bg-gray-100 rounded font-bold">{{ tuitionInfo.amount.toLocaleString() }} ກີບ</div>
           </div>
+        </div>
+      </div>
+      
+      <!-- แสดงประวัติการชำระเงิน -->
+      <div v-if="showPaymentHistory && paymentHistory.length > 0" class="mb-4 bg-white rounded p-2">
+        <div class="text-lg font-bold mb-2">ປະຫວັດການຊຳລະເງິນ</div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full">
+            <thead class="bg-gray-200">
+              <tr>
+                <th class="px-4 py-2 text-left">ລະຫັດຊຳລະ</th>
+                <th class="px-4 py-2 text-left">ວັນທີຊຳລະ</th>
+                <th class="px-4 py-2 text-right">ຈຳນວນເງິນ</th>
+                <th class="px-4 py-2 text-left">ວິທີການຊຳລະ</th>
+                <th class="px-4 py-2 text-left">ເລກທີໃບເສັດ</th>
+                <th class="px-4 py-2 text-left">ຜູ້ຮັບເງິນ</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in paymentHistory" :key="item.id" class="border-b">
+                <td class="px-4 py-2">{{ item.id.substring(0, 8) }}...</td>
+                <td class="px-4 py-2">{{ item.payment_date }}</td>
+                <td class="px-4 py-2 text-right">{{ Number(item.amount).toLocaleString() }} ກີບ</td>
+                <td class="px-4 py-2">{{ item.payment_method === 'cash' ? 'ເງິນສົດ' : 'ໂອນເງິນ' }}</td>
+                <td class="px-4 py-2">{{ item.receipt_number }}</td>
+                <td class="px-4 py-2">{{ item.received_by }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
       

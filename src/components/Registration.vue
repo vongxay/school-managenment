@@ -117,7 +117,7 @@ const fetchRegistrations = async () => {
         classroom: reg.classroom || '',
         level: reg.level || '',
         schoolYear: reg.school_year || '',
-        paid: reg.paid || reg.is_paid || false
+        paid: reg.is_paid === true || reg.paid === true // ແກ້ໄຂໃຫ້ຕົວແປ paid ມີຄ່າ boolean ເທົ່ານັ້ນ
       }));
       
       // ກຳນົດຂໍ້ມູນໃຫ້ກັບອາເຣເທີ່ໃຊ້ສະແດງຜົນ
@@ -375,13 +375,18 @@ const clearForm = () => {
 };
 
 // ຄົ້ນຫາຂໍ້ມູນເມື່ອມີການປ່ຽນແປງຄ່າໃນຊ່ອງຄົ້ນຫາ
-const handleStudentSearch = () => {
-  searchStudents();
+// ປັບປຸງຟັງຊັນ handleRegistrationSearch ໃຫ້ໃຊ້ debounce
+let searchTimeout = null;
+const handleRegistrationSearch = () => {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => {
+    fetchRegistrations();
+  }, 300); // ລໍຖ້າ 300ms ຫຼັງຈາກພິມຈົບຈຶ່ງຄົ້ນຫາ
 };
 
 // ຄົ້ນຫາການລົງທະບຽນເມື່ອມີການປ່ຽນແປງຄ່າໃນຊ່ອງຄົ້ນຫາ
-const handleRegistrationSearch = () => {
-  fetchRegistrations();
+const handleStudentSearch = () => {
+  searchStudents();
 };
 
 // ເລືອກຫ້ອງຮຽນ
@@ -649,17 +654,58 @@ onMounted(() => {
       currentSchoolYear.value = `${currentYear}-${currentYear + 1}`;
     }
     
-    // เพิ่มการเรียกใช้ฟังก์ชัน closeDropdowns เมื่อมีการคลิกที่เอกสาร
-    document.addEventListener('click', closeDropdowns);
+    // ຕັ້ງ interval ສຳລັບການອັບເດດຂໍ້ມູນອັດຕະໂນມັດທຸກໆ 30 ວິນາທີ
+    const refreshInterval = setInterval(() => {
+      if (authStore.isAuthenticated) {
+        fetchRegistrations();
+      }
+    }, 30000);
+    
+    // ເກັບ interval ໄວ້ໃນຕົວແປເພື່ອລຶບເມື່ອຄອມໂພເນນຖືກທຳລາຍ
+    onUnmounted(() => {
+      clearInterval(refreshInterval);
+      document.removeEventListener('click', closeDropdowns);
+    });
   } else {
     error.value = 'ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນໃຊ້ງານ';
   }
 });
 
-// ลบการลงทะเบียนอีเวนต์เมื่อคอมโพเนนต์ถูกทำลาย
-onUnmounted(() => {
-  document.removeEventListener('click', closeDropdowns);
-});
+// ເພີ່ມຟັງຊັນໃໝ່ສຳລັບການອັບເດດສະຖານະການຊຳລະເງິນ
+const updatePaymentStatus = async (registrationId, isPaid) => {
+  try {
+    isLoading.value = true;
+    error.value = '';
+    apiError.value = '';
+    
+    const response = await axios.patch(`${API_URL}/students/registrations/${registrationId}/payment-status`, 
+      { isPaid },
+      {
+        headers: {
+          Authorization: `Bearer ${authStore.user?.token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    if (response.data.success) {
+      // ອັບເດດຂໍ້ມູນໃໝ່ຫຼັງຈາກເຮັດລາຍການສຳເລັດ
+      await fetchRegistrations();
+      return true;
+    } else {
+      apiError.value = response.data.message || 'ເກີດຂໍ້ຜິດພາດໃນການອັບເດດສະຖານະການຊຳລະເງິນ';
+      return false;
+    }
+  } catch (err) {
+    console.error("Error updating payment status:", err);
+    const errorMessage = err.response?.data?.message || 'ເກີດຂໍ້ຜິດພາດໃນການອັບເດດສະຖານະການຊຳລະເງິນ';
+    apiError.value = errorMessage;
+    error.value = errorMessage;
+    return false;
+  } finally {
+    isLoading.value = false;
+  }
+};
 </script>
 
 <template>
@@ -811,6 +857,14 @@ onUnmounted(() => {
             @input="handleRegistrationSearch"
           />
         </div>
+        <button 
+          @click="fetchRegistrations" 
+          class="ml-2 px-4 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+          :disabled="isLoading"
+        >
+          <span v-if="isLoading">⟳ ກຳລັງໂຫລດ...</span>
+          <span v-else>⟳ ລີເຟຣຊ</span>
+        </button>
       </div>
       <div class="grid grid-cols-9 bg-gray-400 p-2 text-sm">
         <div>ລະຫັດລົງທະບຽນ</div>
@@ -833,7 +887,8 @@ onUnmounted(() => {
         <div 
           v-for="reg in filteredRegistrations" 
           :key="reg.id"
-          class="grid grid-cols-9 p-1 border-b"
+          class="grid grid-cols-9 p-1 border-b hover:bg-gray-100 cursor-pointer"
+          @click="selectRegistration(reg.id)"
         >
           <div>{{ reg.id }}</div>
           <div>{{ formatDate(reg.registrationDate) }}</div>
@@ -843,7 +898,9 @@ onUnmounted(() => {
           <div>{{ reg.classroom }}</div>
           <div>{{ reg.level }}</div>
           <div>{{ reg.schoolYear }}</div>
-          <div>{{ reg.paid ? 'ຈ່າຍ' : 'ຍັງບໍ່ຈ່າຍ' }}</div>
+          <div :class="reg.paid ? 'text-green-600 font-bold' : 'text-red-600'">
+            {{ reg.paid ? 'ຈ່າຍແລ້ວ' : 'ຍັງບໍ່ຈ່າຍ' }}
+          </div>
         </div>
       </div>
     </div>
