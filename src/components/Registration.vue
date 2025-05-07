@@ -69,7 +69,7 @@ const filteredRegistrations = computed(() => {
   return filtered.slice(0, 10).reverse();
 });
 
-// ເພີ່ມຟັງຊັນแปลงรูปแบบวันที่
+// ເພີ່ມຟັງຊັນแປລງรแบบวันที่
 const formatDate = (dateString) => {
   if (!dateString) return '';
   
@@ -89,20 +89,34 @@ const formatDate = (dateString) => {
 };
 
 // ດຶງຂໍ້ມູນການລົງທະບຽນທັງໝົດ
-const fetchRegistrations = async () => {
+const fetchRegistrations = async (forceRefresh = false) => {
   try {
     isLoading.value = true;
     error.value = '';
     
     // ຖ້າບໍ່ມີການຄົ້ນຫາ ໃຫ້ດຶງຂໍ້ມູນທັງໝົດ
     let url = `${API_URL}/registrations`;
+    
+    // ເພີ່ມຕົວແປຕ່າງໆເຂົ້າໄປ URL
+    const params = new URLSearchParams();
+    
     if (searchQuery.value) {
-      url += `?search=${encodeURIComponent(searchQuery.value)}`;
+      params.append('search', searchQuery.value);
+    }
+    
+    // ເພີ່ມພາຣາມິເຕີ້ cache-busting ເມື່ອໃຊ້ force refresh
+    if (forceRefresh) {
+      params.append('_', Date.now().toString());
+    }
+    
+    if (params.toString()) {
+      url += `?${params.toString()}`;
     }
     
     const response = await axios.get(url, {
       headers: {
-        Authorization: `Bearer ${authStore.user?.token}`
+        Authorization: `Bearer ${authStore.user?.token}`,
+        'Cache-Control': forceRefresh ? 'no-cache, no-store' : ''
       }
     });
     
@@ -380,7 +394,7 @@ let searchTimeout = null;
 const handleRegistrationSearch = () => {
   clearTimeout(searchTimeout);
   searchTimeout = setTimeout(() => {
-    fetchRegistrations();
+    fetchRegistrations(false); // ບໍ່ຈຳເປັນຕ້ອງບັງຄັບໂຫລດຂໍ້ມູນໃໝ່ທັງໝົດເມື່ອຄົ້ນຫາ
   }, 300); // ລໍຖ້າ 300ms ຫຼັງຈາກພິມຈົບຈຶ່ງຄົ້ນຫາ
 };
 
@@ -648,24 +662,27 @@ onMounted(() => {
     // ສ້າງ ID ໃໝ່ສຳລັບການລົງທະບຽນ
     generateNewRegistrationId();
     
-    // ຕັ້ງຄ່າປີການສຶກສາປັດຈຸບັນ (ຈະໃຊ້ເປັນຄ່າເຣິ่มต້ນຖ້າບໍ່ສາມາດດຶງຂໍ້ມູນຈາກ API)
+    // ຕັ້ງຄ່າປີການສຶກສາປັດຈຸບັນ (ຈະໃຊ້ເປັນຄ່າເຣິ່ມຕ້ນຖ້າບໍ່ສາມາດດຶງຂໍ້ມູນຈາກ API)
     if (!currentSchoolYear.value) {
       const currentYear = new Date().getFullYear();
       currentSchoolYear.value = `${currentYear}-${currentYear + 1}`;
     }
     
-    // ຕັ້ງ interval ສຳລັບການອັບເດດຂໍ້ມູນອັດຕະໂນມັດທຸກໆ 30 ວິນາທີ
+    // ຕັ້ງ interval ສຳລັບການອັບເດດຂໍ້ມູນອັດຕະໂນມັດທຸກໆ 10 ວິນາທີ
     const refreshInterval = setInterval(() => {
       if (authStore.isAuthenticated) {
         fetchRegistrations();
       }
-    }, 30000);
+    }, 10000); // ຄວາມຖີ່ອັບເດດ 10 ວິນາທີເພື່ອພ້ອມຮັບຂໍ້ມູນທີ່ປ່ຽນແປງຈາກການຊຳລະເງິນ
     
     // ເກັບ interval ໄວ້ໃນຕົວແປເພື່ອລຶບເມື່ອຄອມໂພເນນຖືກທຳລາຍ
     onUnmounted(() => {
       clearInterval(refreshInterval);
       document.removeEventListener('click', closeDropdowns);
     });
+    
+    // เพิ่ม event listener สำหรับการปิด dropdown เมื่อคลิกนอกพื้นที่
+    document.addEventListener('click', closeDropdowns);
   } else {
     error.value = 'ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນໃຊ້ງານ';
   }
@@ -858,7 +875,7 @@ const updatePaymentStatus = async (registrationId, isPaid) => {
           />
         </div>
         <button 
-          @click="fetchRegistrations" 
+          @click="fetchRegistrations(true)" 
           class="ml-2 px-4 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
           :disabled="isLoading"
         >

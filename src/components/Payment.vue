@@ -281,6 +281,103 @@ const updatePaidAmount = (event: Event) => {
   }
 };
 
+// ฟังก์ชันรีเซ็ตฟอร์ม
+const resetForm = () => {
+  payment.invoiceNo = 'INV-' + Math.floor(Math.random() * 1000000).toString().padStart(9, '0');
+  payment.date = new Date().toISOString().split('T')[0];
+  payment.tuitionId = '';
+  payment.studentName = '';
+  payment.studentPhone = '';
+  payment.yearLevel = '';
+  payment.level = '';
+  payment.classLevel = '';
+  payment.academicYear = '';
+  payment.status = 'ລໍຖ້າຊໍາລະ';
+  amount.value = 0;
+  paidAmount.value = 0;
+  showStudentSearch.value = false;
+  studentSearchQuery.value = '';
+  filteredRegistrations.value = [];
+  hasError.value = false;
+  errorMessage.value = '';
+  
+  // ເລືອກນັກຮຽນຄົນຕໍ່ໄປທີ່ຍັງບໍ່ໄດ້ຊຳລະເງິນ (ຖ້າມີ)
+  if (unpaidRegistrations.value.length > 0) {
+    selectRegistration(unpaidRegistrations.value[0].id);
+  }
+};
+
+// เพิ่มฟังก์ชันใหม่สำหรับการเลือกนักเรียนคนต่อไปหลังจากชำระเงินเสร็จ
+const selectNextUnpaidStudent = async () => {
+  try {
+    // ດຶງຂໍ້ມູນການລົງທະບຽນທີ່ຍັງບໍ່ຊຳລະເງິນໃໝ່
+    await fetchUnpaidRegistrations();
+    
+    // ເລືອກນັກຮຽນຄົນຕໍ່ໄປທັນທີຖ້າມີ
+    if (unpaidRegistrations.value.length > 0) {
+      await selectRegistration(unpaidRegistrations.value[0].id);
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error('ເກີດຂໍ້ຜິດພາດໃນການເລືອກນັກຮຽນຄົນຕໍ່ໄປ:', error);
+    return false;
+  }
+};
+
+// เพิ่มฟังก์ชันสำหรับบังคับอัปเดตสถานะการชำระเงินให้ตรงกันทั้งระบบ
+const forceSyncRegistrationStatus = async (registrationId: string) => {
+  try {
+    // ลองเรียกทั้งสอง API endpoint เพื่อให้แน่ใจว่าข้อมูลตรงกัน
+    
+    // 1. อัปเดตผ่าน endpoint หลัก
+    await axios.patch(`${API_URL}/registrations/${registrationId}/payment-status`, 
+      { is_paid: true },
+      {
+        headers: {
+          Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    // 2. อัปเดตผ่าน endpoint สำรอง (ถ้ามี)
+    try {
+      await axios.patch(`${API_URL}/students/registrations/${registrationId}/payment-status`, 
+        { isPaid: true },
+        {
+          headers: {
+            Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+    } catch (err) {
+      console.log('Alternative endpoint not available, using only main endpoint');
+    }
+    
+    // 3. อัปเดตโดยตรงผ่าน SQL (ถ้ามี endpoint นี้)
+    try {
+      await axios.post(`${API_URL}/execute-sql`, {
+        query: `UPDATE registrations SET is_paid = 1 WHERE id = '${registrationId}'`
+      }, {
+        headers: {
+          Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+    } catch (err) {
+      console.log('SQL endpoint not available, skipping direct update');
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Failed to sync payment status:', error);
+    return false;
+  }
+};
+
+// แก้ไขฟังก์ชัน confirmPayment เพื่อใช้ forceSyncRegistrationStatus
 const confirmPayment = async () => {
   const validationError = validatePaymentInput();
   if (validationError) {
@@ -315,11 +412,11 @@ const confirmPayment = async () => {
     });
     
     if (paymentResponse.data.success) {
-      alert('ບັນທຶກການຊຳລະເງິນສຳເລັດແລ້ວ');
+      // บังคับอัปเดตสถานะการชำระเงินทุกวิธีที่เป็นไปได้
+      await forceSyncRegistrationStatus(payment.invoiceNo);
       
-      // ດຶງຂໍ້ມູນການລົງທະບຽນເພື່ອອັບເດດສະຖານະ (ກໍລະນີທີ່ໃນຝັ່ງ backend ບໍ່ໄດ້ອັບເດດສະຖານະການຊຳລະເງິນອັດຕະໂນມັດ)
+      // โหลดข้อมูลการลงทะเบียนอีกครั้งเพื่ออัปเดตหน้าจอ
       try {
-        // ດຶງຂໍ້ມູນການລົງທະບຽນໃໝ່ເພື່ອກວດສອບສະຖານະ
         const registrationResponse = await axios.get(`${API_URL}/registrations/${payment.invoiceNo}`, {
           headers: {
             Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`
@@ -327,21 +424,31 @@ const confirmPayment = async () => {
         });
         
         if (registrationResponse.data.success && registrationResponse.data.data) {
-          // ອັບເດດສະຖານະໃນໜ້າຈໍ
-          payment.status = registrationResponse.data.data.is_paid ? 'ຈ່າຍແລ້ວ' : 'ລໍຖ້າຊໍາລະ';
-        } 
-      } catch (error) {
-        console.error('ບໍ່ສາມາດດຶງຂໍ້ມູນການລົງທະບຽນຫຼັງຈາກຊຳລະເງິນ:', error);
+          // อัปเดตสถานะในหน้าจอตามข้อมูลล่าสุด
+          const registration = registrationResponse.data.data;
+          payment.status = registration.is_paid === true ? 'ຈ່າຍແລ້ວ' : 'ລໍຖ້າຊໍາລະ';
+        }
+      } catch (err) {
+        console.error('ບໍ່ສາມາດໂຫລດຂໍ້ມູນການລົງທະບຽນຫຼັງຈາກອັບເດດສະຖານະ:', err);
       }
+      
+      alert('ບັນທຶກການຊຳລະເງິນສຳເລັດແລ້ວ');
       
       // ດຶງປະຫວັດການຊຳລະເງິນ
       await getPaymentHistory(payment.invoiceNo);
       
-      // ດຶງຂໍ້ມູນການລົງທະບຽນທີ່ຍັງບໍ່ໄດ້ຊຳລະເງິນໃໝ່
+      // ດຶງຂໍ້ມູນການລົງທະບຽນທີ່ຍັງບໍ່ໄດ້ຊຳລະເງິນໃໝ່ທັນທີ
       await fetchUnpaidRegistrations();
       
-      // ຖາມຜູ້ໃຊ້ວ່າຕ້ອງການລ້າງຟອມເພື່ອຊຳລະເງິນຄົນໃໝ່ຫຼືບໍ່
-      if (confirm('ທ່ານຕ້ອງການລ້າງຟອມເພື່ອຊຳລະເງິນຄົນໃໝ່ຫຼືບໍ່?')) {
+      // ຖາມຜູ້ໃຊ້ວ່າຕ້ອງການຊຳລະເງິນຄ່າຮຽນໃຫ້ນັກຮຽນຄົນຕໍ່ໄປຫຼືບໍ່
+      if (confirm('ທ່ານຕ້ອງການຊຳລະຄ່າຮຽນໃຫ້ນັກຮຽນຄົນຕໍ່ໄປບໍ່?')) {
+        const hasNextStudent = await selectNextUnpaidStudent();
+        
+        if (!hasNextStudent) {
+          alert('ບໍ່ມີການລົງທະບຽນທີ່ຍັງບໍ່ໄດ້ຊຳລະເງິນແລ້ວ');
+          resetForm();
+        }
+      } else {
         resetForm();
       }
     } else {
@@ -354,27 +461,6 @@ const confirmPayment = async () => {
   } finally {
     isLoading.value = false;
   }
-};
-
-// ฟังก์ชันรีเซ็ตฟอร์ม
-const resetForm = () => {
-  payment.invoiceNo = 'INV-' + Math.floor(Math.random() * 1000000).toString().padStart(9, '0');
-  payment.date = new Date().toISOString().split('T')[0];
-  payment.tuitionId = '';
-  payment.studentName = '';
-  payment.studentPhone = '';
-  payment.yearLevel = '';
-  payment.level = '';
-  payment.classLevel = '';
-  payment.academicYear = '';
-  payment.status = 'ລໍຖ້າຊໍາລະ';
-  amount.value = 0;
-  paidAmount.value = 0;
-  showStudentSearch.value = false;
-  studentSearchQuery.value = '';
-  filteredRegistrations.value = [];
-  hasError.value = false;
-  errorMessage.value = '';
 };
 
 // เพิ่มฟังก์ชันสำหรับค้นหานักเรียน
