@@ -60,7 +60,12 @@ const hasError = ref(false);
 const errorMessage = ref('');
 
 // เพิ่มตัวแปรสำหรับเก็บข้อมูลค่าเรียน
-const tuitionInfo = ref<{id: string, amount: number}>({ id: '', amount: 0 });
+const tuitionInfo = ref<{id: string, amount: number, level: string, year: string}>({ 
+  id: '', 
+  amount: 0,
+  level: '',
+  year: ''
+});
 const API_URL = 'http://localhost:5000/api';
 
 // โหลดข้อมูลนักเรียนเมื่อคอมโพเนนต์ถูกโหลด
@@ -131,14 +136,45 @@ const loadTuitionInfo = async () => {
     isLoading.value = true;
     const response = await axios.get(`${API_URL}/tuitions`);
     if (response.data.success && response.data.data.length > 0) {
-      // ใช้ค่าแรกที่ได้
-      tuitionInfo.value = { 
-        id: response.data.data[0].id,
-        amount: response.data.data[0].amount
-      };
+      // เก็บข้อมูลค่าเรียนทั้งหมดไว้ใช้
+      const allTuitions = response.data.data;
+      console.log("ข้อมูลค่าเรียนทั้งหมด:", allTuitions);
       
-      // อัปเดตค่า amount จาก tuitionInfo
-      amount.value = tuitionInfo.value.amount;
+      // ถ้ามีข้อมูลชั้นเรียนและปีการศึกษาแล้ว ใช้หาค่าเรียนที่เหมาะสม
+      if (payment.level && payment.academicYear) {
+        const matchingTuition = allTuitions.find((t: any) => 
+          t.level === payment.level && 
+          t.year === payment.academicYear
+        );
+        
+        if (matchingTuition) {
+          tuitionInfo.value = { 
+            id: matchingTuition.id,
+            amount: matchingTuition.amount,
+            level: matchingTuition.level,
+            year: matchingTuition.year
+          };
+          amount.value = tuitionInfo.value.amount;
+        } else {
+          // ถ้าไม่พบค่าเรียนที่ตรงกัน ใช้ค่าแรกเป็นค่าเริ่มต้น
+          tuitionInfo.value = { 
+            id: allTuitions[0].id,
+            amount: allTuitions[0].amount,
+            level: allTuitions[0].level,
+            year: allTuitions[0].year
+          };
+          amount.value = tuitionInfo.value.amount;
+        }
+      } else {
+        // ถ้ายังไม่มีข้อมูลชั้นเรียน ใช้ค่าแรกเป็นค่าเริ่มต้น
+        tuitionInfo.value = { 
+          id: allTuitions[0].id,
+          amount: allTuitions[0].amount,
+          level: allTuitions[0].level,
+          year: allTuitions[0].year
+        };
+        amount.value = tuitionInfo.value.amount;
+      }
     }
   } catch (error) {
     console.error('ບໍ່ສາມາດໂຫລດຂໍ້ມູນຄ່າຮຽນໄດ້:', error);
@@ -183,7 +219,9 @@ async function loadStudentData(studentId: string) {
             amount.value = matchingTuition.amount;
             tuitionInfo.value = {
               id: matchingTuition.id,
-              amount: matchingTuition.amount
+              amount: matchingTuition.amount,
+              level: matchingTuition.level,
+              year: matchingTuition.year
             };
           } else {
             // ถ้าไม่พบค่าเรียนที่ตรงกับระดับชั้น ใช้ค่าเรียนเริ่มต้น
@@ -235,7 +273,8 @@ const confirmPayment = async () => {
       payment_date: payment.date,
       payment_method: 'cash', // ค่าเริ่มต้นเป็นเงินสด
       received_by: localStorage.getItem('userId') || 'admin',
-      receipt_number: 'R-' + Math.floor(Math.random() * 1000000).toString().padStart(8, '0')
+      receipt_number: 'R-' + Math.floor(Math.random() * 1000000).toString().padStart(8, '0'),
+      tuition_id: tuitionInfo.value.id // เพิ่มรหัสค่าเรียนที่ใช้ชำระ
     };
     
     // ใช้เส้นทาง API ที่ถูกต้องสำหรับการบันทึกการชำระเงิน
@@ -248,7 +287,11 @@ const confirmPayment = async () => {
     
     if (paymentResponse.data.success) {
       // อัปเดตสถานะการชำระเงินในการลงทะเบียน
-      const updateData = { is_paid: true };
+      const updateData = { 
+        is_paid: true,
+        tuition_id: tuitionInfo.value.id,  // บันทึกรหัสค่าเรียนที่ใช้
+        tuition_fee: amount.value          // บันทึกจำนวนเงินที่ชำระ
+      };
       
       try {
         await axios.put(`${API_URL}/registrations/${payment.invoiceNo}/payment-status`, updateData, {
@@ -346,12 +389,12 @@ const selectRegistration = async (registrationId: string) => {
     });
     
     if (!response.data.success || !response.data.data) {
-      console.error('ไม่พบข้อมูลการลงทะเบียน:', registrationId);
-      throw new Error('ไม่พบข้อมูลการลงทะเบียน');
+      console.error('ບໍ່ພົບຂໍ້ມູນການລົງທະບຽນ:', registrationId);
+      throw new Error('ບໍ່ພົບຂໍ້ມູນການລົງທະບຽນ');
     }
     
     const registration = response.data.data;
-    console.log('พบข้อมูลการลงทะเบียน:', registration);
+    console.log('ພົບຂໍ້ມູນການລົງທະບຽນ:', registration);
     
     // อัปเดตข้อมูลใบเสร็จตามการลงทะเบียน
     payment.invoiceNo = registration.invoice_id || registration.id;
@@ -367,9 +410,13 @@ const selectRegistration = async (registrationId: string) => {
     // ใช้ค่าเรียนจากใบลงทะเบียนถ้ามี
     if (registration.tuition_fee && parseFloat(registration.tuition_fee) > 0) {
       amount.value = parseFloat(registration.tuition_fee);
+      
+      // บันทึกข้อมูลค่าเรียนให้ครบถ้วน
       tuitionInfo.value = {
         id: registration.tuition_id || '',
-        amount: parseFloat(registration.tuition_fee)
+        amount: parseFloat(registration.tuition_fee),
+        level: registration.level || '',
+        year: registration.school_year || ''
       };
     } else {
       // ถ้าไม่มีค่าเรียนในใบลงทะเบียน ดึงค่าเรียนตามระดับชั้นจาก API
@@ -386,11 +433,22 @@ const selectRegistration = async (registrationId: string) => {
             amount.value = matchingTuition.amount;
             tuitionInfo.value = {
               id: matchingTuition.id,
-              amount: matchingTuition.amount
+              amount: matchingTuition.amount,
+              level: matchingTuition.level,
+              year: matchingTuition.year
             };
           } else {
             // ถ้าไม่พบค่าเรียนที่ตรงกับระดับชั้น ใช้ค่าเรียนเริ่มต้น
-            amount.value = tuitionInfo.value.amount;
+            const firstTuition = tuitionResponse.data.data[0];
+            amount.value = firstTuition.amount;
+            tuitionInfo.value = {
+              id: firstTuition.id,
+              amount: firstTuition.amount,
+              level: firstTuition.level,
+              year: firstTuition.year
+            };
+            
+            console.warn('ບໍ່ພົບຄ່າຮຽນສຳລັບລະດັບຊັ້ນນີ້, ໃຊ້ຄ່າເລີ່ມຕົ້ນແທນ');
           }
         }
       } catch (error) {
@@ -511,6 +569,10 @@ const showUnpaidRegistrationsSearch = () => {
             <span class="mb-1 mr-2 text-sm">ຊື່ຊັ້ນຮຽນ</span>
             <input type="text" :value="payment.level" class="px-2 py-1 border rounded" readonly />
           </div>
+          <div>
+            <span class="mb-1 mr-2 text-sm">ປີການສຶກສາ</span>
+            <input type="text" :value="payment.academicYear" class="px-2 py-1 border rounded" readonly />
+          </div>
         </div>
         
         <div>
@@ -543,6 +605,29 @@ const showUnpaidRegistrationsSearch = () => {
           <div>{{ payment.academicYear }}</div>
           <div :class="payment.status === 'ຈ່າຍແລ້ວ' ? 'text-green-600 font-bold' : ''">
             {{ payment.status }}
+          </div>
+        </div>
+      </div>
+      
+      <!-- แสดงข้อมูลค่าเรียนตามชั้น -->
+      <div class="mb-4 bg-white rounded p-2">
+        <div class="text-lg font-bold mb-2">ຂໍ້ມູນການຊຳລະຄ່າຮຽນ</div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="mb-1 text-sm">ລະຫັດຄ່າຮຽນ:</div>
+            <div class="p-2 bg-gray-100 rounded">{{ tuitionInfo.id || 'ບໍ່ມີຂໍ້ມູນ' }}</div>
+          </div>
+          <div>
+            <div class="mb-1 text-sm">ລະດັບຊັ້ນ:</div>
+            <div class="p-2 bg-gray-100 rounded">{{ tuitionInfo.level || 'ບໍ່ມີຂໍ້ມູນ' }}</div>
+          </div>
+          <div>
+            <div class="mb-1 text-sm">ປີການສຶກສາ:</div>
+            <div class="p-2 bg-gray-100 rounded">{{ tuitionInfo.year || 'ບໍ່ມີຂໍ້ມູນ' }}</div>
+          </div>
+          <div>
+            <div class="mb-1 text-sm">ຄ່າຮຽນ:</div>
+            <div class="p-2 bg-gray-100 rounded font-bold">{{ tuitionInfo.amount.toLocaleString() }} ກີບ</div>
           </div>
         </div>
       </div>
