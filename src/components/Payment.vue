@@ -106,19 +106,26 @@ const fetchUnpaidRegistrations = async () => {
     });
 
     if (response.data.success && response.data.data.registrations.length > 0) {
+      console.log('ພົບການລົງທະບຽນທີ່ຍັງບໍ່ຊຳລະເງິນ:', response.data.data.registrations);
+      
       // เก็บข้อมูลไว้ในตัวแปร
-      unpaidRegistrations.value = response.data.data.registrations.map((reg: any) => ({
-        id: reg.id || reg.invoice_id,
-        registrationDate: reg.registration_date,
-        studentId: reg.student_id,
-        studentName: reg.student_name || '',
-        studentPhone: reg.student_phone || '',
-        classroom: reg.classroom || '',
-        level: reg.level || '',
-        schoolYear: reg.school_year || '',
-        paid: reg.paid || reg.is_paid || false,
-        tuition_fee: reg.tuition_fee || 0
-      }));
+      unpaidRegistrations.value = response.data.data.registrations.map((reg: any) => {
+        // ແນ່ໃຈວ່າໃຊ້ field id ທີ່ຖືກຕ້ອງ
+        const regId = reg.id; 
+        
+        return {
+          id: regId,
+          registrationDate: reg.registration_date,
+          studentId: reg.student_id,
+          studentName: reg.student_name || '',
+          studentPhone: reg.student_phone || '',
+          classroom: reg.classroom || '',
+          level: reg.level || '',
+          schoolYear: reg.school_year || '',
+          paid: reg.paid || reg.is_paid || false,
+          tuition_fee: reg.tuition_fee || 0
+        };
+      });
       
       // แสดงข้อมูลการลงทะเบียนแรกในรายการ
       if (unpaidRegistrations.value.length > 0) {
@@ -126,6 +133,9 @@ const fetchUnpaidRegistrations = async () => {
         // เลือกการลงทะเบียนนี้เพื่อแสดงในฟอร์ม
         await selectRegistration(firstReg.id);
       }
+    } else {
+      console.log('ບໍ່ພົບການລົງທະບຽນທີ່ຍັງບໍ່ຊຳລະເງິນ');
+      unpaidRegistrations.value = [];
     }
   } catch (error) {
     console.error('ບໍ່ສາມາດໂຫລດຂໍ້ມູນການລົງທະບຽນໄດ້:', error);
@@ -294,6 +304,8 @@ const confirmPayment = async () => {
       note: `ชำระค่าเรียน ${payment.level} ปีการศึกษา ${payment.academicYear}`
     };
     
+    console.log("ກຳລັງສ້າງການຊຳລະເງິນກັບ registration_id:", paymentData.registration_id);
+    
     // เรียกใช้ API endpoint ใหม่สำหรับบันทึกการชำระเงิน
     const paymentResponse = await axios.post(`${API_URL}/payments`, paymentData, {
       headers: {
@@ -305,11 +317,33 @@ const confirmPayment = async () => {
     if (paymentResponse.data.success) {
       alert('ບັນທຶກການຊຳລະເງິນສຳເລັດແລ້ວ');
       
-      // รีเซ็ตฟอร์มสำหรับการชำระครั้งต่อไป
-      resetForm();
+      // ດຶງຂໍ້ມູນການລົງທະບຽນເພື່ອອັບເດດສະຖານະ (ກໍລະນີທີ່ໃນຝັ່ງ backend ບໍ່ໄດ້ອັບເດດສະຖານະການຊຳລະເງິນອັດຕະໂນມັດ)
+      try {
+        // ດຶງຂໍ້ມູນການລົງທະບຽນໃໝ່ເພື່ອກວດສອບສະຖານະ
+        const registrationResponse = await axios.get(`${API_URL}/registrations/${payment.invoiceNo}`, {
+          headers: {
+            Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`
+          }
+        });
+        
+        if (registrationResponse.data.success && registrationResponse.data.data) {
+          // ອັບເດດສະຖານະໃນໜ້າຈໍ
+          payment.status = registrationResponse.data.data.is_paid ? 'ຈ່າຍແລ້ວ' : 'ລໍຖ້າຊໍາລະ';
+        } 
+      } catch (error) {
+        console.error('ບໍ່ສາມາດດຶງຂໍ້ມູນການລົງທະບຽນຫຼັງຈາກຊຳລະເງິນ:', error);
+      }
       
-      // ດຶງຂໍ້ມູນການລົງທະບຽນໃໝ່ (ເພື່ອອັບເດດຂໍ້ມູນໃນໜ້າລົງທະບຽນ)
+      // ດຶງປະຫວັດການຊຳລະເງິນ
+      await getPaymentHistory(payment.invoiceNo);
+      
+      // ດຶງຂໍ້ມູນການລົງທະບຽນທີ່ຍັງບໍ່ໄດ້ຊຳລະເງິນໃໝ່
       await fetchUnpaidRegistrations();
+      
+      // ຖາມຜູ້ໃຊ້ວ່າຕ້ອງການລ້າງຟອມເພື່ອຊຳລະເງິນຄົນໃໝ່ຫຼືບໍ່
+      if (confirm('ທ່ານຕ້ອງການລ້າງຟອມເພື່ອຊຳລະເງິນຄົນໃໝ່ຫຼືບໍ່?')) {
+        resetForm();
+      }
     } else {
       alert('ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກການຊຳລະເງິນ');
     }
@@ -362,11 +396,23 @@ const searchStudents = async () => {
         reg.studentId.toLowerCase().includes(query) ||
         reg.studentPhone.toLowerCase().includes(query)
       ).slice(0, 5);
+      
+      console.log('ຄົ້ນຫາພົບ:', filteredRegistrations.value.length, 'ລາຍການ');
     } else {
       // ถ้ายังไม่มีข้อมูลในแอพ ให้ค้นหาผ่าน API
       const registrations = await studentStore.searchRegistrations(query);
+      
+      console.log('ຜົນການຄົ້ນຫາຈາກ API:', registrations);
+      
+      // ແນ່ໃຈວ່າໃຊ້ field id ທີ່ຖືກຕ້ອງ ແລະກວດສອບຄ່າ is_paid
       filteredRegistrations.value = registrations
-        .filter(reg => !reg.is_paid) // กรองเฉพาะที่ยังไม่ชำระเงิน
+        .filter(reg => reg.is_paid === false) // ກອງສະເພາະທີ່ຍັງບໍ່ຊຳລະເງິນ
+        .map(reg => ({
+          id: reg.id,
+          studentName: reg.student_name || '',
+          studentId: reg.student_id || '',
+          studentPhone: reg.student_phone || ''
+        }))
         .slice(0, 5);
     }
     
@@ -398,7 +444,7 @@ const selectRegistration = async (registrationId: string) => {
     console.log('ພົບຂໍ້ມູນການລົງທະບຽນ:', registration);
     
     // อัปเดตข้อมูลใบเสร็จตามการลงทะเบียน
-    payment.invoiceNo = registration.invoice_id || registration.id;
+    payment.invoiceNo = registration.id;
     payment.date = new Date().toISOString().split('T')[0];
     payment.tuitionId = registration.student_id;
     payment.studentName = registration.student_name;
@@ -499,6 +545,8 @@ const validatePaymentInput = () => {
 const getPaymentHistory = async (registrationId: string) => {
   try {
     isLoading.value = true;
+    console.log('ກຳລັງດຶງປະຫວັດການຊຳລະເງິນສຳລັບການລົງທະບຽນ ID:', registrationId);
+    
     const response = await axios.get(`${API_URL}/payments/registration/${registrationId}`, {
       headers: {
         Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`
@@ -506,9 +554,11 @@ const getPaymentHistory = async (registrationId: string) => {
     });
     
     if (response.data.success) {
+      console.log('ພົບປະຫວັດການຊຳລະເງິນ:', response.data.data.payments);
       paymentHistory.value = response.data.data.payments;
       showPaymentHistory.value = true;
     } else {
+      console.log('ບໍ່ພົບປະຫວັດການຊຳລະເງິນ');
       paymentHistory.value = [];
       showPaymentHistory.value = false;
     }
