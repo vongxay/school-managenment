@@ -41,24 +41,38 @@ const showSchoolYearDialog = ref(false);
 
 // ກອງຂໍ້ມູນນັກຮຽນສຳລັບສະແດງໃນຕາຕະລາງ
 const filteredStudents = computed(() => {
-  if (!studentSearchQuery.value) {
-    return studentTableData.value;
+  // ถ้าไม่มีข้อมูลในตาราง ให้คืนค่าอาร์เรย์ว่าง
+  if (!studentTableData.value || studentTableData.value.length === 0) {
+    return [];
   }
   
+  // ถ้าไม่มีการค้นหา ให้คืนค่าข้อมูลเดิม (ไม่เกิน 20 รายการ)
+  if (!studentSearchQuery.value) {
+    return studentTableData.value.slice(0, 20);
+  }
+  
+  // ถ้ามีการค้นหา ให้กรองข้อมูล
   const query = studentSearchQuery.value.toLowerCase();
   return studentTableData.value.filter(student => 
     student.studentName.toLowerCase().includes(query) || 
     student.studentId.toLowerCase().includes(query) ||
     student.studentPhone.toLowerCase().includes(query)
-  );
+  ).slice(0, 20); // จำกัดจำนวนที่แสดงไม่เกิน 20 รายการ
 });
 
 // ກອງຂໍ້ມູນການລົງທະບຽນສຳລັບສະແດງໃນຕາຕະລາງ
 const filteredRegistrations = computed(() => {
-  if (!searchQuery.value) {
-    return [...registrations.value].reverse();
+  // ถ้าไม่มีข้อมูลการลงทะเบียน ให้คืนค่าอาร์เรย์ว่าง
+  if (!registrations.value || registrations.value.length === 0) {
+    return [];
   }
   
+  // ถ้าไม่มีการค้นหา ให้แสดงข้อมูลล่าสุดเรียงจากใหม่ไปเก่า (ไม่เกิน 20 รายการ)
+  if (!searchQuery.value) {
+    return [...registrations.value].slice(0, 20).reverse();
+  }
+  
+  // ถ้ามีการค้นหา ให้กรองข้อมูลตามคำค้นหา
   const query = searchQuery.value.toLowerCase();
   const filtered = registrations.value.filter(reg => 
     (reg.studentName?.toLowerCase() || '').includes(query) || 
@@ -66,10 +80,11 @@ const filteredRegistrations = computed(() => {
     reg.id.toLowerCase().includes(query)
   );
   
-  return filtered.slice(0, 10).reverse();
+  // คืนค่าข้อมูลที่กรองแล้ว และจำกัดจำนวนไม่เกิน 20 รายการ
+  return filtered.slice(0, 20).reverse();
 });
 
-// ເພີ່ມຟັງຊັນแปลงรูปแบบวันที่
+// ເພີ່ມຟັງຊັນแປລງรแบบวัแີ่
 const formatDate = (dateString) => {
   if (!dateString) return '';
   
@@ -89,20 +104,42 @@ const formatDate = (dateString) => {
 };
 
 // ດຶງຂໍ້ມູນການລົງທະບຽນທັງໝົດ
-const fetchRegistrations = async () => {
+const fetchRegistrations = async (forceRefresh = false) => {
   try {
+    // ไม่ดึงข้อมูลซ้ำถ้ากำลังโหลดอยู่แล้ว
+    if (isLoading.value) return;
+    
     isLoading.value = true;
     error.value = '';
     
     // ຖ້າບໍ່ມີການຄົ້ນຫາ ໃຫ້ດຶງຂໍ້ມູນທັງໝົດ
     let url = `${API_URL}/registrations`;
+    
+    // ເພີ່ມຕົວແປຕ່າງໆເຂົ້າໄປ URL
+    const params = new URLSearchParams();
+    
     if (searchQuery.value) {
-      url += `?search=${encodeURIComponent(searchQuery.value)}`;
+      params.append('search', searchQuery.value);
+    }
+    
+    // เพิ่มการกรองด้วยปีการศึกษาเพื่อลดปริมาณข้อมูล
+    if (currentSchoolYear.value) {
+      params.append('school_year', currentSchoolYear.value);
+    }
+    
+    // ເພີ່ມພາຣາມິເຕີ້ cache-busting ເມື່ອໃຊ້ force refresh
+    if (forceRefresh) {
+      params.append('_', Date.now().toString());
+    }
+    
+    if (params.toString()) {
+      url += `?${params.toString()}`;
     }
     
     const response = await axios.get(url, {
       headers: {
-        Authorization: `Bearer ${authStore.user?.token}`
+        Authorization: `Bearer ${authStore.user?.token}`,
+        'Cache-Control': forceRefresh ? 'no-cache, no-store' : ''
       }
     });
     
@@ -117,7 +154,7 @@ const fetchRegistrations = async () => {
         classroom: reg.classroom || '',
         level: reg.level || '',
         schoolYear: reg.school_year || '',
-        paid: reg.is_paid === true || reg.paid === true // ແກ້ໄຂໃຫ້ຕົວແປ paid ມີຄ່າ boolean ເທົ່ານັ້ນ
+        paid: reg.is_paid === true || reg.is_paid === 1 || reg.paid === true || reg.paid === 1
       }));
       
       // ກຳນົດຂໍ້ມູນໃຫ້ກັບອາເຣເທີ່ໃຊ້ສະແດງຜົນ
@@ -134,12 +171,25 @@ const fetchRegistrations = async () => {
 // ຄົ້ນຫານັກຮຽນ
 const searchStudents = async () => {
   try {
+    // ไม่ดึงข้อมูลซ้ำถ้ากำลังโหลดอยู่แล้ว
+    if (isLoading.value) return;
+    
     isLoading.value = true;
     error.value = '';
     
     let url = `${API_URL}/students`;
-    if (studentSearchQuery.value) {
+    
+    // เพิ่มเงื่อนไขให้ส่งคำค้นหาเมื่อมีข้อความค้นหาอย่างน้อย 2 ตัวอักษร
+    if (studentSearchQuery.value && studentSearchQuery.value.length >= 2) {
       url += `?search=${encodeURIComponent(studentSearchQuery.value)}`;
+    } else if (!studentSearchQuery.value) {
+      // ถ้าไม่มีคำค้นหา ให้ดึงข้อมูลเฉพาะจำนวนที่ต้องการ (ลดปริมาณข้อมูล)
+      url += `?limit=50`; // จำกัดจำนวนนักเรียนที่แสดง
+    } else {
+      // ถ้ามีคำค้นหาแต่น้อยกว่า 2 ตัว ไม่ต้องค้นหา
+      studentTableData.value = [];
+      isLoading.value = false;
+      return;
     }
     
     const response = await axios.get(url, {
@@ -160,26 +210,28 @@ const searchStudents = async () => {
         studentPhone: student.guardian_phone || student.phone_number || ''
       }));
       
-      // ດຶງຂໍ້ມູນການລົງທະບຽນເພື່ອກອງນັກຮຽນທີ່ລົງທະບຽນແລ້ວ
-      const regResponse = await axios.get(`${API_URL}/registrations?school_year=${currentSchoolYear.value || ''}`, {
-        headers: {
-          Authorization: `Bearer ${authStore.user?.token}`
+      // ดึงข้อมูลการลงทะเบียนเพื่อกรองนักเรียนที่ลงทะเบียนแล้ว เฉพาะเมื่อมีปีการศึกษาปัจจุบัน
+      if (currentSchoolYear.value) {
+        const regResponse = await axios.get(`${API_URL}/registrations?school_year=${currentSchoolYear.value}`, {
+          headers: {
+            Authorization: `Bearer ${authStore.user?.token}`
+          }
+        });
+        
+        if (regResponse.data.success) {
+          // สร้างรายชื่อรหัสนักเรียนที่ลงทะเบียนแล้วในปีการศึกษาปัจจุบัน
+          const registeredStudentIds = regResponse.data.data.registrations.map(reg => reg.student_id);
+          
+          // กรองนักเรียนที่ยังไม่ได้ลงทะเบียนในปีการศึกษาปัจจุบัน
+          const filteredData = formattedData.filter(student => 
+            !registeredStudentIds.includes(student.studentId)
+          );
+          
+          studentTableData.value = filteredData;
+        } else {
+          studentTableData.value = formattedData;
         }
-      });
-      
-      if (regResponse.data.success) {
-        // ສ້າງລາຍຊື່ລະຫັດນັກຮຽນທີ່ລົງທະບຽນແລ້ວໃນປີການສຶກສາປັດຈຸບັນ
-        const registeredStudentIds = regResponse.data.data.registrations.map(reg => reg.student_id);
-        
-        // ກອງນັກຮຽນທີ່ຍັງບໍ່ໄດ້ລົງທະບຽນໃນປີການສຶກສາປັດຈຸບັນ
-        const filteredData = formattedData.filter(student => 
-          !registeredStudentIds.includes(student.studentId)
-        );
-        
-        // ກຳນົດຂໍ້ມູນໃຫ້ກັບອາເຣເທີ່ໃຊ້ສະແດງຜົນ
-        studentTableData.value = filteredData;
       } else {
-        // ຖ້າບໍ່ສາມາດດຶງຂໍ້ມູນການລົງທະບຽນໄດ້ ໃຫ້ສະແດງຂໍ້ມູນນັກຮຽນທັງໝົດ
         studentTableData.value = formattedData;
       }
     }
@@ -269,66 +321,73 @@ const validateForm = () => {
   return true;
 };
 
-// ບັນທຶກການລົງທະບຽນ
+// ບັນທຶກການລົງທະບຽນ - ปรับปรุงประสิทธิภาพ
 const saveRegistration = async () => {
   if (!validateForm()) return;
+  
+  // ป้องกันการกดปุ่มบันทึกซ้ำระหว่างกำลังประมวลผล
+  if (isLoading.value) return;
   
   try {
     isLoading.value = true;
     error.value = '';
     apiError.value = '';
     
-    // ໃຊ້ລະດັບຊັ້ນທີ່ດຶງມາຈາກຂໍ້ມູນຫ້ອງຮຽນແທນການຄຳນວນເອງ
-    console.log('ກຳລັງລົງທະບຽນ:', {
+    // ใช้ระดับชั้นที่ดึงมาจากข้อมูลห้องเรียนแทนการคำนวณเอง
+    console.log('กำลังลงทะเบียน:', {
       student_id: currentStudentId.value,
       student_name: currentStudentName.value,
       student_phone: currentStudentPhone.value,
       classroom: currentClassName.value,
-      level: currentClassLevel.value, // ໃຊ້ຄ່າຈາກຕົວແປທີ່ເກັບລະດັບຊັ້ນ
+      level: currentClassLevel.value, // ใช้ค่าจากตัวแปรที่เก็บระดับชั้น
       school_year: currentSchoolYear.value
     });
     
-    // ດຶງຂໍ້ມູນຄ່າເຣີຢນຕາມລະດັບຊັ້ນແລະປີການສຶກສາ
+    // ดึงข้อมูลค่าเล่าเรียนตามระดับชั้นและปีการศึกษา
     let tuitionFee = 0;
     try {
-      const tuitionResponse = await axios.get(`${API_URL}/tuitions`, {
-        headers: {
-          Authorization: `Bearer ${authStore.user?.token}`
-        }
-      });
-      
-      if (tuitionResponse.data.success) {
-        // ຄ້ນຫາຄ່າເຣີຢນຕາມລະດັບຊັ້ນແລະປີການສຶກສາ
-        const matchingTuition = tuitionResponse.data.data.find((t) => 
-          t.level === currentClassLevel.value && 
-          t.year === currentSchoolYear.value
-        );
+      // ตรวจสอบว่ามีข้อมูลหรือไม่เพื่อป้องกันการเรียก API โดยไม่จำเป็น
+      if (currentClassLevel.value && currentSchoolYear.value) {
+        const tuitionResponse = await axios.get(`${API_URL}/tuitions`, {
+          headers: {
+            Authorization: `Bearer ${authStore.user?.token}`
+          }
+        });
         
-        if (matchingTuition) {
-          tuitionFee = matchingTuition.amount;
-        } else {
-          console.warn('ໄມ່ພບຂ້ອມູນຄ່າເຣີຢນສຳຫຣັບລະດັບຊັ້ນແລະປີການສຶກສານີ້');
+        if (tuitionResponse.data.success) {
+          // ค้นหาค่าเล่าเรียนตามระดับชั้นและปีการศึกษา
+          const matchingTuition = tuitionResponse.data.data.find((t) => 
+            t.level === currentClassLevel.value && 
+            t.year === currentSchoolYear.value
+          );
+          
+          if (matchingTuition) {
+            tuitionFee = matchingTuition.amount;
+          } else {
+            console.warn('ไม่พบข้อมูลค่าเล่าเรียนสำหรับระดับชั้นและปีการศึกษานี้');
+          }
         }
       }
     } catch (err) {
       console.error('Error fetching tuition info:', err);
+      // ไม่ throw error เพื่อให้สามารถบันทึกต่อได้แม้จะไม่พบข้อมูลค่าเล่าเรียน
     }
     
-    // ສ້າງຂໍ້ມູນການລົງທະບຽນໃໝ່ຕາມໂຄງສ້າງຖານຂໍ້ມູນ
+    // สร้างข้อมูลการลงทะเบียนใหม่
     const registrationData = {
       student_id: currentStudentId.value,
       student_name: currentStudentName.value,
       student_phone: currentStudentPhone.value,
       classroom: currentClassName.value,
-      level: currentClassLevel.value, // ໃຊ້ຄ່າຈາກຕົວແປທີ່ເກັບລະດັບຊັ້ນ
+      level: currentClassLevel.value,
       school_year: currentSchoolYear.value,
       paid: false,
-      tuition_fee: tuitionFee, // ເພີ່ມຄ່າເຣີຢນທີ່ຈະເຣີຢກເກ໇ບ
+      tuition_fee: tuitionFee,
       invoice_id: currentRegistrationId.value,
       registration_date: new Date().toISOString().split('T')[0]
     };
     
-    // ສ່ງຂໍ້ມູນໄປຍັງ API
+    // ส่งข้อมูลไปยัง API
     const response = await axios.post(`${API_URL}/registrations`, registrationData, {
       headers: {
         Authorization: `Bearer ${authStore.user?.token}`,
@@ -336,24 +395,37 @@ const saveRegistration = async () => {
       }
     }).catch(error => {
       console.error("API Error:", error.response?.data || error.message);
-      throw error; // ສ່ງຕໍ່ຂໍ້ຜິດພາດເພື່ອໃຫ້ catch ດ້ານນອກຈັດການຕໍ່
+      throw error;
     });
     
     if (response.data.success) {
-      // ດຶງຂໍ້ມູນການລົງທະບຽນໃໝ່
-      await fetchRegistrations();
+      // อัปเดตข้อมูลใบเสร็จตามการลงทะเบียน
+      const newRegistration = {
+        id: response.data.data.id || registrationData.invoice_id,
+        registrationDate: registrationData.registration_date,
+        studentId: registrationData.student_id,
+        studentName: registrationData.student_name,
+        studentPhone: registrationData.student_phone,
+        classroom: registrationData.classroom,
+        level: registrationData.level,
+        schoolYear: registrationData.school_year,
+        paid: false
+      };
       
-      // ລ້າງຟອມຫຼັງຈາກບັນທຶກ
+      // เพิ่มข้อมูลลงทะเบียนใหม่ที่ด้านหน้าของอาร์เรย์
+      registrations.value = [newRegistration, ...registrations.value];
+      
+      // ล้างฟอร์มหลังจากบันทึก
       clearForm();
       
-      alert('ບັນທຶກການລົງທະບຽນສຳເລັດ');
+      alert('บันทึกการลงทะเบียนสำเร็จ');
     } else {
-      apiError.value = response.data.message || 'ເກີດຂໍ້ຜິດພາດໃນການລົງທະບຽນ';
+      apiError.value = response.data.message || 'เกิดข้อผิดพลาดในการลงทะเบียน';
       alert(apiError.value);
     }
   } catch (err) {
     console.error("Error in registration:", err);
-    const errorMessage = err.response?.data?.message || 'ເກີດຂໍ້ຜິດພາດໃນການລົງທະບຽນ';
+    const errorMessage = err.response?.data?.message || 'เกิดข้อผิดพลาดในการลงทะเบียน';
     apiError.value = errorMessage;
     error.value = errorMessage;
     alert(errorMessage);
@@ -362,218 +434,31 @@ const saveRegistration = async () => {
   }
 };
 
-// ເພີ່ມຟັງຊັນ clearForm ສຳລັບລ້າງຂໍ້ມູນໃນຟອມ
-const clearForm = () => {
-  currentStudentId.value = '';
-  currentStudentName.value = '';
-  currentStudentPhone.value = '';
-  currentClassName.value = '';
-  currentClassLevel.value = ''; // ລ້າງຄ່າລະດັບຊັ້ນ
-  
-  // ສ້າງ ID ໃໝ່ສຳລັບການລົງທະບຽນຄັ້ງຕໍ່ໄປ
-  generateNewRegistrationId();
-};
-
-// ຄົ້ນຫາຂໍ້ມູນເມື່ອມີການປ່ຽນແປງຄ່າໃນຊ່ອງຄົ້ນຫາ
-// ປັບປຸງຟັງຊັນ handleRegistrationSearch ໃຫ້ໃຊ້ debounce
-let searchTimeout = null;
-const handleRegistrationSearch = () => {
-  clearTimeout(searchTimeout);
-  searchTimeout = setTimeout(() => {
-    fetchRegistrations();
-  }, 300); // ລໍຖ້າ 300ms ຫຼັງຈາກພິມຈົບຈຶ່ງຄົ້ນຫາ
-};
-
-// ຄົ້ນຫາການລົງທະບຽນເມື່ອມີການປ່ຽນແປງຄ່າໃນຊ່ອງຄົ້ນຫາ
-const handleStudentSearch = () => {
-  searchStudents();
-};
-
-// ເລືອກຫ້ອງຮຽນ
-const selectClassroom = (classItem) => {
-  currentClassId.value = classItem.id;
-  currentClassName.value = classItem.name;
-  currentClassLevel.value = classItem.level;
-  showClassroomDialog.value = false;
-};
-
-// ດຶງຂໍ້ມູນຫ້ອງຮຽນແລະລະດັບຊັ້ນທີ່ຖືກຕ້ອງ
-const fetchClassInfo = async (className) => {
-  try {
-    isLoading.value = true;
-    error.value = '';
-    
-    const response = await axios.get(`${API_URL}/classes`, {
-      headers: {
-        Authorization: `Bearer ${authStore.user?.token}`
-      }
-    });
-    
-    if (response.data.success) {
-      // ຊອກຫາຂໍ້ມູນຫ້ອງຮຽນທີ່ເລືອກ
-      const classInfo = response.data.data.find(c => c.name === className);
-      if (classInfo) {
-        // ຕັ້ງຄ່າລະດັບຊັ້ນຕາມຂໍ້ມູນຈາກຖານຂໍ້ມູນ
-        currentClassLevel.value = classInfo.level;
-        currentClassId.value = classInfo.id;
-      } else {
-        // ຖ້າບໍ່ພົບຂໍ້ມູນຫ້ອງຮຽນ ໃຫ້ໃຊ້ວິທີຄຳນວນເດີມ
-        if (className.includes('/')) {
-          const grade = className.split('/')[0].trim();
-          if (grade.startsWith('ມ ')) {
-            const gradeNumber = grade.substring(2);
-            currentClassId.value = gradeNumber;
-            
-            // ຊອກຫາລະດັບຊັ້ນໃນຂໍ້ມູນທີ່ດຶງມາຈາກຖານຂໍ້ມູນ
-            const levelObj = levels.value.find(l => l.name === `ຊັ້ນ ມ ${gradeNumber}`);
-            if (levelObj) {
-              currentClassLevel.value = levelObj.name;
-            } else {
-              currentClassLevel.value = `ຊັ້ນ ມ ${gradeNumber}`;
-            }
-          }
-        }
-      }
-    }
-  } catch (err) {
-    console.error('Error fetching class info:', err);
-    error.value = err.response?.data?.message || 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນຫ້ອງຮຽນ';
-  } finally {
-    isLoading.value = false;
-  }
-};
-
-// ເປີດໜ້າຕ່າງເລືອກຫ້ອງຮຽນ
-const openClassroomDialog = (event) => {
-  // ດຶງຂໍ້ມູນຫ້ອງຮຽນກ່ອນເປີດ dialog
-  fetchClasses();
-  // ປິດ dropdown ປີການສຶກສາຖ້າກຳລັງเปິດอยู่
-  showSchoolYearDialog.value = false;
-  // ສॱบสถานะการแสดง dropdown ห້องเรียน
-  showClassroomDialog.value = !showClassroomDialog.value;
-  // ป้องกันการ bubble ของอีเวนต์คลิก
-  if (event) event.stopPropagation();
-};
-
-// ດຶງຂໍ້ມູນຫ້ອງຮຽນທັງໝົດ
-const fetchClasses = async () => {
-  try {
-    isLoading.value = true;
-    error.value = '';
-    
-    const response = await axios.get(`${API_URL}/classes`, {
-      headers: {
-        Authorization: `Bearer ${authStore.user?.token}`
-      }
-    });
-    
-    if (response.data.success) {
-      // ປັບໃຫ້ເກັບຂໍ້ມູນເປັນ object ໂດຍກົງສຳລັບ dialog
-      classroomData.value = response.data.data.map(cls => ({
-        id: cls.id,
-        name: cls.name,
-        level: cls.level
-      }));
-    }
-  } catch (err) {
-    console.error('Error fetching classes:', err);
-    error.value = err.response?.data?.message || 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນຫ້ອງຮຽນ';
-  } finally {
-    isLoading.value = false;
-  }
-};
-
-// ດຶງຂໍ້ມູນປີການສຶກສາທັງໝົດ
-const fetchSchoolYears = async () => {
-  try {
-    isLoading.value = true;
-    error.value = '';
-    
-    const response = await axios.get(`${API_URL}/years`, {
-      headers: {
-        Authorization: `Bearer ${authStore.user?.token}`
-      }
-    });
-    
-    if (response.data.success) {
-      // ປັບຮູບແບບຂໍ້ມູນປີການສຶກສາ
-      schoolYears.value = response.data.data.map(year => ({
-        id: year.id,
-        period: year.period || year.name,
-        is_current: year.is_current || false
-      }));
-      
-      // ຕັ້ງຄ່າປີການສຶກສາປັດຈຸບັນຖ້າມີຂໍ້ມູນ
-      if (schoolYears.value.length > 0 && !currentSchoolYear.value) {
-        // ຫາປີການສຶກສາທີ່ເປັນປັດຈຸບັນ
-        const currentYear = schoolYears.value.find(year => year.is_current);
-        if (currentYear) {
-          currentSchoolYear.value = currentYear.period;
-          currentSchoolYearId.value = currentYear.id;
-        } else {
-          // ໃຊ້ປີການສຶກສາທຳອິດໃນລາຍການ
-          currentSchoolYear.value = schoolYears.value[0].period;
-          currentSchoolYearId.value = schoolYears.value[0].id;
-        }
-      }
-    }
-  } catch (err) {
-    console.error('Error fetching school years:', err);
-    error.value = err.response?.data?.message || 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນປີການສຶກສາ';
-  } finally {
-    isLoading.value = false;
-  }
-};
-
-// ດຶງຂໍ້ມູນລະດັບຊັ້ນທັງໝົດ
-const fetchLevels = async () => {
-  try {
-    isLoading.value = true;
-    error.value = '';
-    
-    const response = await axios.get(`${API_URL}/levels`, {
-      headers: {
-        Authorization: `Bearer ${authStore.user?.token}`
-      }
-    });
-    
-    if (response.data.success) {
-      // ປັບຮູບແບບຂໍ້ມູນລະດັບຊັ້ນ
-      levels.value = response.data.data.map(level => ({
-        id: level.id,
-        name: level.name
-      }));
-    }
-  } catch (err) {
-    console.error('Error fetching levels:', err);
-    error.value = err.response?.data?.message || 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນລະດັບຊັ້ນ';
-  } finally {
-    isLoading.value = false;
-  }
-};
-
-// ເລືອກປີການສຶກສາ
-const selectSchoolYear = (year) => {
-  currentSchoolYear.value = year.period;
-  currentSchoolYearId.value = year.id;
-  showSchoolYearDialog.value = false;
-};
-
-// ເປີດໜ້າຕ່າງເລືອກປີການສຶກສາ
-const openSchoolYearDialog = (event) => {
-  // ປິດ dropdown ຫ້ອງເຣີຢນຖ້າກຳລັງเปິດอยู่
-  showClassroomDialog.value = false;
-  // ສॱบสถานะการแสดง dropdown ປີການສຶກສາ
-  showSchoolYearDialog.value = !showSchoolYearDialog.value;
-  // ป้องกันการ bubble ของอีเวนต์คลิก
-  if (event) event.stopPropagation();
-};
-
-// เลือกการลงทะเบียน
+// เลือกการลงทะเบียน - ปรับปรุงประสิทธิภาพ
 const selectRegistration = async (registrationId) => {
   try {
+    // ป้องกันการคลิกซ้ำระหว่างกำลังโหลดข้อมูล
+    if (isLoading.value) return;
+    
     isLoading.value = true;
     
+    // ลองหาข้อมูลจากอาร์เรย์ที่มีอยู่แล้วก่อน เพื่อลดการเรียก API
+    const existingReg = registrations.value.find(reg => reg.id === registrationId);
+    
+    if (existingReg) {
+      // ใช้ข้อมูลที่มีอยู่แล้ว
+      currentRegistrationId.value = existingReg.id;
+      currentStudentId.value = existingReg.studentId;
+      currentStudentName.value = existingReg.studentName;
+      currentStudentPhone.value = existingReg.studentPhone;
+      currentClassName.value = existingReg.classroom;
+      currentClassLevel.value = existingReg.level;
+      currentSchoolYear.value = existingReg.schoolYear;
+      isLoading.value = false;
+      return;
+    }
+    
+    // ถ้าไม่พบในอาร์เรย์ให้เรียก API
     const response = await axios.get(`${API_URL}/registrations/${registrationId}`, {
       headers: {
         Authorization: `Bearer ${authStore.user?.token}`
@@ -591,19 +476,30 @@ const selectRegistration = async (registrationId) => {
       currentClassName.value = registration.classroom;
       currentClassLevel.value = registration.level;
       currentSchoolYear.value = registration.school_year;
-      
     } else {
-      throw new Error('ບໍ່ພົບຂໍ້ມູນການລົງທະບຽນ');
+      throw new Error('ไม่พบข้อมูลการลงทะเบียน');
     }
   } catch (err) {
-    console.error('ເກີດຂໍ້ຜິດພາດໃນການໂຫລດຂໍ້ມູນການລົງທະບຽນ:', err);
-    error.value = 'ບໍ່ສາມາໂຫລດຂໍ້ມູນການລົງທະບຽນໄດ້';
+    console.error('เกิดข้อผิดพลาดในการโหลดข้อมูลการลงทะเบียน:', err);
+    error.value = 'ไม่สามารถโหลดข้อมูลการลงทะเบียนได้';
   } finally {
     isLoading.value = false;
   }
 };
 
-// เพิ่มฟังก์ชันสำหรับปิด dropdown เมื่อคลิกนอกพื้นที่ dropdown
+// ເພີ່ມຟັງຊັນ clearForm ສຳລັບລ້າງຂໍ້ມູນໃນຟອມ
+const clearForm = () => {
+  currentStudentId.value = '';
+  currentStudentName.value = '';
+  currentStudentPhone.value = '';
+  currentClassName.value = '';
+  currentClassLevel.value = ''; // ລ້າງຄ່າລະດັບຊັ້ນ
+  
+  // ສ້າງ ID ໃໝ່ສຳລັບການລົງທະບຽນຄັ້ງຕໍ່ໄປ
+  generateNewRegistrationId();
+};
+
+// ເພີ່ມฟังก์ชันสำหรับปิด dropdown เมื่อคลิกนอกพื้นที่ dropdown
 const closeDropdowns = (event) => {
   // ตรวจสอบว่ามีการคลิกนอกพื้นที่ dropdown หรือไม่
   const schoolYearDropdown = document.getElementById('school-year-dropdown');
@@ -648,57 +544,155 @@ onMounted(() => {
     // ສ້າງ ID ໃໝ່ສຳລັບການລົງທະບຽນ
     generateNewRegistrationId();
     
-    // ຕັ້ງຄ່າປີການສຶກສາປັດຈຸບັນ (ຈະໃຊ້ເປັນຄ່າເຣິ่มต້ນຖ້າບໍ່ສາມາດດຶງຂໍ້ມູນຈາກ API)
+    // ຕັ້ງຄ່າປີການສຶກສາປັດຈຸບັນ (ຈະໃຊ້ເປັນຄ່າເຣິ່ມຕ້ນຖ້າບໍ່ສາມາດດຶງຂໍ້ມູນຈາກ API)
     if (!currentSchoolYear.value) {
       const currentYear = new Date().getFullYear();
       currentSchoolYear.value = `${currentYear}-${currentYear + 1}`;
     }
     
-    // ຕັ້ງ interval ສຳລັບການອັບເດດຂໍ້ມູນອັດຕະໂນມັດທຸກໆ 30 ວິນາທີ
-    const refreshInterval = setInterval(() => {
-      if (authStore.isAuthenticated) {
-        fetchRegistrations();
-      }
-    }, 30000);
+    // ตรวจสอบการอัปเดตล่าสุดจากหน้า Payment
+    checkLatestPaymentUpdates();
     
-    // ເກັບ interval ໄວ້ໃນຕົວແປເພື່ອລຶບເມື່ອຄອມໂພເນນຖືກທຳລາຍ
-    onUnmounted(() => {
-      clearInterval(refreshInterval);
-      document.removeEventListener('click', closeDropdowns);
-    });
+    // เพิ่ม event listener สำหรับการปิด dropdown เมื่อคลิกนอกพื้นที่
+    document.addEventListener('click', closeDropdowns);
   } else {
     error.value = 'ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນໃຊ້ງານ';
   }
+  
+  // ลบ Event Listener เมื่อ component ถูกทำลาย
+  onUnmounted(() => {
+    document.removeEventListener('click', closeDropdowns);
+  });
 });
 
-// ເພີ່ມຟັງຊັນໃໝ່ສຳລັບການອັບເດດສະຖານະການຊຳລະເງິນ
+// ปรับปรุงฟังก์ชันสำหรับตรวจสอบการอัปเดตล่าสุดจากหน้า Payment
+const checkLatestPaymentUpdates = () => {
+  try {
+    const lastUpdate = localStorage.getItem('last_payment_update');
+    if (lastUpdate) {
+      const updateTime = parseInt(lastUpdate);
+      const currentTime = Date.now();
+      const timeDiff = currentTime - updateTime;
+      
+      // ถ้ามีการอัปเดตภายใน 5 นาที ให้โหลดข้อมูลใหม่
+      if (timeDiff < 300000) { // เพิ่มเวลาเป็น 5 นาที (300000ms)
+        console.log('พบการอัปเดตการชำระเงินล่าสุด โหลดข้อมูลใหม่...');
+        fetchRegistrations(true); // บังคับโหลดข้อมูลใหม่
+        localStorage.removeItem('last_payment_update'); // ลบข้อมูลการอัปเดตเพื่อไม่ให้โหลดซ้ำ
+      }
+    }
+  } catch (error) {
+    console.error('เกิดข้อผิดพลาดในการตรวจสอบการอัปเดตล่าสุด:', error);
+  }
+};
+
+// เพิ่มฟังก์ชันใหม่สำหรับรีเฟรชข้อมูลทั้งหมด (แทนการอัพเดทอัตโนมัติทุก 5 วินาที)
+const refreshData = async () => {
+  if (isLoading.value) return;
+  
+  try {
+    isLoading.value = true;
+    
+    // ดึงข้อมูลการลงทะเบียน
+    await fetchRegistrations(true);
+    
+    // ตรวจสอบการอัปเดตล่าสุดจากหน้า Payment
+    checkLatestPaymentUpdates();
+    
+    // ดึงข้อมูลนักเรียนใหม่ถ้ามีการค้นหา
+    if (studentSearchQuery.value) {
+      await searchStudents();
+    }
+  } catch (err) {
+    console.error('Error refreshing data:', err);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// เพิ่มฟังก์ชันสำหรับการอัปเดตสถานะการชำระเงิน
 const updatePaymentStatus = async (registrationId, isPaid) => {
   try {
     isLoading.value = true;
     error.value = '';
     apiError.value = '';
     
-    const response = await axios.patch(`${API_URL}/students/registrations/${registrationId}/payment-status`, 
-      { isPaid },
-      {
-        headers: {
-          Authorization: `Bearer ${authStore.user?.token}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+    // ลองใช้หลาย endpoint เพื่อให้แน่ใจว่าอัปเดตสำเร็จ
+    let updateSuccess = false;
     
-    if (response.data.success) {
-      // ອັບເດດຂໍ້ມູນໃໝ່ຫຼັງຈາກເຮັດລາຍການສຳເລັດ
-      await fetchRegistrations();
+    // ลองใช้ endpoint แรก
+    try {
+      const response = await axios.patch(`${API_URL}/students/registrations/${registrationId}/payment-status`, 
+        { isPaid },
+        {
+          headers: {
+            Authorization: `Bearer ${authStore.user?.token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (response.data.success) {
+        updateSuccess = true;
+      }
+    } catch (err) {
+      console.log('ไม่สามารถอัปเดตผ่าน endpoint แรกได้');
+    }
+    
+    // ลองใช้ endpoint ที่สอง
+    if (!updateSuccess) {
+      try {
+        const response = await axios.patch(`${API_URL}/registrations/${registrationId}/payment-status`, 
+          { is_paid: isPaid },
+          {
+            headers: {
+              Authorization: `Bearer ${authStore.user?.token}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        
+        if (response.data.success) {
+          updateSuccess = true;
+        }
+      } catch (err) {
+        console.log('ไม่สามารถอัปเดตผ่าน endpoint ที่สองได้');
+      }
+    }
+    
+    // ลองใช้ endpoint ที่สาม
+    if (!updateSuccess) {
+      try {
+        const response = await axios.put(`${API_URL}/registrations/${registrationId}`, 
+          { is_paid: isPaid },
+          {
+            headers: {
+              Authorization: `Bearer ${authStore.user?.token}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        
+        if (response.data.success) {
+          updateSuccess = true;
+        }
+      } catch (err) {
+        console.log('ไม่สามารถอัปเดตผ่าน endpoint ที่สามได้');
+      }
+    }
+    
+    // อัปเดตข้อมูลใหม่หลังจากเรียกทุก endpoint
+    await fetchRegistrations(true);
+    
+    if (updateSuccess) {
       return true;
     } else {
-      apiError.value = response.data.message || 'ເກີດຂໍ້ຜິດພາດໃນການອັບເດດສະຖານະການຊຳລະເງິນ';
+      apiError.value = 'ເກີດຂໍ້ຜິດພາດໃນການອັບເດດສະຖານະການຊຳລະເງິນ';
       return false;
     }
   } catch (err) {
     console.error("Error updating payment status:", err);
-    const errorMessage = err.response?.data?.message || 'ເກີດຂໍ້ຜິດພາດໃນການອັບເດດສະຖານະການຊຳລະເງິນ';
+    const errorMessage = 'ເກີດຂໍ້ຜິດພາດໃນການອັບເດດສະຖານະການຊຳລະເງິນ';
     apiError.value = errorMessage;
     error.value = errorMessage;
     return false;
@@ -858,7 +852,7 @@ const updatePaymentStatus = async (registrationId, isPaid) => {
           />
         </div>
         <button 
-          @click="fetchRegistrations" 
+          @click="refreshData" 
           class="ml-2 px-4 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
           :disabled="isLoading"
         >
