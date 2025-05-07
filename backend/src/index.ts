@@ -4,6 +4,15 @@ import dotenv from 'dotenv';
 import morgan from 'morgan';
 import { checkConnection } from './utils/db';
 import apiRoutes from './routes/index';
+import authRoutes from './routes/authRoutes';
+import userRoutes from './routes/userRoutes';
+import studentRoutes from './routes/studentRoutes';
+import levelRoutes from './routes/levelRoutes';
+import classRoutes from './routes/classRoutes';
+import yearRoutes from './routes/yearRoutes';
+import registrationRoutes from './routes/registrationRoutes';
+import tuitionRoutes from './routes/tuitionRoutes';
+import paymentRoutes from './routes/paymentRoutes';
 
 // โหลดตัวแปรสภาพแวดล้อม
 dotenv.config();
@@ -38,6 +47,17 @@ app.get('/', (req, res) => {
 
 // นำเข้าเส้นทาง API ทั้งหมด
 app.use('/api', apiRoutes);
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/students', studentRoutes);
+app.use('/api/levels', levelRoutes);
+app.use('/api/classes', classRoutes);
+app.use('/api/years', yearRoutes);
+app.use('/api/registrations', registrationRoutes);
+app.use('/api/tuitions', tuitionRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // เริ่มต้นเซิร์ฟเวอร์
 app.listen(port, () => {
