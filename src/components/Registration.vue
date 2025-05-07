@@ -69,7 +69,7 @@ const filteredRegistrations = computed(() => {
   return filtered.slice(0, 10).reverse();
 });
 
-// ເພີ່ມຟັງຊັນแປລງรแบบวันที่
+// ເພີ່ມຟັງຊັນแປລງรแบบวัแทแี่
 const formatDate = (dateString) => {
   if (!dateString) return '';
   
@@ -131,7 +131,7 @@ const fetchRegistrations = async (forceRefresh = false) => {
         classroom: reg.classroom || '',
         level: reg.level || '',
         schoolYear: reg.school_year || '',
-        paid: reg.is_paid === true || reg.paid === true // ແກ້ໄຂໃຫ້ຕົວແປ paid ມີຄ່າ boolean ເທົ່ານັ້ນ
+        paid: reg.is_paid === true || reg.is_paid === 1 || reg.paid === true || reg.paid === 1 // แก้ไขให้รองรับค่า is_paid เป็น 1 ด้วย
       }));
       
       // ກຳນົດຂໍ້ມູນໃຫ້ກັບອາເຣເທີ່ໃຊ້ສະແດງຜົນ
@@ -394,8 +394,8 @@ let searchTimeout = null;
 const handleRegistrationSearch = () => {
   clearTimeout(searchTimeout);
   searchTimeout = setTimeout(() => {
-    fetchRegistrations(false); // ບໍ່ຈຳເປັນຕ້ອງບັງຄັບໂຫລດຂໍ້ມູນໃໝ່ທັງໝົດເມື່ອຄົ້ນຫາ
-  }, 300); // ລໍຖ້າ 300ms ຫຼັງຈາກພິມຈົບຈຶ່ງຄົ້ນຫາ
+    fetchRegistrations(true); // บังคับโหลดข้อมูลใหม่ทุกครั้งที่ค้นหา
+  }, 300); // ลอถ้า 300ms หลังจากพิมพ์จบจึงค้นหา
 };
 
 // ຄົ້ນຫາການລົງທະບຽນເມື່ອມີການປ່ຽນແປງຄ່າໃນຊ່ອງຄົ້ນຫາ
@@ -668,12 +668,16 @@ onMounted(() => {
       currentSchoolYear.value = `${currentYear}-${currentYear + 1}`;
     }
     
-    // ຕັ້ງ interval ສຳລັບການອັບເດດຂໍ້ມູນອັດຕະໂນມັດທຸກໆ 10 ວິນາທີ
+    // ตรวจสอบการอัปเดตล่าสุดจากหน้า Payment
+    checkLatestPaymentUpdates();
+    
+    // ຕັ້ງ interval ສຳລັບການອັບເດດຂໍ້ມູນອັດຕະໂນມັດທຸກໆ 5 ວິນາທີ
     const refreshInterval = setInterval(() => {
       if (authStore.isAuthenticated) {
-        fetchRegistrations();
+        fetchRegistrations(true); // บังคับให้โหลดข้อมูลใหม่ทุกครั้ง
+        checkLatestPaymentUpdates(); // ตรวจสอบการอัปเดตจากหน้า Payment ด้วย
       }
-    }, 10000); // ຄວາມຖີ່ອັບເດດ 10 ວິນາທີເພື່ອພ້ອມຮັບຂໍ້ມູນທີ່ປ່ຽນແປງຈາກການຊຳລະເງິນ
+    }, 5000); // ປັບຄວາມຖີ່ອັບເດດໃຫ້ໄວຂຶ້ນເປັນ 5 ວິນາທີ
     
     // ເກັບ interval ໄວ້ໃນຕົວແປເພື່ອລຶບເມື່ອຄອມໂພເນນຖືກທຳລາຍ
     onUnmounted(() => {
@@ -688,34 +692,110 @@ onMounted(() => {
   }
 });
 
-// ເພີ່ມຟັງຊັນໃໝ່ສຳລັບການອັບເດດສະຖານະການຊຳລະເງິນ
+// เพิ่มฟังก์ชันใหม่สำหรับตรวจสอบการอัปเดตล่าสุดจากหน้า Payment
+const checkLatestPaymentUpdates = () => {
+  try {
+    const lastUpdate = localStorage.getItem('last_payment_update');
+    if (lastUpdate) {
+      const updateTime = parseInt(lastUpdate);
+      const currentTime = Date.now();
+      const timeDiff = currentTime - updateTime;
+      
+      // ถ้ามีการอัปเดตภายใน 30 วินาที ให้โหลดข้อมูลใหม่
+      if (timeDiff < 30000) {
+        console.log('พบการอัปเดตการชำระเงินล่าสุด โหลดข้อมูลใหม่...');
+        fetchRegistrations(true); // บังคับโหลดข้อมูลใหม่
+        localStorage.removeItem('last_payment_update'); // ลบข้อมูลการอัปเดตเพื่อไม่ให้โหลดซ้ำ
+      }
+    }
+  } catch (error) {
+    console.error('เกิดข้อผิดพลาดในการตรวจสอบการอัปเดตล่าสุด:', error);
+  }
+};
+
+// เพิ่มฟังก์ชันสำหรับการอัปเดตสถานะการชำระเงิน
 const updatePaymentStatus = async (registrationId, isPaid) => {
   try {
     isLoading.value = true;
     error.value = '';
     apiError.value = '';
     
-    const response = await axios.patch(`${API_URL}/students/registrations/${registrationId}/payment-status`, 
-      { isPaid },
-      {
-        headers: {
-          Authorization: `Bearer ${authStore.user?.token}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+    // ลองใช้หลาย endpoint เพื่อให้แน่ใจว่าอัปเดตสำเร็จ
+    let updateSuccess = false;
     
-    if (response.data.success) {
-      // ອັບເດດຂໍ້ມູນໃໝ່ຫຼັງຈາກເຮັດລາຍການສຳເລັດ
-      await fetchRegistrations();
+    // ลองใช้ endpoint แรก
+    try {
+      const response = await axios.patch(`${API_URL}/students/registrations/${registrationId}/payment-status`, 
+        { isPaid },
+        {
+          headers: {
+            Authorization: `Bearer ${authStore.user?.token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (response.data.success) {
+        updateSuccess = true;
+      }
+    } catch (err) {
+      console.log('ไม่สามารถอัปเดตผ่าน endpoint แรกได้');
+    }
+    
+    // ลองใช้ endpoint ที่สอง
+    if (!updateSuccess) {
+      try {
+        const response = await axios.patch(`${API_URL}/registrations/${registrationId}/payment-status`, 
+          { is_paid: isPaid },
+          {
+            headers: {
+              Authorization: `Bearer ${authStore.user?.token}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        
+        if (response.data.success) {
+          updateSuccess = true;
+        }
+      } catch (err) {
+        console.log('ไม่สามารถอัปเดตผ่าน endpoint ที่สองได้');
+      }
+    }
+    
+    // ลองใช้ endpoint ที่สาม
+    if (!updateSuccess) {
+      try {
+        const response = await axios.put(`${API_URL}/registrations/${registrationId}`, 
+          { is_paid: isPaid },
+          {
+            headers: {
+              Authorization: `Bearer ${authStore.user?.token}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        
+        if (response.data.success) {
+          updateSuccess = true;
+        }
+      } catch (err) {
+        console.log('ไม่สามารถอัปเดตผ่าน endpoint ที่สามได้');
+      }
+    }
+    
+    // อัปเดตข้อมูลใหม่หลังจากเรียกทุก endpoint
+    await fetchRegistrations(true);
+    
+    if (updateSuccess) {
       return true;
     } else {
-      apiError.value = response.data.message || 'ເກີດຂໍ້ຜິດພາດໃນການອັບເດດສະຖານະການຊຳລະເງິນ';
+      apiError.value = 'ເກີດຂໍ້ຜິດພາດໃນການອັບເດດສະຖານະການຊຳລະເງິນ';
       return false;
     }
   } catch (err) {
     console.error("Error updating payment status:", err);
-    const errorMessage = err.response?.data?.message || 'ເກີດຂໍ້ຜິດພາດໃນການອັບເດດສະຖານະການຊຳລະເງິນ';
+    const errorMessage = 'ເກີດຂໍ້ຜິດພາດໃນການອັບເດດສະຖານະການຊຳລະເງິນ';
     apiError.value = errorMessage;
     error.value = errorMessage;
     return false;

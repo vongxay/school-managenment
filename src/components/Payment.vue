@@ -328,22 +328,13 @@ const selectNextUnpaidStudent = async () => {
 // เพิ่มฟังก์ชันสำหรับบังคับอัปเดตสถานะการชำระเงินให้ตรงกันทั้งระบบ
 const forceSyncRegistrationStatus = async (registrationId: string) => {
   try {
-    // ลองเรียกทั้งสอง API endpoint เพื่อให้แน่ใจว่าข้อมูลตรงกัน
+    console.log('กำลังอัปเดตสถานะการชำระเงินสำหรับ registration ID:', registrationId);
     
-    // 1. อัปเดตผ่าน endpoint หลัก
-    await axios.patch(`${API_URL}/registrations/${registrationId}/payment-status`, 
-      { is_paid: true },
-      {
-        headers: {
-          Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+    // ทดลองใช้ endpoint ต่างๆ ที่อาจเป็นไปได้
     
-    // 2. อัปเดตผ่าน endpoint สำรอง (ถ้ามี)
+    // 1. ลองใช้ endpoint หลัก - students/registrations/id/payment-status
     try {
-      await axios.patch(`${API_URL}/students/registrations/${registrationId}/payment-status`, 
+      const response = await axios.patch(`${API_URL}/students/registrations/${registrationId}/payment-status`, 
         { isPaid: true },
         {
           headers: {
@@ -352,32 +343,87 @@ const forceSyncRegistrationStatus = async (registrationId: string) => {
           }
         }
       );
-    } catch (err) {
-      console.log('Alternative endpoint not available, using only main endpoint');
+      
+      if (response.data.success) {
+        console.log('อัปเดตสถานะสำเร็จผ่าน endpoint ที่ 1');
+        return true;
+      }
+    } catch (err: any) {
+      console.log('ไม่สามารถใช้ endpoint ที่ 1 ได้:', err.message);
     }
     
-    // 3. อัปเดตโดยตรงผ่าน SQL (ถ้ามี endpoint นี้)
+    // 2. ลองใช้ endpoint ทางเลือก - registrations/id/update-payment
     try {
-      await axios.post(`${API_URL}/execute-sql`, {
-        query: `UPDATE registrations SET is_paid = 1 WHERE id = '${registrationId}'`
-      }, {
-        headers: {
-          Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
+      const response = await axios.patch(`${API_URL}/registrations/${registrationId}/update-payment`, 
+        { is_paid: true },
+        {
+          headers: {
+            Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
         }
-      });
-    } catch (err) {
-      console.log('SQL endpoint not available, skipping direct update');
+      );
+      
+      if (response.data.success) {
+        console.log('อัปเดตสถานะสำเร็จผ่าน endpoint ที่ 2');
+        return true;
+      }
+    } catch (err: any) {
+      console.log('ไม่สามารถใช้ endpoint ที่ 2 ได้:', err.message);
     }
     
-    return true;
+    // 3. ลองใช้ endpoint ทางเลือก - registrations/update-payment
+    try {
+      const response = await axios.post(`${API_URL}/registrations/update-payment`, 
+        { 
+          id: registrationId,
+          is_paid: true 
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (response.data.success) {
+        console.log('อัปเดตสถานะสำเร็จผ่าน endpoint ที่ 3');
+        return true;
+      }
+    } catch (err: any) {
+      console.log('ไม่สามารถใช้ endpoint ที่ 3 ได้:', err.message);
+    }
+    
+    // 4. ลองใช้ endpoint PUT แทน PATCH
+    try {
+      const response = await axios.put(`${API_URL}/registrations/${registrationId}`, 
+        { is_paid: true },
+        {
+          headers: {
+            Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (response.data.success) {
+        console.log('อัปเดตสถานะสำเร็จผ่าน endpoint ที่ 4');
+        return true;
+      }
+    } catch (err: any) {
+      console.log('ไม่สามารถใช้ endpoint ที่ 4 ได้:', err.message);
+    }
+    
+    console.error('ไม่สามารถอัปเดตสถานะการชำระเงินได้ผ่านทุก endpoint ที่ลอง');
+    return false;
   } catch (error) {
     console.error('Failed to sync payment status:', error);
     return false;
   }
 };
 
-// แก้ไขฟังก์ชัน confirmPayment เพื่อใช้ forceSyncRegistrationStatus
+// แก้ไขฟังก์ชัน confirmPayment ให้เรียกอัปเดตสถานะการชำระเงินพร้อมกับการบันทึกรายการชำระเงิน
 const confirmPayment = async () => {
   const validationError = validatePaymentInput();
   if (validationError) {
@@ -403,16 +449,73 @@ const confirmPayment = async () => {
     
     console.log("ກຳລັງສ້າງການຊຳລະເງິນກັບ registration_id:", paymentData.registration_id);
     
-    // เรียกใช้ API endpoint ใหม่สำหรับบันทึกการชำระเงิน
-    const paymentResponse = await axios.post(`${API_URL}/payments`, paymentData, {
-      headers: {
-        Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    // เพิ่มข้อมูลอัปเดตสถานะเป็น true
+    const combinedData = {
+      ...paymentData,
+      update_status: true
+    };
     
-    if (paymentResponse.data.success) {
-      // บังคับอัปเดตสถานะการชำระเงินทุกวิธีที่เป็นไปได้
+    // เรียกใช้ API endpoint ใหม่สำหรับบันทึกการชำระเงิน
+    let paymentSuccess = false;
+    
+    // ลอง endpoint แรก - สร้างการชำระเงินพร้อมอัปเดตสถานะ
+    try {
+      const paymentResponse = await axios.post(`${API_URL}/payments`, combinedData, {
+        headers: {
+          Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (paymentResponse.data.success) {
+        paymentSuccess = true;
+      }
+    } catch (err: any) {
+      console.error('ไม่สามารถบันทึกการชำระเงินผ่าน endpoint แรกได้:', err.message);
+    }
+    
+    // ถ้าลองแล้วไม่สำเร็จ ให้ลองอีก endpoint
+    if (!paymentSuccess) {
+      try {
+        const paymentResponse = await axios.post(`${API_URL}/payments/with-status-update`, paymentData, {
+          headers: {
+            Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (paymentResponse.data.success) {
+          paymentSuccess = true;
+        }
+      } catch (err: any) {
+        console.error('ไม่สามารถบันทึกการชำระเงินผ่าน endpoint ที่สองได้:', err.message);
+      }
+    }
+    
+    // ถ้ายังไม่สำเร็จ ให้ลองแยกเป็นสองขั้นตอน
+    if (!paymentSuccess) {
+      try {
+        // บันทึกการชำระเงินอย่างเดียว
+        const paymentResponse = await axios.post(`${API_URL}/payments`, paymentData, {
+          headers: {
+            Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (paymentResponse.data.success) {
+          paymentSuccess = true;
+          
+          // อัปเดตสถานะการชำระเงินแยกต่างหาก
+          await forceSyncRegistrationStatus(payment.invoiceNo);
+        }
+      } catch (err: any) {
+        console.error('ไม่สามารถบันทึกการชำระเงินได้:', err.message);
+      }
+    }
+    
+    if (paymentSuccess) {
+      // บังคับอัปเดตสถานะการชำระเงินอีกครั้งเพื่อความแน่ใจ
       await forceSyncRegistrationStatus(payment.invoiceNo);
       
       // โหลดข้อมูลการลงทะเบียนอีกครั้งเพื่ออัปเดตหน้าจอ
@@ -632,6 +735,26 @@ const getPaymentHistory = async (registrationId: string) => {
   try {
     isLoading.value = true;
     console.log('ກຳລັງດຶງປະຫວັດການຊຳລະເງິນສຳລັບການລົງທະບຽນ ID:', registrationId);
+    
+    // อัปเดตสถานะการชำระเงินก่อนดึงประวัติ เพื่อให้แน่ใจว่าข้อมูลตรงกัน
+    const isUpdated = await forceSyncRegistrationStatus(registrationId);
+    console.log('สถานะการอัปเดตการชำระเงิน:', isUpdated ? 'สำเร็จ' : 'ไม่สำเร็จ');
+    
+    // บังคับให้อัปเดตข้อมูลการลงทะเบียนในหน้า Registration ด้วยการส่ง event หรือเรียก API
+    try {
+      // บันทึกเวลาล่าสุดที่อัปเดตข้อมูล
+      localStorage.setItem('last_payment_update', Date.now().toString());
+      
+      // เพิ่มการดึงข้อมูลการลงทะเบียนล่าสุดเพื่อให้แน่ใจว่าหน้า Registration จะแสดงข้อมูลล่าสุด
+      await axios.get(`${API_URL}/registrations?_=${Date.now()}`, {
+        headers: {
+          Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`,
+          'Cache-Control': 'no-cache, no-store'
+        }
+      });
+    } catch (err) {
+      console.log('ไม่สามารถบังคับให้อัปเดตข้อมูลในหน้าอื่นได้');
+    }
     
     const response = await axios.get(`${API_URL}/payments/registration/${registrationId}`, {
       headers: {
