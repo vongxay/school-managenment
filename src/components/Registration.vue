@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
 import { useAuthStore } from '../stores/authStore';
 
@@ -12,7 +12,7 @@ const studentTableData = ref([]);
 // ຂໍ້ມູນປີການສຶກສາແລະລະດັບຊັ້ນ
 const schoolYears = ref([]);
 const levels = ref([]);
-const classroomData = ref([]); // ເພີ່ມຕົວແປເກັບຂໍ້ມູນຫ້ອງຮຽນສຳລັບ dialog
+const classroomData = ref([]); // holds array of objects { id, name, level } for dialog
 
 // URL ຂອງ API
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -23,8 +23,8 @@ const error = ref('');
 const apiError = ref(''); // ຂໍ້ຜິດພາດຈາກ API
 const currentRegistrationId = ref('');
 const currentSchoolYear = ref('');
+const currentSchoolYearId = ref(''); // ຕົວແປເກັບລະຫັດສົກຮຽນ
 const currentClassId = ref('');
-const currentClassSection = ref('');
 const currentStudentId = ref('');
 const currentStudentName = ref('');
 const currentStudentPhone = ref('');
@@ -385,12 +385,11 @@ const handleRegistrationSearch = () => {
 };
 
 // ເລືອກຫ້ອງຮຽນ
-const selectClassroom = (classroom) => {
-  currentClassName.value = classroom;
+const selectClassroom = (classItem) => {
+  currentClassId.value = classItem.id;
+  currentClassName.value = classItem.name;
+  currentClassLevel.value = classItem.level;
   showClassroomDialog.value = false;
-  
-  // ດຶງຂໍ້ມູນຫ້ອງຮຽນຈາກ API
-  fetchClassInfo(classroom);
 };
 
 // ດຶງຂໍ້ມູນຫ້ອງຮຽນແລະລະດັບຊັ້ນທີ່ຖືກຕ້ອງ
@@ -440,10 +439,15 @@ const fetchClassInfo = async (className) => {
 };
 
 // ເປີດໜ້າຕ່າງເລືອກຫ້ອງຮຽນ
-const openClassroomDialog = () => {
+const openClassroomDialog = (event) => {
   // ດຶງຂໍ້ມູນຫ້ອງຮຽນກ່ອນເປີດ dialog
   fetchClasses();
-  showClassroomDialog.value = true;
+  // ປິດ dropdown ປີການສຶກສາຖ້າກຳລັງเปິດอยู่
+  showSchoolYearDialog.value = false;
+  // ສॱบสถานะการแสดง dropdown ห້องเรียน
+  showClassroomDialog.value = !showClassroomDialog.value;
+  // ป้องกันการ bubble ของอีเวนต์คลิก
+  if (event) event.stopPropagation();
 };
 
 // ດຶງຂໍ້ມູນຫ້ອງຮຽນທັງໝົດ
@@ -459,8 +463,12 @@ const fetchClasses = async () => {
     });
     
     if (response.data.success) {
-      // ປັບຮູບແບບຂໍ້ມູນຫ້ອງຮຽນສຳລັບ dialog
-      classroomData.value = response.data.data.map(c => c.name);
+      // ປັບໃຫ້ເກັບຂໍ້ມູນເປັນ object ໂດຍກົງສຳລັບ dialog
+      classroomData.value = response.data.data.map(cls => ({
+        id: cls.id,
+        name: cls.name,
+        level: cls.level
+      }));
     }
   } catch (err) {
     console.error('Error fetching classes:', err);
@@ -486,20 +494,21 @@ const fetchSchoolYears = async () => {
       // ປັບຮູບແບບຂໍ້ມູນປີການສຶກສາ
       schoolYears.value = response.data.data.map(year => ({
         id: year.id,
-        period: year.period || year.name
+        period: year.period || year.name,
+        is_current: year.is_current || false
       }));
       
       // ຕັ້ງຄ່າປີການສຶກສາປັດຈຸບັນຖ້າມີຂໍ້ມູນ
       if (schoolYears.value.length > 0 && !currentSchoolYear.value) {
         // ຫາປີການສຶກສາທີ່ເປັນປັດຈຸບັນ
-        const currentYear = schoolYears.value.find(year => year.period === `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`);
+        const currentYear = schoolYears.value.find(year => year.is_current);
         if (currentYear) {
           currentSchoolYear.value = currentYear.period;
-          currentClassId.value = currentYear.id;
+          currentSchoolYearId.value = currentYear.id;
         } else {
           // ໃຊ້ປີການສຶກສາທຳອິດໃນລາຍການ
           currentSchoolYear.value = schoolYears.value[0].period;
-          currentClassId.value = schoolYears.value[0].id;
+          currentSchoolYearId.value = schoolYears.value[0].id;
         }
       }
     }
@@ -541,13 +550,18 @@ const fetchLevels = async () => {
 // ເລືອກປີການສຶກສາ
 const selectSchoolYear = (year) => {
   currentSchoolYear.value = year.period;
-  currentClassId.value = year.id;
+  currentSchoolYearId.value = year.id;
   showSchoolYearDialog.value = false;
 };
 
 // ເປີດໜ້າຕ່າງເລືອກປີການສຶກສາ
-const openSchoolYearDialog = () => {
-  showSchoolYearDialog.value = true;
+const openSchoolYearDialog = (event) => {
+  // ປິດ dropdown ຫ້ອງເຣີຢນຖ້າກຳລັງเปິດอยู่
+  showClassroomDialog.value = false;
+  // ສॱบสถานะการแสดง dropdown ປີການສຶກສາ
+  showSchoolYearDialog.value = !showSchoolYearDialog.value;
+  // ป้องกันการ bubble ของอีเวนต์คลิก
+  if (event) event.stopPropagation();
 };
 
 // เลือกการลงทะเบียน
@@ -578,9 +592,35 @@ const selectRegistration = async (registrationId) => {
     }
   } catch (err) {
     console.error('ເກີດຂໍ້ຜິດພາດໃນການໂຫລດຂໍ້ມູນການລົງທະບຽນ:', err);
-    error.value = 'ບໍ່ສາມາດໂຫລດຂໍ້ມູນການລົງທະບຽນໄດ້';
+    error.value = 'ບໍ່ສາມາໂຫລດຂໍ້ມູນການລົງທະບຽນໄດ້';
   } finally {
     isLoading.value = false;
+  }
+};
+
+// เพิ่มฟังก์ชันสำหรับปิด dropdown เมื่อคลิกนอกพื้นที่ dropdown
+const closeDropdowns = (event) => {
+  // ตรวจสอบว่ามีการคลิกนอกพื้นที่ dropdown หรือไม่
+  const schoolYearDropdown = document.getElementById('school-year-dropdown');
+  const classroomDropdown = document.getElementById('classroom-dropdown');
+  const schoolYearButton = document.getElementById('school-year-button');
+  const classroomButton = document.getElementById('classroom-button');
+  
+  // ถ้าคลิกนอกพื้นที่ dropdown และปุ่มที่เปิด dropdown ให้ปิด dropdown
+  if (showSchoolYearDialog.value && 
+      schoolYearDropdown && 
+      !schoolYearDropdown.contains(event.target) && 
+      schoolYearButton && 
+      !schoolYearButton.contains(event.target)) {
+    showSchoolYearDialog.value = false;
+  }
+  
+  if (showClassroomDialog.value && 
+      classroomDropdown && 
+      !classroomDropdown.contains(event.target) && 
+      classroomButton && 
+      !classroomButton.contains(event.target)) {
+    showClassroomDialog.value = false;
   }
 };
 
@@ -603,14 +643,22 @@ onMounted(() => {
     // ສ້າງ ID ໃໝ່ສຳລັບການລົງທະບຽນ
     generateNewRegistrationId();
     
-    // ຕັ້ງຄ່າປີການສຶກສາປັດຈຸບັນ (ຈະໃຊ້ເປັນຄ່າເລີ່ມຕົ້ນຖ້າບໍ່ສາມາດດຶງຂໍ້ມູນຈາກ API)
+    // ຕັ້ງຄ່າປີການສຶກສາປັດຈຸບັນ (ຈະໃຊ້ເປັນຄ່າເຣິ่มต້ນຖ້າບໍ່ສາມາດດຶງຂໍ້ມູນຈາກ API)
     if (!currentSchoolYear.value) {
       const currentYear = new Date().getFullYear();
       currentSchoolYear.value = `${currentYear}-${currentYear + 1}`;
     }
+    
+    // เพิ่มการเรียกใช้ฟังก์ชัน closeDropdowns เมื่อมีการคลิกที่เอกสาร
+    document.addEventListener('click', closeDropdowns);
   } else {
     error.value = 'ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນໃຊ້ງານ';
   }
+});
+
+// ลบการลงทะเบียนอีเวนต์เมื่อคอมโพเนนต์ถูกทำลาย
+onUnmounted(() => {
+  document.removeEventListener('click', closeDropdowns);
 });
 </script>
 
@@ -631,31 +679,74 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- ສ່ວນແສດງປີການຨຶກສາ -->
-    <div class="flex items-center mb-4 justify-end">
+    <!-- ສ່ວນແສດງປີການສຶກສາ -->
+    <div class="flex items-center mb-4 justify-end relative">
       <div class="w-28">ສົກຮຽນ</div>
       <div class="w-16 mr-4">
-        <input type="text" class="w-full px-2 py-1 border rounded bg-white" v-model="currentClassId" placeholder="002" />
+        <input type="text" class="w-full px-2 py-1 border rounded bg-white" v-model="currentSchoolYearId" placeholder="001" />
       </div>
-      <div class="w-56 mr-2">
+      <div class="w-56 mr-2 relative">
         <input type="text" class="w-full px-2 py-1 border rounded bg-white" v-model="currentSchoolYear" readonly />
-      </div>
-      <div class="w-12">
-        <button class="w-full px-2 py-1 bg-white border rounded hover:bg-gray-100" @click="openSchoolYearDialog">...</button>
+        <button 
+          id="school-year-button"
+          class="absolute right-0 top-0 h-full px-2 bg-white border-l hover:bg-gray-100" 
+          @click="openSchoolYearDialog($event)"
+        >▼</button>
+        
+        <!-- Dropdown ເລືອກປີການສຶກສາ -->
+        <div 
+          v-if="showSchoolYearDialog" 
+          id="school-year-dropdown"
+          class="absolute top-full left-0 right-0 mt-1 bg-white border rounded-md shadow-lg z-50 max-h-60 overflow-y-auto"
+        >
+          <div class="p-2">
+            <button 
+              v-for="year in schoolYears" 
+              :key="year.id"
+              @click="selectSchoolYear(year)"
+              class="w-full px-2 py-1 text-left rounded hover:bg-gray-100 flex justify-between items-center mb-1"
+            >
+              <span>{{ year.period }}</span>
+              <span v-if="year.is_current" class="ml-2 text-xs bg-green-500 text-white px-1 py-0.5 rounded">ປັດຈຸບັນ</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- ສ່ວນແສດງຫ້ອງຮຽນ -->
-    <div class="flex items-center mb-4 justify-end">
+    <div class="flex items-center mb-4 justify-end relative">
       <div class="w-28">ຫ້ອງຮຽນ</div>
       <div class="w-16 mr-4">
-        <input type="text" class="w-full px-2 py-1 border rounded bg-white" v-model="currentClassSection" placeholder="004" />
+        <input type="text" class="w-full px-2 py-1 border rounded bg-white" v-model="currentClassId" placeholder="001" />
       </div>
-      <div class="w-56 mr-2">
+      <div class="w-56 mr-2 relative">
         <input type="text" class="w-full px-2 py-1 border rounded bg-white" v-model="currentClassName" readonly />
-      </div>
-      <div class="w-12">
-        <button class="w-full px-2 py-1 bg-white border rounded hover:bg-gray-100" @click="openClassroomDialog">...</button>
+        <button 
+          id="classroom-button"
+          class="absolute right-0 top-0 h-full px-2 bg-white border-l hover:bg-gray-100" 
+          @click="openClassroomDialog($event)"
+        >▼</button>
+        
+        <!-- Dropdown ເລືອກຫ້ອງຮຽນ -->
+        <div 
+          v-if="showClassroomDialog" 
+          id="classroom-dropdown"
+          class="absolute top-full left-0 right-0 mt-1 bg-white border rounded-md shadow-lg z-50 max-h-60 overflow-y-auto"
+        >
+          <div class="p-2">
+            <button 
+              v-for="classItem in classroomData" 
+              :key="classItem.id"
+              @click="selectClassroom(classItem)"
+              class="w-full px-2 py-1 text-left rounded hover:bg-gray-100 grid grid-cols-3 mb-1"
+            >
+              <div>{{ classItem.id }}</div>
+              <div class="col-span-1">{{ classItem.name }}</div>
+              <div>{{ classItem.level }}</div>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -772,50 +863,6 @@ onMounted(() => {
       >
         ພິມໃບລົງທະບຽນ
       </button>
-    </div>
-
-    <!-- Dialog ເລືອກຫ້ອງຮຽນ -->
-    <div v-if="showClassroomDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white p-4 rounded-md shadow-lg max-w-md w-full">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-lg font-bold">ເລືອກຫ້ອງຮຽນ</h3>
-          <button @click="showClassroomDialog = false" class="text-gray-500 hover:text-gray-700">
-            &times;
-          </button>
-        </div>
-        <div class="grid grid-cols-4 gap-2 mb-4">
-          <button 
-            v-for="classroom in classroomData" 
-            :key="classroom"
-            @click="selectClassroom(classroom)"
-            class="px-2 py-1 border rounded hover:bg-gray-100"
-          >
-            {{ classroom }}
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Dialog ເລືອກປີການສຶກສາ -->
-    <div v-if="showSchoolYearDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white p-4 rounded-md shadow-lg max-w-md w-full">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-lg font-bold">ເລືອກປີການສຶກສາ</h3>
-          <button @click="showSchoolYearDialog = false" class="text-gray-500 hover:text-gray-700">
-            &times;
-          </button>
-        </div>
-        <div class="grid grid-cols-2 gap-2 mb-4">
-          <button 
-            v-for="year in schoolYears" 
-            :key="year.id"
-            @click="selectSchoolYear(year)"
-            class="px-2 py-1 border rounded hover:bg-gray-100"
-          >
-            {{ year.period }}
-          </button>
-        </div>
-      </div>
     </div>
   </div>
 </template> 
