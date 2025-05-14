@@ -86,11 +86,8 @@ export const useStudentStore = () => {
 
   // ดึงข้อมูลนักเรียนที่กรองแล้ว
   const getFilteredStudents = () => {
-    // ถ้ามีการค้นหาหรือเลือกเพศ ให้ใช้ API search
-    if (searchQuery.value || selectedGender.value !== "all") {
-      searchStudents();
-    }
-
+    // ถ้ามีการค้นหา หรือ เลือกเพศ และมีการเรียกใช้ปุ่มค้นหาจาก UI ให้ใช้ API search
+    // จะไม่ถูกเรียกโดยอัตโนมัติแล้ว แต่จะถูกเรียกเมื่อกดปุ่ม "ค้นหา" ใน UI แทน
     return students;
   };
 
@@ -218,11 +215,6 @@ export const useStudentStore = () => {
       errorMessage.value = "";
 
       const data = await studentApi.getRegistrations();
-<<<<<<< HEAD
-      console.log('ຂໍໍານວນຂໍ້ມູນລົງທະບຽນ:', data);
-=======
-
->>>>>>> 0b685819f833945bd056c1c3d7eee9576ea1d263
       // อัปเดตข้อมูลในตัวแปร reactive
       registrations.splice(0, registrations.length, ...data);
 
@@ -250,6 +242,7 @@ export const useStudentStore = () => {
     errorMessage,
     getAllStudents,
     getFilteredStudents,
+    searchStudents,
     addStudent,
     updateStudent,
     deleteStudent,

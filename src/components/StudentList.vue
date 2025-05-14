@@ -8,8 +8,8 @@ import { useStudentStore } from '../stores/studentStore';
 const studentStore = useStudentStore();
 // ลบตัวแปร students ที่ไม่ได้ใช้งาน เพราะใช้ studentStore.students โดยตรง
 // const students = studentStore.students;
-const searchQuery = studentStore.searchQuery;
-const selectedGender = studentStore.selectedGender;
+const searchQuery = ref('');
+const selectedGender = ref('all');
 const isLoading = ref(false);
 const errorMessage = ref('');
 
@@ -20,27 +20,35 @@ const emits = defineEmits(['switch-to-form']);
 const currentPage = ref(1);
 const itemsPerPage = ref(10);
 
-// ใช้ computed properties กับ studentStore
+// ใช้ computed properties กับ studentStore และ filter ข้อมูลแบบ local
 const filteredStudents = computed(() => {
-  return studentStore.getFilteredStudents();
+  const students = studentStore.students;
+  let result = [...students];
+  
+  // กรองตามข้อความค้นหา
+  if (searchQuery.value.trim()) {
+    const query = searchQuery.value.toLowerCase();
+    result = result.filter(
+      student => 
+        student.studentId.toLowerCase().includes(query) ||
+        student.studentNameLao.toLowerCase().includes(query) ||
+        student.phoneNumber.toLowerCase().includes(query) ||
+        (student.guardianPhone && student.guardianPhone.toLowerCase().includes(query))
+    );
+  }
+  
+  // กรองตามเพศ
+  if (selectedGender.value !== 'all') {
+    result = result.filter(student => student.gender === selectedGender.value);
+  }
+  
+  return result;
 });
-
-// const paginatedStudents = computed(() => {
-//   const start = (currentPage.value - 1) * itemsPerPage.value;
-//   const end = start + itemsPerPage.value;
-//   console.log('Paginated Students:', filteredStudents.value.slice(start, end ));
-//   return filteredStudents.value.slice(start, end);
-// });
 
 const paginatedStudents = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value;
   const end = start + itemsPerPage.value;
-  if(selectedGender.value === 'all') {
-    return filteredStudents.value.slice(start, end);
-  }
-  const maleStudents = filteredStudents.value.filter(student => student.gender === selectedGender.value);
-  // console.log('Paginated Male Students:', maleStudents.slice(start, end));
-  return maleStudents.slice(start, end);
+  return filteredStudents.value.slice(start, end);
 });
 
 const totalPages = computed(() => {
@@ -107,27 +115,12 @@ const loadStudents = async () => {
   }
 };
 
-// เพิ่มฟังก์ชันสำหรับการค้นหา
-const searchStudents = async () => {
-  currentPage.value = 1; // รีเซ็ตหน้าเมื่อค้นหา
-  try {
-    isLoading.value = true;
-    errorMessage.value = '';
-    await studentStore.getFilteredStudents();
-  } catch (error) {
-    console.error('ເກີດຂໍ້ຜິດພາດໃນການຄົ້ນຫານັກຮຽນ:', error);
-    errorMessage.value = 'ບໍ່ສາມາດຄົ້ນຫານັກຮຽນໄດ້';
-  } finally {
-    isLoading.value = false;
-  }
-};
-
 // โหลดข้อมูลเมื่อคอมโพเนนต์ถูกสร้าง
 onMounted(loadStudents);
 
-// เพิ่ม watcher สำหรับการค้นหา
+// ติดตามการเปลี่ยนแปลงของการค้นหาและเพศเพื่อรีเซ็ตหน้าเพจ
 watch([searchQuery, selectedGender], () => {
-  searchStudents();
+  currentPage.value = 1;
 });
 </script>
 
@@ -144,7 +137,7 @@ watch([searchQuery, selectedGender], () => {
     
     <!-- Search and Filter Controls -->
     <div v-else class="flex flex-wrap justify-between items-center mb-6">
-      <div class="flex items-center space-x-4">
+      <div class="flex flex-wrap items-center gap-2">
         <div class="relative">
           <input
             v-model="searchQuery"
@@ -165,6 +158,7 @@ watch([searchQuery, selectedGender], () => {
             <option value="F">ຍິງ</option>
           </select>
         </div>
+       
       </div>
       
       <div>
@@ -244,6 +238,9 @@ watch([searchQuery, selectedGender], () => {
     <div v-if="!isLoading" class="flex justify-between items-center mt-6">
       <div class="text-sm text-gray-600">
         ສະແດງ {{ paginatedStudents.length }} ຈາກທັງໝົດ {{ filteredStudents.length }} ລາຍການ
+        <span v-if="searchQuery.trim() || selectedGender !== 'all'" class="ml-2 text-blue-600">
+          (ຜົນການຄົ້ນຫາ)
+        </span>
       </div>
       
       <div class="flex space-x-1">
