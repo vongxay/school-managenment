@@ -1,38 +1,38 @@
-import { ref, reactive } from 'vue';
-import type { Student, StudentRegistration } from '../types/student';
-import { studentApi } from '../api/studentApi';
+import { ref, reactive } from "vue";
+import type { Student, StudentRegistration } from "../types/student";
+import { studentApi } from "../api/studentApi";
 
 // ข้อมูลนักเรียนว่างเปล่าสำหรับสร้างข้อมูลใหม่
 const emptyStudent = (): Student => ({
-  studentId: '',
-  studentNameLao: '',
-  guardianPhone: '',
-  gender: 'M',
-  province: '',
-  district: '',
-  village: '',
-  idNumber: '',
-  idIssuedDate: '',
-  birthVillage: '',
-  birthDistrict: '',
-  birthProvince: '',
-  ethnicity: '',
-  religion: '',
-  nationality: 'ລາວ',
-  dateOfBirth: '',
-  phoneNumber: '',
-  searchQuery: '',
-  photoUrl: ''
+  studentId: "",
+  studentNameLao: "",
+  guardianPhone: "",
+  gender: "M",
+  province: "",
+  district: "",
+  village: "",
+  idNumber: "",
+  idIssuedDate: "",
+  birthVillage: "",
+  birthDistrict: "",
+  birthProvince: "",
+  ethnicity: "",
+  religion: "",
+  nationality: "ລາວ",
+  dateOfBirth: "",
+  phoneNumber: "",
+  searchQuery: "",
+  photoUrl: "",
 });
 
 // สถานะต่างๆ ของ store
 const students = reactive<Student[]>([]);
 const currentStudent = reactive<Student>(emptyStudent());
 const isEditing = ref(false);
-const searchQuery = ref('');
-const selectedGender = ref('all');
+const searchQuery = ref("");
+const selectedGender = ref("all");
 const isLoading = ref(false);
-const errorMessage = ref('');
+const errorMessage = ref("");
 
 // ข้อมูลการลงทะเบียน
 const registrations = reactive<StudentRegistration[]>([]);
@@ -43,14 +43,14 @@ export const useStudentStore = () => {
   const fetchAllStudents = async () => {
     try {
       isLoading.value = true;
-      errorMessage.value = '';
+      errorMessage.value = "";
       const data = await studentApi.getAllStudents();
       // อัปเดตข้อมูลในตัวแปร reactive
       students.splice(0, students.length, ...data);
       return true;
     } catch (error) {
-      console.error('ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນນັກຮຽນ:', error);
-      errorMessage.value = 'ບໍ່ສາມາດດຶງຂໍ້ມູນນັກຮຽນໄດ້';
+      console.error("ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນນັກຮຽນ:", error);
+      errorMessage.value = "ບໍ່ສາມາດດຶງຂໍ້ມູນນັກຮຽນໄດ້";
       return false;
     } finally {
       isLoading.value = false;
@@ -61,17 +61,17 @@ export const useStudentStore = () => {
   const searchStudents = async () => {
     try {
       isLoading.value = true;
-      errorMessage.value = '';
+      errorMessage.value = "";
       const data = await studentApi.searchStudents(
         searchQuery.value,
-        selectedGender.value !== 'all' ? selectedGender.value : undefined
+        selectedGender.value !== "all" ? selectedGender.value : undefined
       );
       // อัปเดตข้อมูลในตัวแปร reactive
       students.splice(0, students.length, ...data);
       return true;
     } catch (error) {
-      console.error('ເກີດຂໍ້ຜິດພາດໃນການຄົ້ນຫານັກຮຽນ:', error);
-      errorMessage.value = 'ບໍ່ສາມາດຄົ້ນຫານັກຮຽນໄດ້';
+      console.error("ເກີດຂໍ້ຜິດພາດໃນການຄົ້ນຫານັກຮຽນ:", error);
+      errorMessage.value = "ບໍ່ສາມາດຄົ້ນຫານັກຮຽນໄດ້";
       return false;
     } finally {
       isLoading.value = false;
@@ -87,10 +87,10 @@ export const useStudentStore = () => {
   // ดึงข้อมูลนักเรียนที่กรองแล้ว
   const getFilteredStudents = () => {
     // ถ้ามีการค้นหาหรือเลือกเพศ ให้ใช้ API search
-    if (searchQuery.value || selectedGender.value !== 'all') {
+    if (searchQuery.value || selectedGender.value !== "all") {
       searchStudents();
     }
-    
+
     return students;
   };
 
@@ -98,18 +98,18 @@ export const useStudentStore = () => {
   const addStudent = async (student: Student) => {
     try {
       isLoading.value = true;
-      errorMessage.value = '';
-      
+      errorMessage.value = "";
+
       // เรียกใช้ API สร้างนักเรียนใหม่
       const newStudentId = await studentApi.createStudent(student);
-      
+
       // ดึงข้อมูลนักเรียนทั้งหมดใหม่
       await fetchAllStudents();
-      
+
       return newStudentId;
     } catch (error) {
-      console.error('ເກີດຂໍ້ຜິດພາດໃນການເພີ່ມນັກຮຽນ:', error);
-      errorMessage.value = 'ບໍ່ສາມາດເພີ່ມນັກຮຽນໄດ້';
+      console.error("ເກີດຂໍ້ຜິດພາດໃນການເພີ່ມນັກຮຽນ:", error);
+      errorMessage.value = "ບໍ່ສາມາດເພີ່ມນັກຮຽນໄດ້";
       return null;
     } finally {
       isLoading.value = false;
@@ -120,18 +120,18 @@ export const useStudentStore = () => {
   const updateStudent = async (student: Student) => {
     try {
       isLoading.value = true;
-      errorMessage.value = '';
-      
+      errorMessage.value = "";
+
       // เรียกใช้ API อัพเดทนักเรียน
       await studentApi.updateStudent(student);
-      
+
       // ดึงข้อมูลนักเรียนทั้งหมดใหม่
       await fetchAllStudents();
-      
+
       return true;
     } catch (error) {
-      console.error('ເກີດຂໍ້ຜິດພາດໃນການອັບເດດນັກຮຽນ:', error);
-      errorMessage.value = 'ບໍ່ສາມາດອັບເດດຂໍ້ມູນນັກຮຽນໄດ້';
+      console.error("ເກີດຂໍ້ຜິດພາດໃນການອັບເດດນັກຮຽນ:", error);
+      errorMessage.value = "ບໍ່ສາມາດອັບເດດຂໍ້ມູນນັກຮຽນໄດ້";
       return false;
     } finally {
       isLoading.value = false;
@@ -142,26 +142,26 @@ export const useStudentStore = () => {
   const deleteStudent = async (studentId: string) => {
     try {
       isLoading.value = true;
-      errorMessage.value = '';
-      
+      errorMessage.value = "";
+
       // หาข้อมูลนักเรียนจาก studentId
-      const student = students.find(s => s.studentId === studentId);
-      
+      const student = students.find((s) => s.studentId === studentId);
+
       if (!student || !student._id) {
-        errorMessage.value = 'ບໍ່ພົບຂໍ້ມູນນັກຮຽນ';
+        errorMessage.value = "ບໍ່ພົບຂໍ້ມູນນັກຮຽນ";
         return false;
       }
-      
+
       // เรียกใช้ API ลบนักเรียน
       await studentApi.deleteStudent(student._id);
-      
+
       // ดึงข้อมูลนักเรียนทั้งหมดใหม่
       await fetchAllStudents();
-      
+
       return true;
     } catch (error) {
-      console.error('ເກີດຂໍ້ຜິດພາດໃນການລຶບນັກຮຽນ:', error);
-      errorMessage.value = 'ບໍ່ສາມາດລຶບຂໍ້ມູນນັກຮຽນໄດ້';
+      console.error("ເກີດຂໍ້ຜິດພາດໃນການລຶບນັກຮຽນ:", error);
+      errorMessage.value = "ບໍ່ສາມາດລຶບຂໍ້ມູນນັກຮຽນໄດ້";
       return false;
     } finally {
       isLoading.value = false;
@@ -170,7 +170,7 @@ export const useStudentStore = () => {
 
   // เริ่มแก้ไขนักเรียน
   const startEdit = (studentId: string) => {
-    const student = students.find(s => s.studentId === studentId);
+    const student = students.find((s) => s.studentId === studentId);
     if (student) {
       // Clone student data to currentStudent
       Object.assign(currentStudent, student);
@@ -183,13 +183,31 @@ export const useStudentStore = () => {
   // ล้างฟอร์มสำหรับนักเรียนใหม่
   const startNew = () => {
     Object.assign(currentStudent, emptyStudent());
+    generateStudentId();
     isEditing.value = false;
+  };
+
+  const generateStudentId = () => {
+    if (students.length === 0) {
+      return "001"; // Start with '001' if no students exist
+    }
+
+    // Filter out invalid studentId values (non-numeric or empty)
+    const numericIds = students
+      .map((student) => parseInt(student.studentId || "0", 10))
+      .filter((id) => !isNaN(id)); // Keep only valid numbers
+
+    if (numericIds.length === 0) {
+      currentStudent.studentId = "001";
+    }
+    const maxId = Math.max(...numericIds);
+    currentStudent.studentId = (maxId + 1).toString().padStart(3, "0");
   };
 
   // ล้างการค้นหา
   const clearSearch = () => {
-    searchQuery.value = '';
-    selectedGender.value = 'all';
+    searchQuery.value = "";
+    selectedGender.value = "all";
     fetchAllStudents();
   };
 
@@ -197,17 +215,17 @@ export const useStudentStore = () => {
   const fetchRegistrations = async () => {
     try {
       isLoading.value = true;
-      errorMessage.value = '';
-      
+      errorMessage.value = "";
+
       const data = await studentApi.getRegistrations();
-      
+
       // อัปเดตข้อมูลในตัวแปร reactive
       registrations.splice(0, registrations.length, ...data);
-      
+
       return true;
     } catch (error) {
-      console.error('ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນການລົງທະບຽນ:', error);
-      errorMessage.value = 'ບໍ່ສາມາດດຶງຂໍ້ມູນການລົງທະບຽນໄດ້';
+      console.error("ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນການລົງທະບຽນ:", error);
+      errorMessage.value = "ບໍ່ສາມາດດຶງຂໍ້ມູນການລົງທະບຽນໄດ້";
       return false;
     } finally {
       isLoading.value = false;
@@ -235,21 +253,21 @@ export const useStudentStore = () => {
     startNew,
     clearSearch,
     getStudentById: (studentId: string) => {
-      return students.find(s => s.studentId === studentId);
+      return students.find((s) => s.studentId === studentId);
     },
     getRegistrations: () => {
       return registrations;
     },
     getRegistrationByInvoiceId: async (invoiceId: string) => {
       if (!invoiceId) {
-        console.error('ລະຫັດລົງທະບຽນເປັນຄ່າຫວ່າງ');
+        console.error("ລະຫັດລົງທະບຽນເປັນຄ່າຫວ່າງ");
         return null;
       }
-      
+
       try {
         return await studentApi.getRegistrationByInvoiceId(invoiceId);
       } catch (error) {
-        console.error('ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນການລົງທະບຽນ:', error);
+        console.error("ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນການລົງທະບຽນ:", error);
         return null;
       }
     },
@@ -257,38 +275,38 @@ export const useStudentStore = () => {
       if (!query) {
         return [];
       }
-      
+
       try {
         return await studentApi.searchRegistrations(query);
       } catch (error) {
-        console.error('ເກີດຂໍ້ຜິດພາດໃນການຄົ້ນຫາຂໍ້ມູນການລົງທະບຽນ:', error);
+        console.error("ເກີດຂໍ້ຜິດພາດໃນການຄົ້ນຫາຂໍ້ມູນການລົງທະບຽນ:", error);
         return [];
       }
     },
     getTuitionFee: async (yearLevel: string) => {
       // สมมติค่าเรียนตามระดับชั้น (ควรดึงจาก API)
-      const fees: {[key: string]: number} = {
-        'ຊັ້ນ ມ 1': 60000,
-        'ຊັ້ນ ມ 2': 65000,
-        'ຊັ້ນ ມ 3': 70000,
-        'ຊັ້ນ ມ 4': 75000,
-        'ຊັ້ນ ມ 5': 80000,
-        'ຊັ້ນ ມ 6': 85000,
+      const fees: { [key: string]: number } = {
+        "ຊັ້ນ ມ 1": 60000,
+        "ຊັ້ນ ມ 2": 65000,
+        "ຊັ້ນ ມ 3": 70000,
+        "ຊັ້ນ ມ 4": 75000,
+        "ຊັ້ນ ມ 5": 80000,
+        "ຊັ້ນ ມ 6": 85000,
       };
       return fees[yearLevel] || 50000; // ค่าเริ่มต้นถ้าไม่พบระดับชั้น
     },
     savePayment: async (paymentData: any) => {
       // ในอนาคตควรเรียกใช้ API บันทึกการชำระเงิน
-      console.log('บันทึกการชำระเงิน:', paymentData);
+      console.log("บันทึกการชำระเงิน:", paymentData);
       return true;
     },
     updateRegistrationPaymentStatus: async (id: string, isPaid: boolean) => {
       try {
         return await studentApi.updateRegistrationPaymentStatus(id, isPaid);
       } catch (error) {
-        console.error('ເກີດຂໍ້ຜິດພາດໃນການອັບເດດສະຖານະການຊຳລະເງິນ:', error);
+        console.error("ເກີດຂໍ້ຜິດພາດໃນການອັບເດດສະຖານະການຊຳລະເງິນ:", error);
         return false;
       }
-    }
+    },
   };
-}; 
+};

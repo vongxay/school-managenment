@@ -62,6 +62,16 @@ const handlePhotoUpload = (event: Event) => {
   }
 };
 
+const formatDate = (field: 'idIssuedDate' | 'dateOfBirth') => {
+  if (student[field]) {
+    const date = new Date(student[field]);
+    const formattedDate = `${date.getFullYear()}-${(date.getMonth() + 1)
+      .toString()
+      .padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+    student[field] = formattedDate;
+  }
+};
+
 const handleSubmit = async () => {
   try {
     if (isEditing.value) {
@@ -73,8 +83,9 @@ const handleSubmit = async () => {
       }
     } else {
       const newId = await studentStore.addStudent(student);
+      console.log('ລະຫັດນັກຮຽນໃໝ່:', newId, 'await::',await studentStore.addStudent(student));
       if (newId) {
-        alert('ບັນທຶກຂໍ້ມູນນັກຮຽນສຳເລັດແລ້ວ');
+        alert('ບັນທຶກຂໍ້ມູນນັກຮຽນສຳເລັດແລ້ວ...,ລະຫັດນັກຮຽນໃໝ່: ' + newId);
       } else {
         alert('ບໍ່ສາມາດບັນທຶກຂໍ້ມູນນັກຮຽນໄດ້');
       }
@@ -128,7 +139,7 @@ const handleNew = () => {
     <div class="grid grid-cols-7 gap-4 mb-4">
       <div>
         <label class="block text-sm mb-1">ລະຫັດນັກຮຽນ</label>
-        <input v-model="student.studentId" type="text" class="w-full px-2 py-1 border rounded bg-white" :disabled="isEditing" />
+        <input v-model="student.studentId" type="text" class="w-full px-2 py-1 border rounded bg-white" disabled />
       </div>
       <div>
         <label class="block text-sm mb-1">ຊື່ນັກຮຽນ(La)</label>
@@ -136,7 +147,7 @@ const handleNew = () => {
       </div>
       <div>
         <label class="block text-sm mb-1">ເບີໂທຜູ້ປົກຄອງ</label>
-        <input v-model="student.guardianPhone" type="tel" class="w-full px-2 py-1 border rounded bg-white" />
+        <input v-model="student.guardianPhone" type="number" class="w-full px-2 py-1 border rounded bg-white" />
       </div>
       <div>
         <label class="block text-sm mb-1">ເພດ</label>
@@ -168,8 +179,13 @@ const handleNew = () => {
       <div class="col-span-2">
         <label class="block text-sm mb-1">ວັນທີອອກສຳມະໂນຄົວ</label>
         <div class="flex">
-          <input type="text" v-model="student.idIssuedDate" class="w-full px-2 py-1 border rounded-l bg-white" />
-          <button class="px-2 py-1 border-t border-r border-b rounded-r bg-white">📅</button>
+          <!-- Use input type="date" -->
+          <input
+            type="date"
+            v-model="student.idIssuedDate"
+            class="w-full px-2 py-1 border rounded bg-white"
+            @change="formatDate('idIssuedDate')"
+          />
         </div>
       </div>
       <div>
@@ -201,15 +217,19 @@ const handleNew = () => {
         <input v-model="student.nationality" type="text" class="w-full px-2 py-1 border rounded bg-white" />
       </div>
       <div class="col-span-2">
-        <label class="block text-sm mb-1">ວັນເດືອນປີເກີດ</label>
-        <div class="flex">
-          <input type="text" v-model="student.dateOfBirth" class="w-full px-2 py-1 border rounded-l bg-white" />
-          <button class="px-2 py-1 border-t border-r border-b rounded-r bg-white">📅</button>
+      <label class="block text-sm mb-1">ວັນເດືອນປີເກີດ</label>
+      <div class="flex">
+        <input
+          type="date"
+          v-model="student.dateOfBirth"
+          class="w-full px-2 py-1 border rounded bg-white"
+          @change="formatDate('dateOfBirth')"
+        />
         </div>
       </div>
       <div>
         <label class="block text-sm mb-1">ເບີໂທ</label>
-        <input v-model="student.phoneNumber" type="tel" class="w-full px-2 py-1 border rounded bg-white" />
+        <input v-model="student.phoneNumber" type="number" class="w-full px-2 py-1 border rounded bg-white no-spinner" />
       </div>
       <div class="relative">
         <div class="w-full aspect-square bg-white border rounded mb-2">
@@ -237,13 +257,19 @@ const handleNew = () => {
       <button
         @click="handleDelete"
         class="px-4 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+        :class="{ 'cursor-not-allowed opacity-50': !isEditing }"
         :disabled="!isEditing"
       >
         ລຶບ
       </button>
       <button
         @click="handleSubmit"
-        class="px-4 py-1 bg-green-500 text-white rounded hover:bg-green-600"
+        :class="[
+            'px-4 py-2 text-white rounded hover:bg-opacity-90',
+            isEditing
+              ? 'bg-green-600 hover:bg-green-700'
+              : 'bg-blue-600 hover:bg-blue-700',
+          ]"
       >
         {{ isEditing ? 'ອັບເດດ' : 'ບັນທຶກ' }}
       </button>

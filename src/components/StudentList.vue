@@ -25,10 +25,22 @@ const filteredStudents = computed(() => {
   return studentStore.getFilteredStudents();
 });
 
+// const paginatedStudents = computed(() => {
+//   const start = (currentPage.value - 1) * itemsPerPage.value;
+//   const end = start + itemsPerPage.value;
+//   console.log('Paginated Students:', filteredStudents.value.slice(start, end ));
+//   return filteredStudents.value.slice(start, end);
+// });
+
 const paginatedStudents = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value;
   const end = start + itemsPerPage.value;
-  return filteredStudents.value.slice(start, end);
+  if(selectedGender.value === 'all') {
+    return filteredStudents.value.slice(start, end);
+  }
+  const maleStudents = filteredStudents.value.filter(student => student.gender === selectedGender.value);
+  // console.log('Paginated Male Students:', maleStudents.slice(start, end));
+  return maleStudents.slice(start, end);
 });
 
 const totalPages = computed(() => {
@@ -39,15 +51,6 @@ const navigateToPage = (page: number) => {
   if (page > 0 && page <= totalPages.value) {
     currentPage.value = page;
   }
-};
-
-const viewStudent = (student: Student) => {
-  // เริ่มแก้ไขข้อมูลแต่ไม่ให้บันทึก (เพื่อดูข้อมูลเท่านั้น)
-  studentStore.startEdit(student.studentId);
-  // Emit event to switch to form view
-  emits('switch-to-form');
-  // Scroll to form
-  window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 const editStudent = (student: Student) => {
@@ -178,7 +181,7 @@ watch([searchQuery, selectedGender], () => {
     <div v-if="!isLoading" class="overflow-x-auto">
       <table class="min-w-full border-collapse">
         <thead>
-          <tr class="bg-gray-100 border-b">
+          <tr class="bg-gray-300 border-b">
             <th class="px-4 py-3 text-left">ລະຫັດນັກຮຽນ</th>
             <th class="px-4 py-3 text-left">ຊື່ນັກຮຽນ(La)</th>
             <th class="px-4 py-3 text-left">ເບີໂທຜູ້ປົກຄອງ</th>
@@ -194,9 +197,9 @@ watch([searchQuery, selectedGender], () => {
         </thead>
         <tbody>
           <tr 
-            v-for="student in paginatedStudents" 
-            :key="student.studentId"
-            class="border-b hover:bg-gray-50"
+            v-for="(student, index) in paginatedStudents"
+            :key="index"
+            :class="['border-b hover:bg-gray-50', index%2 !== 0 ? 'bg-gray-100' : '' ]"
           >
             <td class="px-4 py-3">{{ student.studentId }}</td>
             <td class="px-4 py-3">{{ student.studentNameLao }}</td>
@@ -210,13 +213,6 @@ watch([searchQuery, selectedGender], () => {
             <td class="px-4 py-3">{{ student.idNumber }}</td>
             <td class="px-4 py-3 text-center">
               <div class="flex justify-center space-x-2">
-                <button 
-                  @click="viewStudent(student)"
-                  class="p-1 text-blue-600 hover:text-blue-800"
-                  title="ເບິ່ງລາຍລະອຽດ"
-                >
-                  👁️
-                </button>
                 <button 
                   @click="editStudent(student)"
                   class="p-1 text-yellow-600 hover:text-yellow-800"
