@@ -119,7 +119,7 @@ const fetchRegistrations = async () => {
         classroom: reg.classroom || "",
         level: reg.level || "",
         schoolYear: reg.school_year || "",
-        paid: reg.is_paid === true || reg.paid === true, // ແກ້ໄຂໃຫ້ຕົວແປ paid ມີຄ່າ boolean ເທົ່ານັ້ນ
+        paid: reg.paid === 1 ? true : false, // ແກ້ໄຂໃຫ້ຕົວແປ paid ມີຄ່າ boolean ເທົ່ານັ້ນ
       }));
 
       // ກຳນົດຂໍ້ມູນໃຫ້ກັບອາເຣເທີ່ໃຊ້ສະແດງຜົນ
@@ -358,11 +358,7 @@ const saveRegistration = async () => {
       student_name: currentStudentName.value,
       student_phone: currentStudentPhone.value,
       classroom: currentClassId.value,
-<<<<<<< HEAD
-      level: currentClassLevel.value, // ໃຊ້ຄ່າຈາກຕົວແປທີ່ເກັບລະດັບຊັ້ນ 
-=======
       level: currentClassLevel.value, // ໃຊ້ຄ່າຈາກຕົວແປທີ່ເກັບລະດັບຊັ້ນ currentClassLevel
->>>>>>> 0b685819f833945bd056c1c3d7eee9576ea1d263
       school_year: currentSchoolYearId.value,  // currentSchoolYear
       paid: false,
       tuition_fee: tuitionFee, // ເພີ່ມຄ່າເຣີຢນທີ່ຈະເຣີຢກເກບ
@@ -813,12 +809,8 @@ const updatePaymentStatus = async (registrationId, isPaid) => {
         <input
           type="text"
           class="w-full px-2 py-1 border rounded bg-white"
-<<<<<<< HEAD
-          v-model="currentSchoolYear"
-=======
           :value="!currentSchoolYearId ? '' : currentSchoolYear"
->>>>>>> 0b685819f833945bd056c1c3d7eee9576ea1d263
-          readonly
+
         />
         <button
           id="school-year-button"
@@ -827,10 +819,6 @@ const updatePaymentStatus = async (registrationId, isPaid) => {
         >
           ▼
         </button>
-<<<<<<< HEAD
-
-=======
->>>>>>> 0b685819f833945bd056c1c3d7eee9576ea1d263
         <!-- Dropdown ເລືອກປີການສຶກສາ -->
         <div
           v-if="showSchoolYearDialog"

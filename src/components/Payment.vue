@@ -640,7 +640,7 @@ const showUnpaidRegistrationsSearch = () => {
       
       <!-- Header Section -->
       <div class="flex justify-between mb-4 p-2 bg-white rounded">
-        <div class="flex items-center space-x-4">
+        <div class="flex items-center space-x-3">
           <div>
             <span class="mb-1 mr-2 text-sm">ລະຫັດລົງທະບຽນ</span>
             <input type="text" v-model="payment.invoiceNo" class="px-2 py-1 border rounded" readonly />
@@ -657,11 +657,11 @@ const showUnpaidRegistrationsSearch = () => {
             <span class="mb-1 mr-2 text-sm">ປີການສຶກສາ</span>
             <input type="text" :value="payment.academicYear" class="px-2 py-1 border rounded" readonly />
           </div>
+        <div>
+          <button class="mt-5 px-2 py-1 bg-gray-200 rounded">...</button>
+        </div>
         </div>
         
-        <div>
-          <button class="px-2 py-1 bg-gray-200 rounded">...</button>
-        </div>
       </div>
       
       <!-- Payment Information Table -->

@@ -218,11 +218,6 @@ export const useStudentStore = () => {
       errorMessage.value = "";
 
       const data = await studentApi.getRegistrations();
-<<<<<<< HEAD
-      console.log('ຂໍໍານວນຂໍ້ມູນລົງທະບຽນ:', data);
-=======
-
->>>>>>> 0b685819f833945bd056c1c3d7eee9576ea1d263
       // อัปเดตข้อมูลในตัวแปร reactive
       registrations.splice(0, registrations.length, ...data);
 
