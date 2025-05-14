@@ -49,7 +49,6 @@ const fetchLevels = async () => {
     isLoading.value = false;
   }
 };
-
 const selectLevel = (level: Level) => {
   selectedLevel.value = level;
   Object.assign(formLevel, level);
@@ -60,8 +59,8 @@ const createNewLevel = () => {
   selectedLevel.value = null;
   formLevel.id = '';
   formLevel.name = '';
+  generateLevelId();
 };
-
 const validateLevelForm = () => {
   if (!formLevel.name) {
     errorMessage.value = 'ກະລຸນາປ້ອນຊື່ຊັ້ນຮຽນ';
@@ -97,9 +96,8 @@ const generateLevelId = () => {
     formLevel.id = '001';
     return;
   }
-  
-  // ຄົ້ນຫາ ID ລ່າສຸດແລະບວກ 1
   const maxId = Math.max(...levels.map(l => parseInt(l.id)));
+  // console.log('ID: ', maxId)
   formLevel.id = (maxId + 1).toString().padStart(3, '0');
 };
 
@@ -206,9 +204,9 @@ onMounted(fetchLevels);
             v-model="formLevel.id" 
             type="text" 
             class="flex-1 px-3 py-2 border border-gray-300 rounded"
-            :disabled="!!selectedLevel"
+            disabled
           />
-          <button 
+          <!-- <button 
             v-if="!selectedLevel"
             @click="generateLevelId" 
             class="px-3 py-2 bg-gray-200 rounded ml-2"
@@ -216,7 +214,7 @@ onMounted(fetchLevels);
             :disabled="isLoading"
           >
             ສ້າງ ID
-          </button>
+          </button> -->
         </div>
       </div>
       
@@ -240,12 +238,17 @@ onMounted(fetchLevels);
         >
           ລົບ
         </button>
-        <button 
-          @click="saveLevel" 
-          class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        <button
+          @click="saveLevel"
+          :class="[
+            'px-4 py-2 text-white rounded hover:bg-opacity-90',
+            selectedLevel
+              ? 'bg-green-600 hover:bg-green-700'
+              : 'bg-blue-600 hover:bg-blue-700',
+          ]"
           :disabled="isLoading"
         >
-          ບັນທຶກ
+          {{ selectedLevel ? "ອັບເດດ" : "ບັນທຶກ"}}
         </button>
       </div>
     </div>
@@ -280,12 +283,12 @@ onMounted(fetchLevels);
       <!-- Table rows -->
       <div class="max-h-64 overflow-y-auto">
         <div 
-          v-for="level in filteredLevels" 
+          v-for="(level, index) in filteredLevels" 
           :key="level.id"
           @click="selectLevel(level)"
           :class="[
             'grid grid-cols-2 p-2 cursor-pointer',
-            selectedLevel?.id === level.id ? 'bg-blue-600 text-white' : ''
+            selectedLevel?.id === level.id ? 'bg-blue-600 text-white' : index % 2 !== 0 ? 'bg-gray-100' : 'bg-white'
           ]"
         >
           <div>{{ level.id }}</div>
