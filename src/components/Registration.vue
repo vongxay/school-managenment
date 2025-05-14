@@ -810,7 +810,11 @@ const updatePaymentStatus = async (registrationId, isPaid) => {
           type="text"
           class="w-full px-2 py-1 border rounded bg-white"
           :value="!currentSchoolYearId ? '' : currentSchoolYear"
+<<<<<<< HEAD
 
+=======
+          readonly
+>>>>>>> 5028bb819a68fe89701e06167bed01087f81641d
         />
         <button
           id="school-year-button"
