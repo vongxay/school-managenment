@@ -89,7 +89,7 @@ const loadData = async () => {
       isLoading.value = false;
     }
   } else {
-    // ถ้าไม่มี studentId ให้ดึงข้อมูลการลงทะเบียนที่ยังไม่ชำระเงินมาแสดง
+    // ถ้าไม่มี studentId ให้ดึงข้อมูลการลงทะเบียนที่ยังไม่ชำระเงินมาแสดง  
     await fetchUnpaidRegistrations();
   }
 };

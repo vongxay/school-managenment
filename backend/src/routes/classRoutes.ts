@@ -6,6 +6,9 @@ const router = Router();
 // ดึงข้อมูลห้องเรียนทั้งหมด
 router.get('/', classController.getAllClasses);
 
+// ดึงข้อมูลห้องเรียนปัจจุบัน
+router.get('/currentId', classController.getCurrentClassId);
+
 // ดึงข้อมูลห้องเรียนตาม ID
 router.get('/:id', classController.getClassById);
 

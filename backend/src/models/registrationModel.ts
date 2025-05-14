@@ -1,7 +1,7 @@
 import { Pool, PoolConnection } from 'mysql2/promise';
 import { v4 as uuidv4 } from 'uuid';
 import db from '../utils/db';
-
+import { ResultSetHeader, RowDataPacket } from 'mysql2';
 export interface Registration {
   id: string;
   registration_date: string;
@@ -14,6 +14,12 @@ export interface Registration {
   paid: boolean;
   created_at: Date;
   updated_at: Date;
+}
+
+export interface ClassRoom {
+  id: string;
+  name: string;
+  level: string;
 }
 
 export interface CreateRegistrationDTO {
@@ -121,6 +127,78 @@ class RegistrationModel {
     }
   }
   
+  async findAllStudentsGroupedByClass(): Promise<{ class: ClassRoom; students: Registration[] }[]> {
+    let connection;
+    try {
+        connection = await db.getConnection();
+
+        // Query all classes
+        const classesQuery = `
+            SELECT 
+                id, 
+                name, 
+                level 
+            FROM classes
+        `;
+        const [classesRows] = await connection.query(classesQuery);
+        const classes = classesRows as ClassRoom[];
+
+        const result = [];
+
+        // For each class, query the students in the registrations table
+        for (const classRoom of classes) {
+            const studentsQuery = `
+                SELECT 
+                    r.id, 
+                    r.registration_date, 
+                    r.student_id, 
+                    r.student_name, 
+                    r.student_phone, 
+                    r.classroom, 
+                    r.level, 
+                    r.school_year, 
+                    r.is_paid as paid, 
+                    r.created_at, 
+                    r.updated_at
+                FROM registrations r
+                WHERE r.classroom = ?
+            `;
+            const [studentsRows] = await connection.query(studentsQuery, [classRoom.id]);
+            const students = studentsRows as Registration[];
+
+            // Combine class details with its students
+            result.push({
+                class: classRoom,
+                students: students,
+            });
+        }
+
+        return result;
+    } finally {
+        if (connection) connection.release();
+    }
+}
+
+
+async getCurrentRegistration(): Promise<String> {
+    try {
+      const [rows] = await db.query<RowDataPacket[]>(
+          `SELECT id FROM registrations ORDER BY id DESC LIMIT 1`
+        );
+        let newId = 'INV-001'; // Default value if no registrations exist
+        if (rows.length > 0 && rows[0].id) {
+            const lastId = rows[0].id; // Example: 'INV-001'
+            const numericPart = parseInt(lastId.replace('INV-', ''), 10); // Extract numeric part (e.g., 1)
+            const incrementedPart = numericPart + 1; // Increment the numeric part
+            newId = `INV-${String(incrementedPart).padStart(3, '0')}`; // Format as 'INV-002'
+        }
+  return newId;
+    } catch (error) {
+      console.error('เกิดข้อผิดพลาดในการดึงข้อมูลระดับชั้น:', error);
+      throw error;
+    }
+  }
+
   // ค้นหาการลงทะเบียนตาม ID
   async findById(id: string): Promise<Registration | null> {
     let connection;
@@ -155,12 +233,20 @@ class RegistrationModel {
   // สร้างการลงทะเบียนใหม่
   async create(data: CreateRegistrationDTO): Promise<string> {
     let connection;
-    
-    try {
+        try {
+        const [rows] = await db.query<RowDataPacket[]>(
+          `SELECT id FROM registrations ORDER BY id DESC LIMIT 1`
+        );
+        let newId = 'INV-001'; // Default value if no registrations exist
+        if (rows.length > 0 && rows[0].id) {
+            const lastId = rows[0].id; // Example: 'INV-001'
+            const numericPart = parseInt(lastId.replace('INV-', ''), 10); // Extract numeric part (e.g., 1)
+            const incrementedPart = numericPart + 1; // Increment the numeric part
+            newId = `INV-${String(incrementedPart).padStart(3, '0')}`; // Format as 'INV-002'
+        }
       connection = await db.getConnection();
       await connection.beginTransaction();
       
-      const id = `INV-${uuidv4().substring(0, 8)}`;
       const registrationDate = new Date().toISOString().split('T')[0];
       
       // ກວດສອບວ່ານັກຮຽນມີໃນລະບົບຫຼືບໍ່
@@ -215,8 +301,8 @@ class RegistrationModel {
       `;
       
       const values = [
-        id,
-        id, // ใช้ id เดียวกันสำหรับ invoice_id
+        newId, // Use the new incremented ID
+        newId,// ใช้ id เดียวกันสำหรับ invoice_id
         data.student_id,
         data.student_name,
         data.student_phone,
@@ -231,7 +317,7 @@ class RegistrationModel {
       
       await connection.commit();
       
-      return id;
+      return newId;
     } catch (error) {
       if (connection) await connection.rollback();
       throw error;

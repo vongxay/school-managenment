@@ -6,6 +6,10 @@ const router = Router();
 // ดึงข้อมูลระดับชั้นทั้งหมด
 router.get('/', levelController.getAllLevels);
 
+// ดึงข้อมูลระดับชั้นปัจจุบัน
+router.get('/currentId', levelController.getCurrentLevels);
+
+
 // ดึงข้อมูลระดับชั้นตาม ID
 router.get('/:id', levelController.getLevelById);
 

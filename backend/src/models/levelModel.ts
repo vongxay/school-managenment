@@ -1,4 +1,6 @@
 import pool from '../utils/db';
+import { db } from '../utils/db';
+import { ResultSetHeader, RowDataPacket } from 'mysql2';
 
 export interface Level {
   id: string;
@@ -11,6 +13,24 @@ class LevelModel {
     try {
       const [rows] = await pool.query('SELECT * FROM levels');
       return rows as Level[];
+    } catch (error) {
+      console.error('เกิดข้อผิดพลาดในการดึงข้อมูลระดับชั้น:', error);
+      throw error;
+    }
+  }
+  async getCurrentLevels(): Promise<String> {
+    try {
+      const [rows] = await db.query<RowDataPacket[]>(
+      `SELECT id FROM levels ORDER BY id DESC LIMIT 1`
+    );
+
+    let newLevelId = '001'; // Default value if no students exist
+    if (rows.length > 0 && rows[0].id) {
+        const lastStudentId = rows[0].id;
+        const numericPart = parseInt(lastStudentId, 10); // Extract numeric part
+        newLevelId = String(numericPart + 1).padStart(3, '0'); // Increment and pad with leading zeros
+    }
+  return newLevelId;
     } catch (error) {
       console.error('เกิดข้อผิดพลาดในการดึงข้อมูลระดับชั้น:', error);
       throw error;

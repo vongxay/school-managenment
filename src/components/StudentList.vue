@@ -13,7 +13,7 @@ const selectedGender = studentStore.selectedGender;
 const isLoading = ref(false);
 const errorMessage = ref('');
 
-// Function to switch to form tab - need to be used by parent component
+// Function to switch to form tab - need to be used by parent component 
 const emits = defineEmits(['switch-to-form']);
 
 // State for pagination

@@ -7,6 +7,12 @@ const router = express.Router();
 // ดึงข้อมูลการลงทะเบียนทั้งหมด
 router.get('/', authenticate, registrationController.getAllRegistrations);
 
+// ดึงข้อมูลการลงทะเบียนปัจจุบัน
+router.get('/currentId', authenticate, registrationController.getCurrentRegistrations);
+
+// ดึงข้อมูลการลงทะเบียนตามระดับชั้น
+router.get('/studentByClass', registrationController.getStudentByClass);
+
 // ดึงข้อมูลการลงทะเบียนตาม ID
 router.get('/:id', authenticate, registrationController.getRegistrationById);
 

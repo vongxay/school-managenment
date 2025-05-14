@@ -200,7 +200,7 @@ export const useStudentStore = () => {
       errorMessage.value = '';
       
       const data = await studentApi.getRegistrations();
-      
+      console.log('ຂໍໍານວນຂໍ້ມູນລົງທະບຽນ:', data);
       // อัปเดตข้อมูลในตัวแปร reactive
       registrations.splice(0, registrations.length, ...data);
       

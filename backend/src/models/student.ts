@@ -58,6 +58,20 @@ export const StudentModel = {
       return student;
     });
   },
+  findCurrentId: async (): Promise<String> => {
+     // Query the latest student_id
+    const [rows] = await db.query<RowDataPacket[]>(
+      `SELECT student_id FROM students ORDER BY student_id DESC LIMIT 1`
+    );
+
+    let newStudentId = '001'; // Default value if no students exist
+    if (rows.length > 0 && rows[0].student_id) {
+        const lastStudentId = rows[0].student_id;
+        const numericPart = parseInt(lastStudentId, 10); // Extract numeric part
+        newStudentId = String(numericPart + 1).padStart(3, '0'); // Increment and pad with leading zeros
+    }
+  return newStudentId;
+  },
   
   findById: async (id: string): Promise<Student | null> => {
     const [rows] = await db.query<Student[]>('SELECT * FROM students WHERE id = ?', [id]);
@@ -101,8 +115,22 @@ export const StudentModel = {
     return null;
   },
   
-  create: async (student: Omit<Student, 'id' | 'created_at' | 'updated_at'>): Promise<string> => {
+  create: async (student: Omit<Student, 'id' | 'created_at' | 'updated_at' | 'student_id'>): Promise<string> => {
     const id = uuidv4();
+
+    // Query the latest student_id
+    const [rows] = await db.query<RowDataPacket[]>(
+      `SELECT student_id FROM students ORDER BY student_id DESC LIMIT 1`
+    );
+
+    let newStudentId = '001'; // Default value if no students exist
+    if (rows.length > 0 && rows[0].student_id) {
+        const lastStudentId = rows[0].student_id;
+        const numericPart = parseInt(lastStudentId, 10); // Extract numeric part
+        newStudentId = String(numericPart + 1).padStart(3, '0'); // Increment and pad with leading zeros
+    }
+
+    // Insert the new student with the generated student_id
     await db.query<ResultSetHeader>(
       `INSERT INTO students (
         id, student_id, student_name_lao, guardian_phone, gender, 
@@ -111,14 +139,15 @@ export const StudentModel = {
         religion, nationality, date_of_birth, phone_number, photo_url
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        id, student.student_id, student.student_name_lao, student.guardian_phone, student.gender,
+        id, newStudentId, student.student_name_lao, student.guardian_phone, student.gender,
         student.province, student.district, student.village, student.id_number, student.id_issued_date,
         student.birth_village, student.birth_district, student.birth_province, student.ethnicity,
         student.religion, student.nationality, student.date_of_birth, student.phone_number, student.photo_url
       ]
     );
+
     return id;
-  },
+},
   
   update: async (id: string, student: Partial<Student>): Promise<boolean> => {
     // สร้างคำสั่ง SQL แบบไดนามิก

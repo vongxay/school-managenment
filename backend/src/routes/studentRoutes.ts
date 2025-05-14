@@ -5,7 +5,10 @@ import { authenticate, authorize } from '../middleware/auth';
 const router = Router();
 
 // ดึงข้อมูลนักเรียนทั้งหมด
-router.get('/', authenticate, StudentController.getAllStudents);
+router.get('/', StudentController.getAllStudents);
+
+// ดึงข้อมูลนักเรียนปัจจุบัน
+router.get('/currentId', authenticate, StudentController.getCurrentStudentId);
 
 // ดึงข้อมูลนักเรียนตามรหัสนักเรียน - ต้องระบุก่อนเส้นทาง /:id
 router.get('/student-id/:studentId', authenticate, StudentController.getStudentByStudentId);

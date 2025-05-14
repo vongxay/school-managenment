@@ -22,6 +22,19 @@ export const StudentController = {
       res.status(500).json({ success: false, message: 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນນັກຮຽນ' });
     }
   },
+   getCurrentStudentId: async (req: Request, res: Response) => {
+    try {
+      
+      const students = await StudentModel.findCurrentId();
+      if (!students) {
+        return res.status(404).json({ success: false, message: 'ບໍ່ພົບຂໍ້ມູນນັກຮຽນ' });
+      }
+      res.json({ success: true, data: { students } });
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      res.status(500).json({ success: false, message: 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນນັກຮຽນ' });
+    }
+  },
   
   // ดึงข้อมูลนักเรียนตาม ID
   getStudentById: async (req: Request, res: Response) => {
@@ -60,6 +73,7 @@ export const StudentController = {
   // สร้างนักเรียนใหม่
   createStudent: async (req: Request, res: Response) => {
     try {
+      console.log('Request body:', req.body);
       const studentData = req.body;
       
       // ตรวจสอบว่ามีข้อมูลที่จำเป็นหรือไม่

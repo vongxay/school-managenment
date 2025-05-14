@@ -19,6 +19,22 @@ class ClassController {
     }
   }
 
+  async getCurrentClassId(req: Request, res: Response): Promise<void> {
+    try {
+      const classes = await classModel.getCurrentClassesId();
+      res.status(200).json({
+        success: true,
+        data: classes
+      });
+    } catch (error) {
+      console.error('Error in getAllClasses:', error);
+      res.status(500).json({
+        success: false,
+        message: 'ມີຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນຫ້ອງຮຽນ'
+      });
+    }
+  }
+
   // ดึงข้อมูลห้องเรียนตาม ID
   async getClassById(req: Request, res: Response): Promise<void> {
     try {

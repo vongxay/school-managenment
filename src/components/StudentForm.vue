@@ -50,10 +50,11 @@ const handlePhotoUpload = (event: Event) => {
         
         const ctx = canvas.getContext('2d');
         ctx?.drawImage(img, 0, 0, width, height);
-        
+        console.log('canvas', canvas);
         // แปลงเป็น Base64 ในรูปแบบที่มีขนาดเล็กลง (คุณภาพ 70%)
         const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
         photoPreview.value = dataUrl;
+        console.log('Photo URL:', dataUrl);
         student.photoUrl = dataUrl;
       };
     };

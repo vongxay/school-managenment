@@ -36,6 +36,39 @@ class RegistrationController {
     }
   }
 
+async getCurrentRegistrations(req: Request, res: Response): Promise<void> {
+    try {
+      const registrationId = await RegistrationModel.getCurrentRegistration();
+      res.status(200).json({
+        success: true,
+        data: registrationId
+      });
+    } catch (error) {
+      console.error('Error in getAllLevels:', error);
+      res.status(500).json({
+        success: false,
+        message: 'ມີຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນຊັ້ນຮຽນ'
+      });
+    }
+  }
+
+
+  async getStudentByClass(req: Request, res: Response): Promise<void> {
+    try {
+      const groupedData = await RegistrationModel.findAllStudentsGroupedByClass();
+      res.status(200).json({
+        success: true,
+        data: groupedData
+      });
+    } catch (error) {
+      console.error('Error in getAllLevels:', error);
+      res.status(500).json({
+        success: false,
+        message: 'ມີຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນຊັ້ນຮຽນ'
+      });
+    }
+  }
+
   // ดึงข้อมูลการลงทะเบียนตาม ID
   async getRegistrationById(req: Request, res: Response): Promise<void> {
     try {

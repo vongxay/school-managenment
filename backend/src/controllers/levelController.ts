@@ -18,6 +18,21 @@ class LevelController {
       });
     }
   }
+  async getCurrentLevels(req: Request, res: Response): Promise<void> {
+    try {
+      const levels = await levelModel.getCurrentLevels();
+      res.status(200).json({
+        success: true,
+        data: levels
+      });
+    } catch (error) {
+      console.error('Error in getAllLevels:', error);
+      res.status(500).json({
+        success: false,
+        message: 'ມີຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນຊັ້ນຮຽນ'
+      });
+    }
+  }
 
   // ดึงข้อมูลระดับชั้นตาม ID
   async getLevelById(req: Request, res: Response): Promise<void> {

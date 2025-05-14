@@ -1,4 +1,6 @@
 import pool from '../utils/db';
+import { db } from '../utils/db';
+import { ResultSetHeader, RowDataPacket } from 'mysql2';
 
 export interface ClassRoom {
   id: string;
@@ -12,6 +14,25 @@ class ClassModel {
     try {
       const [rows] = await pool.query('SELECT * FROM classes');
       return rows as ClassRoom[];
+    } catch (error) {
+      console.error('เกิดข้อผิดพลาดในการดึงข้อมูลห้องเรียน:', error);
+      throw error;
+    }
+  }
+
+  async getCurrentClassesId(): Promise<String> {
+    try {
+         const [rows] = await db.query<RowDataPacket[]>(
+      `SELECT id FROM classes ORDER BY id DESC LIMIT 1`
+    );
+
+    let newClassId = '001'; // Default value if no students exist
+    if (rows.length > 0 && rows[0].id) {
+        const lastStudentId = rows[0].id;
+        const numericPart = parseInt(lastStudentId, 10); // Extract numeric part
+        newClassId = String(numericPart + 1).padStart(3, '0'); // Increment and pad with leading zeros
+    }
+  return newClassId;
     } catch (error) {
       console.error('เกิดข้อผิดพลาดในการดึงข้อมูลห้องเรียน:', error);
       throw error;
@@ -33,9 +54,21 @@ class ClassModel {
   // เพิ่มห้องเรียนใหม่
   async createClass(classData: ClassRoom): Promise<ClassRoom> {
     try {
+
+    const [rows] = await db.query<RowDataPacket[]>(
+      `SELECT id FROM classes ORDER BY id DESC LIMIT 1`
+    );
+
+    let newClassId = '001'; // Default value if no students exist
+    if (rows.length > 0 && rows[0].id) {
+        const lastStudentId = rows[0].id;
+        const numericPart = parseInt(lastStudentId, 10); // Extract numeric part
+        newClassId = String(numericPart + 1).padStart(3, '0'); // Increment and pad with leading zeros
+    }
+
       const [result] = await pool.query(
         'INSERT INTO classes (id, name, level) VALUES (?, ?, ?)',
-        [classData.id, classData.name, classData.level]
+        [newClassId, classData.name, classData.level]
       );
       return classData;
     } catch (error) {
