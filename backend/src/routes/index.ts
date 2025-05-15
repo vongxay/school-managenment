@@ -7,6 +7,9 @@ import yearRoutes from './yearRoutes';
 import levelRoutes from './levelRoutes';
 import registrationRoutes from './registrationRoutes';
 import tuitionRoutes from './tuitionRoutes';
+import reportRoutes from './reportRoutes';
+import paymentRoutes from './paymentRoutes';
+import commonRoutes from './commonRoutes';
 
 const router = Router();
 
@@ -19,6 +22,9 @@ router.use('/years', yearRoutes);
 router.use('/levels', levelRoutes);
 router.use('/registrations', registrationRoutes);
 router.use('/tuitions', tuitionRoutes);
+router.use('/reports', reportRoutes);
+router.use('/payments', paymentRoutes);
+router.use('/common', commonRoutes);
 
 // เส้นทางทดสอบ API
 router.get('/health', (req, res) => {
