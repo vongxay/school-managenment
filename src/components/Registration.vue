@@ -192,7 +192,7 @@ const searchStudents = async () => {
         // ກຳນົດຂໍ້ມູນໃຫ້ກັບອາເຣເທີ່ໃຊ້ສະແດງຜົນ
         studentTableData.value = filteredData;
       } else {
-        // ຖ້າບໍ່ສາມາດດຶງຂໍ້ມູນການລົງທະບຽນໄດ້ ໃຫ້ສະແດງຂໍ້ມູນນັກຮຽນທັງໝົດ
+        // ຖ້າບໍ່ສາມາໂຫລດຂໍ້ມູນການລົງທະບຽນໄດ້ ໃຫ້ສະແດງຂໍ້ມູນນັກຮຽນທັງໝົດ
         studentTableData.value = formattedData;
       }
     }
@@ -1021,7 +1021,7 @@ const updatePaymentStatus = async (registrationId, isPaid) => {
           <div>{{ reg.level }}</div>
           <div>{{ reg.schoolYear }}</div>
           <div :class="reg.paid ? 'text-green-600 font-bold' : 'text-red-600'">
-            {{ reg.paid ? "ຈ່າຍແລ້ວ" : "ຍັງບໍ່ຈ່າຍ" }}
+            {{ reg.paid? "ຈ່າຍແລ້ວ" : "ຍັງບໍ່ຈ່າຍ" }}
           </div>
         </div>
       </div>
