@@ -30,6 +30,7 @@ const currentStudentName = ref("");
 const currentStudentPhone = ref("");
 const currentClassName = ref("");
 const currentClassLevel = ref(""); // ເພີ່ມຕົວແປເກັບລະດັບຊັ້ນຂອງຫ້ອງຮຽນ
+const currentClassLevelId = ref(""); // ເພີ່ມຕົວແປເກັບລະຫັດລະດັບຊັ້ນຂອງຫ້ອງຮຽນ
 const numberOfBills = ref("");
 const description = ref("");
 const searchQuery = ref("");
@@ -216,10 +217,10 @@ const selectStudent = (student) => {
 // ສ້າງ ID ໃໝ່ສຳລັບການລົງທະບຽນ
 const generateNewRegistrationId = () => {
   let lastId = 0;
-  console.log('ກຳລັງສ້າງ ID ສໍາລັບການລົງທະບຽນ', filteredRegistrations.value);
+  // console.log('ກຳລັງສ້າງ ID ສໍາລັບການລົງທະບຽນ', filteredRegistrations.value);
   filteredRegistrations.value.forEach((reg, idx) => {
     const match = reg.id.match(/^INV-(\d+)$/); // <-- ตรงนี้!
-    console.log('Checking:', reg.id, 'Match:', match);
+    // console.log('Checking:', reg.id, 'Match:', match);
     if (match) {
       const currentId = parseInt(match[1], 10);
       if (currentId > lastId) {
@@ -264,7 +265,7 @@ const validateForm = () => {
     return false;
   }
 
-  if (!currentClassLevel.value) {
+  if (!currentClassLevelId.value) { 
     alert("ກະລຸນາເລືອກຫ້ອງຮຽນທີ່ມີລະດັບຊັ້ນຮຽນກຳນົດໄວ້");
 
     // ພະຍາຍາມດຶງຂໍ້ມູນຫ້ອງຮຽນອີກຄັ້ງ
@@ -286,17 +287,6 @@ const saveRegistration = async () => {
     isLoading.value = true;
     error.value = "";
     apiError.value = "";
-
-    // ໃຊ້ລະດັບຊັ້ນທີ່ດຶງມາຈາກຂໍ້ມູນຫ້ອງຮຽນແທນການຄຳນວນເອງ
-    // console.log("ກຳລັງລົງທະບຽນ:", {
-    //   student_id: currentStudentId.value,
-    //   student_name: currentStudentName.value,
-    //   student_phone: currentStudentPhone.value,
-    //   classroom: currentClassName.value,
-    //   level: currentClassLevel.value, // ໃຊ້ຄ່າຈາກຕົວແປທີ່ເກັບລະດັບຊັ້ນ
-    //   school_year: currentSchoolYear.value,
-    // });
-
     // ດຶງຂໍ້ມູນຄ່າເຣີຢນຕາມລະດັບຊັ້ນແລະປີການສຶກສາ
     let tuitionFee = 0;
     try {
@@ -305,15 +295,14 @@ const saveRegistration = async () => {
           Authorization: `Bearer ${authStore.user?.token}`,
         },
       });
-
       if (tuitionResponse.data.success) {
         // ຄ້ນຫາຄ່າເຣີຢນຕາມລະດັບຊັ້ນແລະປີການສຶກສາ
         const matchingTuition = tuitionResponse.data.data.find(
           (t) =>
-            t.level === currentClassLevel.value &&
-            t.year === currentSchoolYear.value
+          t.level === currentClassLevel.value &&
+          t.year === currentSchoolYear.value
         );
-
+        
         if (matchingTuition) {
           tuitionFee = matchingTuition.amount;
         } else {
@@ -325,16 +314,18 @@ const saveRegistration = async () => {
     }
 
     // ສ້າງຂໍ້ມູນການລົງທະບຽນໃໝ່ຕາມໂຄງສ້າງຖານຂໍ້ມູນ
+    currentClassLevel.value = currentClassLevelId.value;
+    console.log("ກຳລັງສ້າງຂໍ້ມູນການລົງທະບຽນໃໝ່", currentClassLevel.value);
     const registrationData = {
       student_id: currentStudentId.value,
       student_name: currentStudentName.value,
       student_phone: currentStudentPhone.value,
       classroom: currentClassId.value,
-      level: currentClassLevel.value, // ໃຊ້ຄ່າຈາກຕົວແປທີ່ເກັບລະດັບຊັ້ນ currentClassLevel
-      school_year: currentSchoolYearId.value,  // currentSchoolYear
+      level: currentClassLevel.value, // ໃຊ້ລະຫັດລະດັບຊັ້ນແທນຊື່ລະດັບຊັ້ນ
+      school_year: currentSchoolYearId.value,
       paid: false,
       registered_by: authStore.user?.id || '',
-      tuition_fee: tuitionFee, // ເພີ່ມຄ່າເຣີຢນທີ່ຈະເຣີຢກເກບ
+      tuition_fee: tuitionFee,
       invoice_id: currentRegistrationId.value,
       registration_date: new Date().toISOString().split("T")[0],
     };
@@ -405,9 +396,16 @@ const handleStudentSearch = () => {
 
 // ເລືອກຫ້ອງຮຽນ
 const selectClassroom = (classItem) => {
+  console.log("ກຳລັງເລືອກຫ້ອງຮຽນ||:", classroomData);
   currentClassId.value = classItem.id;
   currentClassName.value = classItem.name;
-  currentClassLevel.value = classItem.level;
+
+  const levelObj = levels.value.find(l => l.name === classItem.level);
+  if (levelObj) {
+    currentClassLevelId.value = levelObj.id;
+  }
+  
+  // ຊອກຫາລະຫັດລະດັບຊັ້ນຈາກຂໍ້ມູນລະດັບຊັ້ນ
   showClassroomDialog.value = false;
 };
 
@@ -486,6 +484,7 @@ const fetchClasses = async () => {
 
     if (response.data.success) {
       // ປັບໃຫ້ເກັບຂໍ້ມູນເປັນ object ໂດຍກົງສຳລັບ dialog
+      console.log("ຂໍ້ມູນຫ້ອງຮຽນ???:", response.data.data);
       classroomData.value = response.data.data.map((cls) => ({
         id: cls.id,
         name: cls.name,
