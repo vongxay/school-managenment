@@ -1,18 +1,4 @@
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import morgan from 'morgan';
-import { checkConnection } from './utils/db';
-import apiRoutes from './routes/index';
-import authRoutes from './routes/authRoutes';
-import userRoutes from './routes/userRoutes';
-import studentRoutes from './routes/studentRoutes';
-import levelRoutes from './routes/levelRoutes';
-import classRoutes from './routes/classRoutes';
-import yearRoutes from './routes/yearRoutes';
-import registrationRoutes from './routes/registrationRoutes';
-import tuitionRoutes from './routes/tuitionRoutes';
-import paymentRoutes from './routes/paymentRoutes';
+import express from 'express';import cors from 'cors';import dotenv from 'dotenv';import morgan from 'morgan';import { checkConnection } from './utils/db';import apiRoutes from './routes/index';import authRoutes from './routes/authRoutes';import userRoutes from './routes/userRoutes';import studentRoutes from './routes/studentRoutes';import levelRoutes from './routes/levelRoutes';import classRoutes from './routes/classRoutes';import yearRoutes from './routes/yearRoutes';import registrationRoutes from './routes/registrationRoutes';import tuitionRoutes from './routes/tuitionRoutes';import paymentRoutes from './routes/paymentRoutes';import reportRoutes from './routes/reportRoutes';
 
 // โหลดตัวแปรสภาพแวดล้อม
 dotenv.config();
@@ -58,6 +44,7 @@ app.use('/api/years', yearRoutes);
 app.use('/api/registrations', registrationRoutes);
 app.use('/api/tuitions', tuitionRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/reports', reportRoutes);
 
 // เริ่มต้นเซิร์ฟเวอร์
 app.listen(port, () => {
