@@ -140,6 +140,7 @@ const saveYear = async () => {
       }
     } else {
       // ເພີ່ມສົກຮຽນໃໝ່
+      formYear.is_current= false;
       const response = await axios.post(`${API_URL}/years`, formYear);
       if (response.data.success) {
         schoolYears.push({ ...response.data.data });

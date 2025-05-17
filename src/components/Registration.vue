@@ -78,7 +78,6 @@ const formatDate = (dateString) => {
   try {
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return dateString; // ถ้าแปลงไม่ได้ให้แสดงเป็นข้อความเดิม
-
     const day = date.getDate().toString().padStart(2, "0");
     const month = (date.getMonth() + 1).toString().padStart(2, "0");
     const year = date.getFullYear();
@@ -124,6 +123,7 @@ const fetchRegistrations = async () => {
 
       // ກຳນົດຂໍ້ມູນໃຫ້ກັບອາເຣເທີ່ໃຊ້ສະແດງຜົນ
       registrations.value = formattedData;
+      generateNewRegistrationId();
     }
   } catch (err) {
     console.error("Error fetching registrations:", err);
@@ -216,49 +216,21 @@ const selectStudent = (student) => {
 // ສ້າງ ID ໃໝ່ສຳລັບການລົງທະບຽນ
 const generateNewRegistrationId = () => {
   let lastId = 0;
-  // ຫາຄ່າ ID ຫຼ້າສຸດຈາກຂໍ້ມູນທີ່ມີຢູ່
-  registrations.value.forEach((reg) => {
-    try {
-      const idParts = reg.id.split("-");
-      if (idParts.length > 1) {
-        const numericPart = idParts[1].replace(/^0+/, "");
-        const currentId = parseInt(numericPart);
-        if (!isNaN(currentId) && currentId > lastId) {
-          lastId = currentId;
-        }
+  console.log('ກຳລັງສ້າງ ID ສໍາລັບການລົງທະບຽນ', filteredRegistrations.value);
+  filteredRegistrations.value.forEach((reg, idx) => {
+    const match = reg.id.match(/^INV-(\d+)$/); // <-- ตรงนี้!
+    console.log('Checking:', reg.id, 'Match:', match);
+    if (match) {
+      const currentId = parseInt(match[1], 10);
+      if (currentId > lastId) {
+        lastId = currentId;
       }
-    } catch (error) {
-      console.error("Error parsing ID:", error);
     }
   });
-
-  // ສ້າງ ID ໃໝ່
-  currentRegistrationId.value = `INV-${String(lastId + 1).padStart(8, "0")}`;
+  const nextId = lastId + 1;
+  
+  currentRegistrationId.value = `INV-${nextId.toString().padStart(3, '0')}`;
 };
-
-// const idgenerlage = () => {
-// let lastId = 0;
-//   // ຫາຄ່າ ID ຫຼ້າສຸດຈາກຂໍ້ມູນທີ່ມີຢູ່
-//   registrations.value.forEach((reg) => {
-//     try {
-//       const idParts = reg.id.split("-");
-//       if (idParts.length > 1) {
-//         const numericPart = idParts[1].replace(/^0+/, "");
-//         const currentId = parseInt(numericPart);
-//         if (!isNaN(currentId) && currentId > lastId) {
-//           lastId = currentId;
-//         }
-//       }
-//       console.log("ID ::", registrations.value);
-//     } catch (error) {
-//       console.error("Error parsing ID:", error);
-//     }
-//   });
-
-//   // ສ້າງ ID ໃໝ່
-//   currentRegistrationId.value = `INV-${String(lastId + 1).padStart(8, "0")}`;
-//   console.log("ສ້າງ ID ໃໝ່", currentRegistrationId.value);
-// };
 
 // ພິມການລົງທະບຽນ
 const printRegistration = () => {
