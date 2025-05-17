@@ -53,12 +53,20 @@ const monthlyPayments: Payment[] = [
   { month: 'ທັນວາ', amount: 750000 },
 ];
 
-const topClasses = [
-  { class: 'ມ.6/1', averageScore: 85.2 },
-  { class: 'ມ.5/2', averageScore: 84.7 },
-  { class: 'ມ.4/1', averageScore: 83.9 },
-  { class: 'ມ.6/2', averageScore: 83.5 },
-  { class: 'ມ.5/1', averageScore: 83.1 },
+
+const students = [
+  {
+    id: '005',
+    name: 'ມາຣີ ມີນາ ອอยແມະຈັນ',
+    guardianPhone: '02058974563',
+    birthdate: '06/05/2003',
+    gender: 'ຍິງ',
+    village: 'ໄຊພະບູມໃຕ້',
+    district: 'ແປກ',
+    province: 'ຊຽງຂວາງ',
+    phone: '02059873264'
+  },
+  // ... more students
 ];
 
 // Format currency
@@ -305,51 +313,33 @@ const exportToExcel = () => {
         <div class="md:col-span-3 bg-white rounded-lg shadow p-6">
           <h2 class="text-lg font-medium mb-4">ຜົນການຮຽນສະເລ່ຍຂອງຫ້ອງ</h2>
           <div class="overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
+            <table class="min-w-full border border-gray-300">
+              <thead class="bg-yellow-100">
                 <tr>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    ລຳດັບ
-                  </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    ຫ້ອງຮຽນ
-                  </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    ຄະແນນສະເລ່ຍ
-                  </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    ສະຖານະ
-                  </th>
+                  <th class="border px-2 py-1">ລ/ດ</th>
+                  <th class="border px-2 py-1">ລະຫັດນັກຮຽນ</th>
+                  <th class="border px-2 py-1">ຊື່ນັກຮຽນ(LA)</th>
+                  <th class="border px-2 py-1">ເບີໂທຜູ້ປົກຄອງ</th>
+                  <th class="border px-2 py-1">ວັນ/ເດືອນ/ປີ ເກີດ</th>
+                  <th class="border px-2 py-1">ເພດ</th>
+                  <th class="border px-2 py-1">ບ້ານ</th>
+                  <th class="border px-2 py-1">ເມືອງ</th>
+                  <th class="border px-2 py-1">ແຂວງ</th>
+                  <th class="border px-2 py-1">ເບີໂທ</th>
                 </tr>
               </thead>
-              <tbody class="bg-white divide-y divide-gray-200">
-                <tr v-for="(classItem, index) in topClasses" :key="classItem.class">
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {{ index + 1 }}
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm font-medium text-gray-900">{{ classItem.class }}</div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900 font-bold">{{ classItem.averageScore }}%</div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <span 
-                      :class="[
-                        'px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full',
-                        classItem.averageScore >= 85 ? 'bg-green-100 text-green-800' :
-                        classItem.averageScore >= 80 ? 'bg-blue-100 text-blue-800' :
-                        classItem.averageScore >= 75 ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-gray-100 text-gray-800'
-                      ]"
-                    >
-                      {{ 
-                        classItem.averageScore >= 85 ? 'ດີເລີດ' :
-                        classItem.averageScore >= 80 ? 'ດີຫຼາຍ' :
-                        classItem.averageScore >= 75 ? 'ດີ' : 'ປານກາງ'
-                      }}
-                    </span>
-                  </td>
+              <tbody>
+                <tr v-for="(student, idx) in students" :key="student.id" class="hover:bg-green-50">
+                  <td class="border px-2 py-1 text-center">{{ idx + 1 }}</td>
+                  <td class="border px-2 py-1 text-center">{{ student.id }}</td>
+                  <td class="border px-2 py-1">{{ student.name }}</td>
+                  <td class="border px-2 py-1">{{ student.guardianPhone }}</td>
+                  <td class="border px-2 py-1 text-center">{{ student.birthdate }}</td>
+                  <td class="border px-2 py-1 text-center">{{ student.gender }}</td>
+                  <td class="border px-2 py-1">{{ student.village }}</td>
+                  <td class="border px-2 py-1">{{ student.district }}</td>
+                  <td class="border px-2 py-1">{{ student.province }}</td>
+                  <td class="border px-2 py-1">{{ student.phone }}</td>
                 </tr>
               </tbody>
             </table>

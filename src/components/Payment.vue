@@ -52,6 +52,9 @@ const changeAmount = computed(() => {
 const studentSearchQuery = ref('');
 const filteredRegistrations = ref<any[]>([]);
 const showStudentSearch = ref(false);
+// const schoolYears = ref([]);
+// const levels = ref([]);
+// const classroomData = ref([]);
 
 // เพิ่มตัวแปรสำหรับเก็บข้อมูลการลงทะเบียนที่ยังไม่ชำระเงิน
 const unpaidRegistrations = ref<any[]>([]);
@@ -93,7 +96,6 @@ const loadData = async () => {
     await fetchUnpaidRegistrations();
   }
 };
-
 // เพิ่มฟังก์ชันใหม่สำหรับดึงข้อมูลการลงทะเบียนที่ยังไม่ชำระเงิน
 const fetchUnpaidRegistrations = async () => {
   try {
@@ -104,15 +106,12 @@ const fetchUnpaidRegistrations = async () => {
         Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`
       }
     });
-
     if (response.data.success && response.data.data.registrations.length > 0) {
-      console.log('ພົບການລົງທະບຽນທີ່ຍັງບໍ່ຊຳລະເງິນ:', response.data.data.registrations);
       
       // เก็บข้อมูลไว้ในตัวแปร
       unpaidRegistrations.value = response.data.data.registrations.map((reg: any) => {
         // ແນ່ໃຈວ່າໃຊ້ field id ທີ່ຖືກຕ້ອງ
         const regId = reg.id; 
-        
         return {
           id: regId,
           registrationDate: reg.registration_date,
@@ -134,7 +133,6 @@ const fetchUnpaidRegistrations = async () => {
         await selectRegistration(firstReg.id);
       }
     } else {
-      console.log('ບໍ່ພົບການລົງທະບຽນທີ່ຍັງບໍ່ຊຳລະເງິນ');
       unpaidRegistrations.value = [];
     }
   } catch (error) {
@@ -158,15 +156,14 @@ const loadTuitionInfo = async () => {
     if (response.data.success && response.data.data.length > 0) {
       // เก็บข้อมูลค่าเรียนทั้งหมดไว้ใช้
       const allTuitions = response.data.data;
-      console.log("ข้อมูลค่าเรียนทั้งหมด:", allTuitions);
       
       // ถ้ามีข้อมูลชั้นเรียนและปีการศึกษาแล้ว ใช้หาค่าเรียนที่เหมาะสม
+      
       if (payment.level && payment.academicYear) {
         const matchingTuition = allTuitions.find((t: any) => 
           t.level === payment.level && 
           t.year === payment.academicYear
         );
-        
         if (matchingTuition) {
           tuitionInfo.value = { 
             id: matchingTuition.id,
@@ -176,23 +173,32 @@ const loadTuitionInfo = async () => {
           };
           amount.value = tuitionInfo.value.amount;
         } else {
-          // ถ้าไม่พบค่าเรียนที่ตรงกัน ใช้ค่าแรกเป็นค่าเริ่มต้น
+          // ถ้าไม่พบค่าเรียนที่ตรงกัน ใช้ค่า 20000
           tuitionInfo.value = { 
             id: allTuitions[0].id,
-            amount: allTuitions[0].amount,
+            amount: 20000, // ใช้ค่าที่กำหนด
             level: allTuitions[0].level,
             year: allTuitions[0].year
           };
           amount.value = tuitionInfo.value.amount;
         }
       } else {
-        // ถ้ายังไม่มีข้อมูลชั้นเรียน ใช้ค่าแรกเป็นค่าเริ่มต้น
-        tuitionInfo.value = { 
-          id: allTuitions[0].id,
-          amount: allTuitions[0].amount,
-          level: allTuitions[0].level,
-          year: allTuitions[0].year
-        };
+        // ถ้ายังไม่มีข้อมูลชั้นเรียน ใช้ค่าจาก array index 1 หรือค่าแรก
+        if (allTuitions.length > 1) {
+          tuitionInfo.value = { 
+            id: allTuitions[1].id,
+            amount: 202030, // ใช้ค่าที่กำหนด
+            level: allTuitions[1].level,
+            year: allTuitions[1].year
+          };
+        } else {
+          tuitionInfo.value = { 
+            id: allTuitions[0].id,
+            amount: 202030, // ใช้ค่าที่กำหนด
+            level: allTuitions[0].level,
+            year: allTuitions[0].year
+          };
+        }
         amount.value = tuitionInfo.value.amount;
       }
     }
@@ -221,7 +227,6 @@ async function loadStudentData(studentId: string) {
     if (student) {
       payment.studentName = student.studentNameLao || '';
       payment.studentPhone = student.phoneNumber || '';
-      
       // ดึงชั้นเรียนจาก studentId ตามรูปแบบ
       const grade = student.studentId?.charAt(0) || '1';
       const section = student.studentId?.charAt(1) || '1';
@@ -304,7 +309,6 @@ const confirmPayment = async () => {
       note: `ชำระค่าเรียน ${payment.level} ปีการศึกษา ${payment.academicYear}`
     };
     
-    console.log("ກຳລັງສ້າງການຊຳລະເງິນກັບ registration_id:", paymentData.registration_id);
     
     // เรียกใช้ API endpoint ใหม่สำหรับบันทึกการชำระเงิน
     const paymentResponse = await axios.post(`${API_URL}/payments`, paymentData, {
@@ -313,7 +317,6 @@ const confirmPayment = async () => {
         'Content-Type': 'application/json'
       }
     });
-    
     if (paymentResponse.data.success) {
       alert('ບັນທຶກການຊຳລະເງິນສຳເລັດແລ້ວ');
       
@@ -397,12 +400,9 @@ const searchStudents = async () => {
         reg.studentPhone.toLowerCase().includes(query)
       ).slice(0, 5);
       
-      console.log('ຄົ້ນຫາພົບ:', filteredRegistrations.value.length, 'ລາຍການ');
     } else {
       // ถ้ายังไม่มีข้อมูลในแอพ ให้ค้นหาผ่าน API
       const registrations = await studentStore.searchRegistrations(query);
-      
-      console.log('ຜົນການຄົ້ນຫາຈາກ API:', registrations);
       
       // ແນ່ໃຈວ່າໃຊ້ field id ທີ່ຖືກຕ້ອງ ແລະກວດສອບຄ່າ is_paid
       filteredRegistrations.value = registrations
@@ -428,7 +428,6 @@ const selectRegistration = async (registrationId: string) => {
   try {
     isLoading.value = true;
     
-    console.log('กำลังโหลดข้อมูลลงทะเบียน:', registrationId);
     const response = await axios.get(`${API_URL}/registrations/${registrationId}`, {
       headers: {
         Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`
@@ -441,7 +440,6 @@ const selectRegistration = async (registrationId: string) => {
     }
     
     const registration = response.data.data;
-    console.log('ພົບຂໍ້ມູນການລົງທະບຽນ:', registration);
     
     // อัปเดตข้อมูลใบเสร็จตามการลงทะเบียน
     payment.invoiceNo = registration.id;
@@ -475,11 +473,14 @@ const selectRegistration = async (registrationId: string) => {
         });
         if (tuitionResponse.data.success && tuitionResponse.data.data.length > 0) {
           // หาค่าเรียนตามระดับชั้นและปีการศึกษา
-          const matchingTuition = tuitionResponse.data.data.find((t: any) => 
-            t.level === registration.level && 
-            t.year === registration.school_year
-          );
-          
+          const matchingTuition = tuitionResponse.data.data.find((t: any) => {
+            console.log('T::', registration.school_year,'Y::?', registration.level, 'TH||:', t.year, t.level,);
+            console.log('Y::', '2023-2024' === t.year, '&&', registration.level === t.level);
+            // console.log('amouont::',matchingTuition.amount);
+            console.log('True||::', );
+            return t.level === 'ຊັ້ນ ມ 5'  && t.year === '2024-2025'; // registration.school_year  // registration.level
+          });
+          console.log('T!@#::', matchingTuition);
           if (matchingTuition) {
             amount.value = matchingTuition.amount;
             tuitionInfo.value = {
@@ -489,17 +490,14 @@ const selectRegistration = async (registrationId: string) => {
               year: matchingTuition.year
             };
           } else {
-            // ถ้าไม่พบค่าเรียนที่ตรงกับระดับชั้น ใช้ค่าเรียนเริ่มต้น
-            const firstTuition = tuitionResponse.data.data[0];
-            amount.value = firstTuition.amount;
-            tuitionInfo.value = {
-              id: firstTuition.id,
-              amount: firstTuition.amount,
-              level: firstTuition.level,
-              year: firstTuition.year
+            // ถ้าไม่พบค่าเรียนที่ตรงกับระดับชั้น ใช้ค่า 20000
+            tuitionInfo.value = { 
+              id: tuitionResponse.data.data[0].id,
+              amount: 20000,
+              level: tuitionResponse.data.data[0].level,
+              year: tuitionResponse.data.data[0].year
             };
-            
-            console.warn('ບໍ່ພົບຄ່າຮຽນສຳລັບລະດັບຊັ້ນນີ້, ໃຊ້ຄ່າເລີ່ມຕົ້ນແທນ');
+            amount.value = tuitionInfo.value.amount;
           }
         }
       } catch (error) {
@@ -545,8 +543,6 @@ const validatePaymentInput = () => {
 const getPaymentHistory = async (registrationId: string) => {
   try {
     isLoading.value = true;
-    console.log('ກຳລັງດຶງປະຫວັດການຊຳລະເງິນສຳລັບການລົງທະບຽນ ID:', registrationId);
-    
     const response = await axios.get(`${API_URL}/payments/registration/${registrationId}`, {
       headers: {
         Authorization: `Bearer ${authStore.user?.token || localStorage.getItem('token')}`
@@ -554,11 +550,9 @@ const getPaymentHistory = async (registrationId: string) => {
     });
     
     if (response.data.success) {
-      console.log('ພົບປະຫວັດການຊຳລະເງິນ:', response.data.data.payments);
       paymentHistory.value = response.data.data.payments;
       showPaymentHistory.value = true;
     } else {
-      console.log('ບໍ່ພົບປະຫວັດການຊຳລະເງິນ');
       paymentHistory.value = [];
       showPaymentHistory.value = false;
     }
@@ -686,6 +680,7 @@ const showUnpaidRegistrationsSearch = () => {
           <div>{{ payment.studentPhone }}</div>
           <div>{{ payment.classLevel }}</div>
           <div>{{ payment.level }}</div>
+          <!-- <div>{{ payment.academicYear }}</div> -->
           <div>{{ payment.academicYear }}</div>
           <div :class="payment.status === 'ຈ່າຍແລ້ວ' ? 'text-green-600 font-bold' : ''">
             {{ payment.status }}
@@ -703,11 +698,11 @@ const showUnpaidRegistrationsSearch = () => {
           </div>
           <div>
             <div class="mb-1 text-sm">ລະດັບຊັ້ນ:</div>
-            <div class="p-2 bg-gray-100 rounded">{{ tuitionInfo.level || 'ບໍ່ມີຂໍ້ມູນ' }}</div>
+            <div class="p-2 bg-gray-100 rounded">{{ payment.level || 'ບໍ່ມີຂໍ້ມູນ' }}</div>
           </div>
           <div>
             <div class="mb-1 text-sm">ປີການສຶກສາ:</div>
-            <div class="p-2 bg-gray-100 rounded">{{ tuitionInfo.year || 'ບໍ່ມີຂໍ້ມູນ' }}</div>
+            <div class="p-2 bg-gray-100 rounded">{{ payment.academicYear || 'ບໍ່ມີຂໍ້ມູນ' }}</div>
           </div>
           <div>
             <div class="mb-1 text-sm">ຄ່າຮຽນ:</div>
@@ -735,7 +730,7 @@ const showUnpaidRegistrationsSearch = () => {
               <tr v-for="item in paymentHistory" :key="item.id" class="border-b">
                 <td class="px-4 py-2">{{ item.id.substring(0, 8) }}...</td>
                 <td class="px-4 py-2">{{ item.payment_date }}</td>
-                <td class="px-4 py-2 text-right">{{ Number(item.amount).toLocaleString() }} ກີບ</td>
+                <td class="px-4 py-2 text-right">{{ Number(item.amount)}} ກີບ</td>
                 <td class="px-4 py-2">{{ item.payment_method === 'cash' ? 'ເງິນສົດ' : 'ໂອນເງິນ' }}</td>
                 <td class="px-4 py-2">{{ item.receipt_number }}</td>
                 <td class="px-4 py-2">{{ item.received_by }}</td>
@@ -763,7 +758,7 @@ const showUnpaidRegistrationsSearch = () => {
             <div class="text-right">ຈໍານວນ</div>
             <input 
               type="text" 
-              :value="tuitionInfo.amount.toLocaleString()" 
+              :value="tuitionInfo.amount"
               class="w-32 px-2 py-1 border rounded text-right" 
               readonly
             />
