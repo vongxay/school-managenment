@@ -30,6 +30,7 @@ export interface CreateRegistrationDTO {
   level: string;
   school_year: string;
   paid?: boolean;
+  registered_by?: string; // ຜູ້ລົງທະບຽນ
 }
 
 export interface UpdateRegistrationDTO {
@@ -201,34 +202,35 @@ async getCurrentRegistration(): Promise<String> {
 
   // ค้นหาการลงทะเบียนตาม ID
   async findById(id: string): Promise<Registration | null> {
-    let connection;
-    try {
-      connection = await db.getConnection();
-      
-      const query = `
-        SELECT 
-          r.id, 
-          r.invoice_id,
-          r.registration_date, 
-          r.student_id, 
-          r.student_name, 
-          r.student_phone,
-          r.classroom, 
-          r.level, 
-          r.school_year, 
-          r.is_paid as paid,
-          r.created_at,
-          r.updated_at
-        FROM registrations r
-        WHERE r.id = ?
-      `;
-      const [rows] = await connection.query(query, [id]);
-      
-      return (rows as any[])[0] || null;
-    } finally {
-      if (connection) connection.release();
-    }
+  let connection;
+  try {
+    connection = await db.getConnection();
+
+    const query = `
+      SELECT 
+        r.id, 
+        r.invoice_id,
+        r.registration_date, 
+        r.student_id, 
+        r.student_name, 
+        r.student_phone,
+        r.classroom, 
+        r.level, 
+        sy.name as school_year,  -- Get the name from school_years
+        r.is_paid as paid,
+        r.created_at,
+        r.updated_at
+      FROM registrations r
+      LEFT JOIN school_years sy ON r.school_year = sy.id
+      WHERE r.id = ?
+    `;
+    const [rows] = await connection.query(query, [id]);
+
+    return (rows as any[])[0] || null;
+  } finally {
+    if (connection) connection.release();
   }
+}
   
   // สร้างการลงทะเบียนใหม่
   async create(data: CreateRegistrationDTO): Promise<string> {
@@ -293,11 +295,12 @@ async getCurrentRegistration(): Promise<String> {
           classroom, 
           level, 
           school_year, 
-          is_paid, 
+          is_paid,
+          registered_by,
           registration_date,
           created_at, 
           updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?, NOW(), NOW())
       `;
       
       const values = [
@@ -310,6 +313,7 @@ async getCurrentRegistration(): Promise<String> {
         data.level,
         data.school_year,
         data.paid || false,
+        data.registered_by || '', // ຖ້າບໍ່ມີການລະບຸ, ສະເລີຍໃສ່ 'system'
         registrationDate
       ];
       

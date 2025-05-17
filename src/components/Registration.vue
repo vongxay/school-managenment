@@ -361,6 +361,7 @@ const saveRegistration = async () => {
       level: currentClassLevel.value, // ໃຊ້ຄ່າຈາກຕົວແປທີ່ເກັບລະດັບຊັ້ນ currentClassLevel
       school_year: currentSchoolYearId.value,  // currentSchoolYear
       paid: false,
+      registered_by: authStore.user?.id || '',
       tuition_fee: tuitionFee, // ເພີ່ມຄ່າເຣີຢນທີ່ຈະເຣີຢກເກບ
       invoice_id: currentRegistrationId.value,
       registration_date: new Date().toISOString().split("T")[0],
