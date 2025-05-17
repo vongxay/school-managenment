@@ -1007,11 +1007,10 @@ const updatePaymentStatus = async (registrationId, isPaid) => {
         <div
           v-for="(reg, index) in filteredRegistrations"
           :key="index"
-          class="grid grid-cols-9 p-1 border-b cursor-pointer"
+          class="grid grid-cols-9 p-1 border-b"
           :class="[
-              'grid grid-cols-4 p-2 cursor-pointer',
-              currentStudentId === reg.studentId ? 'bg-blue-600 text-white ' : index % 2 !== 0 ? 'bg-gray-100 hover:bg-blue-100' : 'bg-white hover:bg-blue-100']"
-          @click="selectRegistration(reg.id)"
+              'grid grid-cols-4 p-2',
+              index % 2 !== 0 ? 'bg-gray-100 hover:bg-blue-100' : 'bg-white hover:bg-blue-100']"
         >
           <div>{{ reg.id }}</div>
           <div>{{ formatDate(reg.registrationDate) }}</div>
