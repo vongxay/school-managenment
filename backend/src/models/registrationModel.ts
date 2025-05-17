@@ -24,6 +24,7 @@ export interface ClassRoom {
 
 export interface CreateRegistrationDTO {
   student_id: string;
+  invoice_id: string;
   student_name: string; 
   student_phone: string;
   classroom: string;
@@ -31,6 +32,7 @@ export interface CreateRegistrationDTO {
   school_year: string;
   paid?: boolean;
   registered_by?: string; // ຜູ້ລົງທະບຽນ
+  tuition_fee?: number;
 }
 
 export interface UpdateRegistrationDTO {
@@ -286,37 +288,38 @@ async getCurrentRegistration(): Promise<String> {
       }
       
       const insertQuery = `
-        INSERT INTO registrations (
-          id, 
-          invoice_id, 
-          student_id, 
-          student_name, 
-          student_phone, 
-          classroom, 
-          level, 
-          school_year, 
-          is_paid,
-          registered_by,
-          registration_date,
-          created_at, 
-          updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?, NOW(), NOW())
-      `;
-      
-      const values = [
-        newId, // Use the new incremented ID
-        newId,// ใช้ id เดียวกันสำหรับ invoice_id
-        data.student_id,
-        data.student_name,
-        data.student_phone,
-        data.classroom,
-        data.level,
-        data.school_year,
-        data.paid || false,
-        data.registered_by || '', // ຖ້າບໍ່ມີການລະບຸ, ສະເລີຍໃສ່ 'system'
-        registrationDate
-      ];
-      
+  INSERT INTO registrations (
+    id, 
+    invoice_id, 
+    student_id, 
+    student_name, 
+    student_phone, 
+    classroom, 
+    level, 
+    school_year, 
+    is_paid,
+    registered_by,
+    registration_date,
+    tuition_fee,         -- เพิ่มตรงนี้
+    created_at, 
+    updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+`;
+
+const values = [
+  data.invoice_id, // id
+  data.invoice_id, // invoice_id
+  data.student_id,
+  data.student_name,
+  data.student_phone,
+  data.classroom,
+  data.level,
+  data.school_year,
+  data.paid || false,
+  data.registered_by || '',
+  registrationDate,
+  data.tuition_fee || 0 // เพิ่มตรงนี้
+];
       await connection.query(insertQuery, values);
       
       await connection.commit();

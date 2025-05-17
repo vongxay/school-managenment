@@ -110,7 +110,6 @@ const saveLevel = async () => {
       isLoading.value = false;
       return;
     }
-    
     if (selectedLevel.value) {
       // ອັບເດດຊັ້ນຮຽນທີ່ມີຢູ່ແລ້ວ
       const response = await axios.put(`${API_URL}/levels/${selectedLevel.value.id}`, formLevel);

@@ -561,7 +561,7 @@ defineExpose({
               v-for="(year, index) in schoolYears"
               :key="index"
               :value="year"
-              :label="year.is_current === 1 ? year.name + '☀️' : year.name || '0000-00-00'"
+              :label="year.is_current === 1 ? year.name + '✔️' : year.name || '0000-00-00'"
             >
             {{ year.name }}
             </option>
