@@ -8,17 +8,18 @@ export const getStudentReports = async (req: Request, res: Response) => {
 
     // แปลงค่าให้เป็นตัวเลข (ถ้ามี)
     const yearId = year_id ? parseInt(year_id as string) : undefined;
+    // const yearId = year_id ? year_id : undefined;
     
     // ดึงข้อมูลนักเรียนตามเพศ
     const genderData = await reportModel.getStudentsByGender(
-      yearId, 
+      yearId as number, 
       level_id as string,
       class_id as string
     );
     
     // ดึงข้อมูลนักเรียนตามชั้นเรียน
     const levelData = await reportModel.getStudentsByLevel(
-      yearId
+      yearId 
     );
     
     // ดึงข้อมูลสถานะการจ่ายค่าเรียน

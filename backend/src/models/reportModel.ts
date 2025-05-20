@@ -88,8 +88,8 @@ export const getStudentList = async (
     let sql = `
       SELECT 
         s.student_id,
-        CONCAT(s.first_name, ' ', s.last_name) AS name,
-        s.parent_phone AS parentPhone,
+        s.student_name_lao AS name,
+        s.guardian_phone AS parentPhone,
         DATE_FORMAT(s.date_of_birth, '%d/%m/%Y') AS dob,
         s.village,
         s.district,
@@ -99,10 +99,10 @@ export const getStudentList = async (
           WHEN s.gender = 'female' THEN 'ຍິງ'
           ELSE s.gender
         END AS gender,
-        s.phone,
-        r.level_id AS levelId,
-        r.class_id AS classId,
-        r.year_id AS yearId
+        s.phone_number,
+        r.level AS levelId,
+        r.classroom AS classId,
+        r.school_year AS yearId
       FROM students s
       JOIN registrations r ON s.id = r.student_id
     `;
@@ -111,17 +111,17 @@ export const getStudentList = async (
     const params = [];
     
     if (year_id) {
-      conditions.push('r.year_id = ?');
+      conditions.push('r.school_year= ?');
       params.push(year_id);
     }
     
     if (level_id && level_id !== 'all') {
-      conditions.push('r.level_id = ?');
+      conditions.push('r.level = ?');
       params.push(level_id);
     }
     
     if (class_id && class_id !== 'all') {
-      conditions.push('r.class_id = ?');
+      conditions.push('r.classroom = ?');
       params.push(class_id);
     }
     
@@ -129,7 +129,7 @@ export const getStudentList = async (
       sql += ' WHERE ' + conditions.join(' AND ');
     }
     
-    sql += ' ORDER BY s.first_name';
+    sql += ' ORDER BY s.student_name_lao';
     
     const [rows] = await db.query(sql, params);
     return rows as StudentListReport[];
@@ -490,36 +490,37 @@ export const getStudentsByGender = async (
   try {
     let sql = `
       SELECT 
-        SUM(CASE WHEN s.gender = 'male' THEN 1 ELSE 0 END) AS male,
-        SUM(CASE WHEN s.gender = 'female' THEN 1 ELSE 0 END) AS female,
+        SUM(CASE WHEN s.gender = 'M' THEN 1 ELSE 0 END) AS male,
+        SUM(CASE WHEN s.gender = 'F' THEN 1 ELSE 0 END) AS female,
         COUNT(*) AS total
       FROM students s
-      JOIN registrations r ON s.id = r.student_id
+      JOIN registrations r ON s.student_id = r.student_id
     `;
     
     const conditions = [];
     const params = [];
     
     if (year_id) {
-      conditions.push('r.year_id = ?');
+      conditions.push('r.school_year = ?');
       params.push(year_id);
     }
     
     if (level_id && level_id !== 'all') {
-      conditions.push('r.level_id = ?');
+      conditions.push('r.level= ?');
       params.push(level_id);
     }
     
     if (class_id && class_id !== 'all') {
-      conditions.push('r.class_id = ?');
+      conditions.push('r.classroom = ?');
       params.push(class_id);
     }
     
     if (conditions.length > 0) {
       sql += ' WHERE ' + conditions.join(' AND ');
     }
-    
+    console.log(sql);
     const [rows] = await db.query(sql, params);
+    console.log(rows);
     const result = Array.isArray(rows) && rows.length > 0 ? rows[0] : { male: 0, female: 0, total: 0 };
     return result as StudentByGenderReport;
   } catch (error) {
@@ -546,7 +547,7 @@ export const getStudentsByLevel = async (
     const params = [];
     
     if (year_id) {
-      conditions.push('r.year_id = ?');
+      conditions.push('r.school_year = ?');
       params.push(year_id);
     }
     
@@ -556,6 +557,7 @@ export const getStudentsByLevel = async (
     
     sql += ' GROUP BY l.id ORDER BY l.id';
     
+    console.log('level sql',sql);
     const [rows] = await db.query(sql, params);
     return rows as StudentByLevelReport[];
   } catch (error) {
@@ -582,17 +584,17 @@ export const getTuitionStatus = async (
     const params = [];
     
     if (year_id) {
-      conditions.push('year_id = ?');
+      conditions.push('school_year = ?');
       params.push(year_id);
     }
     
     if (level_id && level_id !== 'all') {
-      conditions.push('level_id = ?');
+      conditions.push('level = ?');
       params.push(level_id);
     }
     
     if (class_id && class_id !== 'all') {
-      conditions.push('class_id = ?');
+      conditions.push('classroom = ?');
       params.push(class_id);
     }
     

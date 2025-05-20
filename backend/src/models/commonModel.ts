@@ -101,21 +101,26 @@ export const getClasses = async (level?: string): Promise<Class[]> => {
     // ตรวจสอบว่ามีตาราง classes หรือไม่
     try {
       await db.query('SELECT 1 FROM classes LIMIT 1');
-      
       let sql = `
         SELECT id, name, level
         FROM classes
       `;
-      
       const params = [];
-      
-      if (level && level !== 'all') {
-        sql += ' WHERE level_id = ?';
-        params.push(level);
-      }
-      
-      sql += ' ORDER BY level_id, name';
-      
+
+    if (level && level !== 'all') {
+  // First, get the level name from levels table
+  const [rows] = await db.query('SELECT name FROM levels WHERE id = ?', [level]);
+  const levelRows = rows as { name: string }[];
+  if (!levelRows || levelRows.length === 0) {
+    return []; // No such level
+  }
+  const levelName = levelRows[0].name;
+  sql += ' WHERE level = ?';
+  params.push(levelName);
+}
+
+      sql += ' ORDER BY level, name';
+      console.log('Classes SQL:', sql, params);
       const [rows] = await db.query(sql, params);
       return rows as Class[];
     } catch (error) {
@@ -136,12 +141,10 @@ export const getClasses = async (level?: string): Promise<Class[]> => {
         { id: '13', name: 'ຫ້ອງ 1', level_id: '7' },
         { id: '14', name: 'ຫ້ອງ 2', level_id: '7' },
       ];
-      
       // กรองตาม level_id ถ้ามีการระบุ
       if (level && level !== 'all') {
         return mockClasses.filter(c => c.level_id === level);
       }
-      
       return mockClasses;
     }
   } catch (error) {
@@ -152,12 +155,9 @@ export const getClasses = async (level?: string): Promise<Class[]> => {
       { id: '3', name: 'ຫ້ອງ 1', level_id: '2' },
       { id: '4', name: 'ຫ້ອງ 2', level_id: '2' },
     ];
-    
-    // กรองตาม level_id ถ้ามีการระบุ
     if (level && level !== 'all') {
       return mockClasses.filter(c => c.level_id === level);
     }
-    
     return mockClasses;
   }
-}; 
+};
