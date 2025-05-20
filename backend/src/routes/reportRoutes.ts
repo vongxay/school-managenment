@@ -6,6 +6,10 @@ const router = express.Router();
 // เส้นทางสำหรับดึงข้อมูลรายงานนักเรียน
 router.get('/students', reportController.getStudentReports);
 
+// เส้นทางสำหรับดึงข้อมูลรายงานนักเรียนตามปีการศึกษา
+router.get('/studentByYear', reportController.getStudentReportsByYear);
+
+
 // เส้นทางสำหรับดึงข้อมูลรายงานการเงิน
 router.get('/financial', reportController.getFinancialReports);
 

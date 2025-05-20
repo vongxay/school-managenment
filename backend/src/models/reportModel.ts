@@ -109,7 +109,6 @@ export const getStudentList = async (
     
     const conditions = [];
     const params = [];
-    
     if (year_id) {
       conditions.push('r.school_year= ?');
       params.push(year_id);
@@ -528,6 +527,47 @@ export const getStudentsByGender = async (
     return { male: 0, female: 0, total: 0 };
   }
 };
+
+export const getStudentsByYear = async (
+  year_id?: number,
+   level_id?: string,
+): Promise<any[]> => {
+  try {
+    if (!year_id) return [];
+  let regRows: any[] = [];
+if (!level_id || level_id === null || level_id === '' || level_id === 'all' || level_id === undefined || level_id === 'null') {
+  const [rows] = await db.query(
+    `SELECT student_id FROM registrations WHERE school_year = ?`,
+    [year_id]
+  );
+  regRows = rows as any[]; // <-- assign only rows
+} else {
+  const [rows] = await db.query(
+    `SELECT student_id FROM registrations WHERE school_year = ? AND level = ?`,
+    [year_id, level_id]
+  );
+  regRows = rows as any[]; // <-- assign only rows
+}
+    console.log('getStudentsByYear regRows', regRows);
+    const studentIds = (regRows as any[]).map(row => row.student_id);
+    console.log('getStudentsByYear studentIds', studentIds);
+    if (studentIds.length === 0) return [];
+
+    // Step 2: Get students with those student_ids
+    // Use parameterized query for IN clause
+    const placeholders = studentIds.map(() => '?').join(',');
+    const [studentRows] = await db.query(
+      `SELECT id,student_id,student_name_lao,guardian_phone,gender,province,district,village,id_number,id_issued_date,birth_village,birth_district,birth_province,ethnicity,religion,nationality,date_of_birth,phone_number FROM students WHERE student_id IN (${placeholders})`,
+      studentIds
+    );
+
+    return studentRows as any[];
+  } catch (error) {
+    console.error('Error in getStudentsByYear:', error);
+    return [];
+  }
+};
+
 
 export const getStudentsByLevel = async (
   year_id?: number

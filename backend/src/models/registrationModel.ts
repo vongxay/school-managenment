@@ -55,80 +55,168 @@ export interface RegistrationFilters {
 
 class RegistrationModel {
   // ค้นหาการลงทะเบียนทั้งหมด
+  // async findAll(filters: RegistrationFilters = {}): Promise<{ registrations: Registration[], total: number }> {
+  //   let connection;
+  //   try {
+  //     connection = await db.getConnection();
+      
+  //     let query = `
+  //       SELECT 
+  //         r.id, 
+  //         r.invoice_id,
+  //         r.registration_date, 
+  //         r.student_id, 
+  //         r.student_name, 
+  //         r.student_phone,
+  //         r.classroom, 
+  //         r.level, 
+  //         r.school_year, 
+  //         r.is_paid as paid,
+  //         r.created_at,
+  //         r.updated_at
+  //       FROM registrations r
+  //       WHERE 1=1
+  //     `;
+      
+  //     const queryParams: any[] = [];
+      
+  //     // เพิ่มเงื่อนไขการค้นหา
+  //     if (filters.search) {
+  //       query += ` AND (
+  //         r.student_id LIKE ? OR 
+  //         r.student_name LIKE ? OR
+  //         r.id LIKE ?
+  //       )`;
+  //       const searchPattern = `%${filters.search}%`;
+  //       queryParams.push(searchPattern, searchPattern, searchPattern);
+  //     }
+      
+  //     if (filters.schoolYear) {
+  //       query += ` AND r.school_year = ?`;
+  //       queryParams.push(filters.schoolYear);
+  //     }
+      
+  //     if (filters.paid !== undefined) {
+  //       query += ` AND r.is_paid = ?`;
+  //       queryParams.push(filters.paid);
+  //     }
+      
+  //     // คำสั่ง SQL สำหรับนับจำนวนทั้งหมด
+  //     const countQuery = `SELECT COUNT(*) as count FROM (${query}) AS count_query`;
+  //     const [countResult] = await connection.query(countQuery, queryParams);
+  //     const total = parseInt((countResult as any)[0].count);
+      
+  //     // เพิ่มการเรียงลำดับและการแบ่งหน้า
+  //     query += ` ORDER BY r.registration_date DESC`;
+      
+  //     if (filters.limit) {
+  //       query += ` LIMIT ?`;
+  //       queryParams.push(filters.limit);
+  //     }
+      
+  //     if (filters.offset) {
+  //       query += ` OFFSET ?`;
+  //       queryParams.push(filters.offset);
+  //     }
+      
+  //     const [rows] = await connection.query(query, queryParams);
+  //     console.log('rows', rows);
+  //     return {
+  //       registrations: rows as Registration[],
+  //       total
+  //     };
+  //   } finally {
+  //     if (connection) connection.release();
+  //   }
+  // }
   async findAll(filters: RegistrationFilters = {}): Promise<{ registrations: Registration[], total: number }> {
-    let connection;
-    try {
-      connection = await db.getConnection();
-      
-      let query = `
-        SELECT 
-          r.id, 
-          r.invoice_id,
-          r.registration_date, 
-          r.student_id, 
-          r.student_name, 
-          r.student_phone,
-          r.classroom, 
-          r.level, 
-          r.school_year, 
-          r.is_paid as paid,
-          r.created_at,
-          r.updated_at
-        FROM registrations r
-        WHERE 1=1
-      `;
-      
-      const queryParams: any[] = [];
-      
-      // เพิ่มเงื่อนไขการค้นหา
-      if (filters.search) {
-        query += ` AND (
-          r.student_id LIKE ? OR 
-          r.student_name LIKE ? OR
-          r.id LIKE ?
-        )`;
-        const searchPattern = `%${filters.search}%`;
-        queryParams.push(searchPattern, searchPattern, searchPattern);
-      }
-      
-      if (filters.schoolYear) {
-        query += ` AND r.school_year = ?`;
-        queryParams.push(filters.schoolYear);
-      }
-      
-      if (filters.paid !== undefined) {
-        query += ` AND r.is_paid = ?`;
-        queryParams.push(filters.paid);
-      }
-      
-      // คำสั่ง SQL สำหรับนับจำนวนทั้งหมด
-      const countQuery = `SELECT COUNT(*) as count FROM (${query}) AS count_query`;
-      const [countResult] = await connection.query(countQuery, queryParams);
-      const total = parseInt((countResult as any)[0].count);
-      
-      // เพิ่มการเรียงลำดับและการแบ่งหน้า
-      query += ` ORDER BY r.registration_date DESC`;
-      
-      if (filters.limit) {
-        query += ` LIMIT ?`;
-        queryParams.push(filters.limit);
-      }
-      
-      if (filters.offset) {
-        query += ` OFFSET ?`;
-        queryParams.push(filters.offset);
-      }
-      
-      const [rows] = await connection.query(query, queryParams);
-      
-      return {
-        registrations: rows as Registration[],
-        total
-      };
-    } finally {
-      if (connection) connection.release();
+  let connection;
+  try {
+    connection = await db.getConnection();
+
+   let query = `
+  SELECT 
+    r.id, 
+    r.invoice_id,
+    r.registration_date, 
+    r.student_id, 
+    r.student_name, 
+    r.student_phone,
+    r.classroom,
+    c.name AS classroom_name,
+    r.level,
+    l.name AS level_name,
+    r.school_year,
+    sy.name AS school_year_name,
+    r.is_paid as paid,
+    r.created_at,
+    r.updated_at
+  FROM registrations r
+  LEFT JOIN classes c ON r.classroom COLLATE utf8mb4_unicode_ci = c.id COLLATE utf8mb4_unicode_ci
+  LEFT JOIN levels l ON r.level COLLATE utf8mb4_unicode_ci = l.id COLLATE utf8mb4_unicode_ci
+  LEFT JOIN school_years sy ON r.school_year COLLATE utf8mb4_unicode_ci = sy.id COLLATE utf8mb4_unicode_ci
+  WHERE 1=1
+`;
+
+    const queryParams: any[] = [];
+
+    // Add search filters
+    if (filters.search) {
+      query += ` AND (
+        r.student_id LIKE ? OR 
+        r.student_name LIKE ? OR
+        r.id LIKE ?
+      )`;
+      const searchPattern = `%${filters.search}%`;
+      queryParams.push(searchPattern, searchPattern, searchPattern);
     }
+
+    if (filters.schoolYear) {
+      query += ` AND r.school_year = ?`;
+      queryParams.push(filters.schoolYear);
+    }
+
+    if (filters.paid !== undefined) {
+      query += ` AND r.is_paid = ?`;
+      queryParams.push(filters.paid);
+    }
+
+    // Count query for pagination
+    const countQuery = `SELECT COUNT(*) as count FROM (${query}) AS count_query`;
+    const [countResult] = await connection.query(countQuery, queryParams);
+    const total = parseInt((countResult as any)[0].count);
+
+    // Add ordering and pagination
+    query += ` ORDER BY r.registration_date DESC`;
+
+    if (filters.limit) {
+      query += ` LIMIT ?`;
+      queryParams.push(filters.limit);
+    }
+
+    if (filters.offset) {
+      query += ` OFFSET ?`;
+      queryParams.push(filters.offset);
+    }
+
+    const [rows] = await connection.query(query, queryParams);
+
+    // Map the result to replace IDs with names
+    const registrations = (rows as any[]).map(row => ({
+      ...row,
+      classroom: row.classroom_name || row.classroom,
+      level: row.level_name || row.level,
+      school_year: row.school_year_name || row.school_year,
+    }));
+
+    return {
+      registrations,
+      total
+    };
+  } finally {
+    if (connection) connection.release();
   }
+}
   
   async findAllStudentsGroupedByClass(): Promise<{ class: ClassRoom; students: Registration[] }[]> {
     let connection;

@@ -55,6 +55,38 @@ export const getStudentReports = async (req: Request, res: Response) => {
   }
 };
 
+
+export const getStudentReportsByYear = async (req: Request, res: Response) => {
+  try {
+    const { year_id,level_id} = req.query;
+
+    // แปลงค่าให้เป็นตัวเลข (ถ้ามี)
+    const yearId = year_id ? parseInt(year_id as string) : undefined;
+    // const yearId = year_id ? year_id : undefined;
+    
+    // ดึงข้อมูลนักเรียนตามเพศ
+    const genderData = await reportModel.getStudentsByYear(
+      yearId as number, 
+      level_id as string,
+    );
+    
+    
+    res.json({
+      success: true,
+      data: {
+        studentsByYear: genderData,
+      }
+    });
+  } catch (error) {
+    console.error('Error in getStudentYearReports:', error);
+    res.status(500).json({
+      success: false,
+      message: 'เกิดข้อผิดพลาดในการดึงข้อมูลรายงานนักเรียน',
+      error: (error as Error).message
+    });
+  }
+};
+
 // ฟังก์ชันสำหรับดึงข้อมูลรายงานการเงิน
 export const getFinancialReports = async (req: Request, res: Response) => {
   try {
