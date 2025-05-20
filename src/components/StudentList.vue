@@ -6,8 +6,9 @@ import { useStudentStore } from '../stores/studentStore';
 
 // ใช้ store แทน mock data
 const studentStore = useStudentStore();
+// ໃຊ້ store ແທນ mock data
 // ลบตัวแปร students ที่ไม่ได้ใช้งาน เพราะใช้ studentStore.students โดยตรง
-// const students = studentStore.students;
+// ລຶບຕົວແປ students ທີ່ບໍ່ໄດ້ໃຊ້ ເພາະໃຊ້ studentStore.students ໂດຍກົງ
 const searchQuery = ref('');
 const selectedGender = ref('all');
 const isLoading = ref(false);
@@ -20,12 +21,12 @@ const emits = defineEmits(['switch-to-form']);
 const currentPage = ref(1);
 const itemsPerPage = ref(10);
 
-// ใช้ computed properties กับ studentStore และ filter ข้อมูลแบบ local
+// ຟັງຊັນສຳລັບປ່ຽນໄປທີ່ແຖບຟອມ - ຕ້ອງໃຊ້ໂດຍຄອມໂພເນນແມ່
 const filteredStudents = computed(() => {
   const students = studentStore.students;
   let result = [...students];
   
-  // กรองตามข้อความค้นหา
+  // ກອງຕາມຂໍ້ຄວາມຄົ້ນຫາ
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase();
     result = result.filter(
@@ -37,7 +38,7 @@ const filteredStudents = computed(() => {
     );
   }
   
-  // กรองตามเพศ
+  // ກອງຕາມເພດ
   if (selectedGender.value !== 'all') {
     result = result.filter(student => student.gender === selectedGender.value);
   }
@@ -62,7 +63,7 @@ const navigateToPage = (page: number) => {
 };
 
 const editStudent = (student: Student) => {
-  // เริ่มแก้ไขข้อมูล
+  // ເລີ່ມແກ້ໄຂຂໍ້ມູນ
   studentStore.startEdit(student.studentId);
   // Emit event to switch to form view
   emits('switch-to-form');
@@ -77,7 +78,7 @@ const deleteStudent = async (student: Student) => {
       const success = await studentStore.deleteStudent(student.studentId);
       if (success) {
         alert('ລຶບຂໍ້ມູນນັກຮຽນສຳເລັດແລ້ວ');
-        // รีเซ็ตหน้าเพจถ้ารายการในหน้านั้นว่างเปล่า
+        // ຣີເຊັດໜ້າເມື່ອລາຍການໃນໜ້ານັ້ນວ່າງເປົ່າ
         if (paginatedStudents.value.length === 1 && currentPage.value > 1) {
           currentPage.value--;
         }
@@ -101,7 +102,7 @@ const addNewStudent = () => {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
-// เพิ่มฟังก์ชันโหลดข้อมูลเมื่อเริ่มต้น
+// ເພີ່ມຟັງຊັນໂຫລດຂໍ້ມູນເມື່ອເລີ່ມຕົ້ນ
 const loadStudents = async () => {
   try {
     isLoading.value = true;
@@ -115,10 +116,10 @@ const loadStudents = async () => {
   }
 };
 
-// โหลดข้อมูลเมื่อคอมโพเนนต์ถูกสร้าง
+// ໂຫລດຂໍ້ມູນເມື່ອຄອມໂພເນນຖືກສ້າງ
 onMounted(loadStudents);
 
-// ติดตามการเปลี่ยนแปลงของการค้นหาและเพศเพื่อรีเซ็ตหน้าเพจ
+// ຕິດຕາມການປ່ຽນແປງຂອງການຄົ້ນຫາແລະເພດເພື່ອຣີເຊັດໜ້າ
 watch([searchQuery, selectedGender], () => {
   currentPage.value = 1;
 });

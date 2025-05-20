@@ -225,10 +225,11 @@ const createCurrentSchoolYear = () => {
 onMounted(fetchYears);
 
 // เพิ่มฟังก์ชันสำหรับกำหนดปีการศึกษาปัจจุบัน
+// ເພີ່ມຟັງຊັນສຳລັບກຳນົດປີການສຶກສາປັດຈຸບັນ
 const setCurrentYear = async (year: SchoolYear) => {
   if (
     !year ||
-    !confirm(`ต้องการกำหนดให้ "${year.period}" เป็นปีการศึกษาปัจจุบันหรือไม่?`)
+    !confirm(`ຕ້ອງການກຳນົດໃຫ້ "${year.period}" ເປັນປີການສຶກສາປັດຈຸບັນຫຼືບໍ່?`)
   ) {
     return;
   }
@@ -238,6 +239,7 @@ const setCurrentYear = async (year: SchoolYear) => {
     errorMessage.value = "";
 
     // อัปเดตทุกปีการศึกษาให้ไม่เป็นปีปัจจุบัน
+    // ອັບເດດທຸກປີການສຶກສາໃຫ້ບໍ່ເປັນປີປັດຈຸບັນ
     for (const y of schoolYears) {
       if (y.is_current && y.id !== year.id) {
         try {
@@ -252,6 +254,7 @@ const setCurrentYear = async (year: SchoolYear) => {
     }
 
     // ตั้งค่าปีที่เลือกเป็นปีปัจจุบัน
+    // ຕັ້ງຄ່າປີທີ່ເລືອກເປັນປີປັດຈຸບັນ
     const response = await axios.put(`${API_URL}/years/${year.id}`, {
       ...year,
       is_current: true,
@@ -259,17 +262,18 @@ const setCurrentYear = async (year: SchoolYear) => {
 
     if (response.data.success) {
       // อัปเดตข้อมูลในอาร์เรย์
+      // ອັບເດດຂໍ້ມູນໃນອາເຣ
       schoolYears.forEach((y) => {
         y.is_current = y.id === year.id;
       });
 
-      alert(`ตั้งค่า "${year.period}" เป็นปีการศึกษาปัจจุบันเรียบร้อยแล้ว`);
+      alert(`ຕັ້ງຄ່າ "${year.period}" ເປັນປີການສຶກສາປັດຈຸບັນສຳເລັດແລ້ວ`);
     } else {
-      errorMessage.value = "ไม่สามารถตั้งค่าปีการศึกษาปัจจุบันได้";
+      errorMessage.value = "ບໍ່ສາມາດຕັ້ງຄ່າປີການສຶກສາປັດຈຸບັນໄດ້";
     }
   } catch (error) {
     console.error("Error setting current year:", error);
-    errorMessage.value = "เกิดข้อผิดพลาดในการตั้งค่าปีการศึกษาปัจจุบัน";
+    errorMessage.value = "ເກີດຂໍ້ຜິດພາດໃນການຕັ້ງຄ່າປີການສຶກສາປັດຈຸບັນ";
   } finally {
     isLoading.value = false;
   }
