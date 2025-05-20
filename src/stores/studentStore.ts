@@ -2,7 +2,7 @@ import { ref, reactive } from "vue";
 import type { Student, StudentRegistration } from "../types/student";
 import { studentApi } from "../api/studentApi";
 
-// ข้อมูลนักเรียนว่างเปล่าสำหรับสร้างข้อมูลใหม่
+// ຂໍ້ມູນນັກຮຽນວ່າງເປົ່າສຳລັບສ້າງຂໍ້ມູນໃໝ່
 const emptyStudent = (): Student => ({
   studentId: "",
   studentNameLao: "",
@@ -25,7 +25,7 @@ const emptyStudent = (): Student => ({
   photoUrl: "",
 });
 
-// สถานะต่างๆ ของ store
+// ສະຖານະຕ່າງໆຂອງ store
 const students = reactive<Student[]>([]);
 const currentStudent = reactive<Student>(emptyStudent());
 const isEditing = ref(false);
@@ -34,18 +34,18 @@ const selectedGender = ref("all");
 const isLoading = ref(false);
 const errorMessage = ref("");
 
-// ข้อมูลการลงทะเบียน
+// ຂໍ້ມູນການລົງທະບຽນ
 const registrations = reactive<StudentRegistration[]>([]);
 
 // Export store functions
 export const useStudentStore = () => {
-  // ดึงข้อมูลนักเรียนทั้งหมดจาก API
+  // ດຶງຂໍ້ມູນນັກຮຽນທັງໝົດຈາກ API
   const fetchAllStudents = async () => {
     try {
       isLoading.value = true;
       errorMessage.value = "";
       const data = await studentApi.getAllStudents();
-      // อัปเดตข้อมูลในตัวแปร reactive
+      // ອັບເດດຂໍ້ມູນໃນຕົວແປ reactive
       students.splice(0, students.length, ...data);
       return true;
     } catch (error) {
@@ -57,7 +57,7 @@ export const useStudentStore = () => {
     }
   };
 
-  // ค้นหานักเรียน
+  // ຄົ້ນຫານັກຮຽນ
   const searchStudents = async () => {
     try {
       isLoading.value = true;
@@ -66,7 +66,7 @@ export const useStudentStore = () => {
         searchQuery.value,
         selectedGender.value !== "all" ? selectedGender.value : undefined
       );
-      // อัปเดตข้อมูลในตัวแปร reactive
+      // ອັບເດດຂໍ້ມູນໃນຕົວແປ reactive
       students.splice(0, students.length, ...data);
       return true;
     } catch (error) {
@@ -78,29 +78,29 @@ export const useStudentStore = () => {
     }
   };
 
-  // ดึงข้อมูลนักเรียนทั้งหมด
+  // ດຶງຂໍ້ມູນນັກຮຽນທັງໝົດ
   const getAllStudents = async () => {
     await fetchAllStudents();
     return students;
   };
 
-  // ดึงข้อมูลนักเรียนที่กรองแล้ว
+  // ດຶງຂໍ້ມູນນັກຮຽນທີ່ກອງແລ້ວ
   const getFilteredStudents = () => {
-    // ถ้ามีการค้นหา หรือ เลือกเพศ และมีการเรียกใช้ปุ่มค้นหาจาก UI ให้ใช้ API search
-    // จะไม่ถูกเรียกโดยอัตโนมัติแล้ว แต่จะถูกเรียกเมื่อกดปุ่ม "ค้นหา" ใน UI แทน
+    // ຖ້າມີການຄົ້ນຫາ ຫຼື ເລືອກເພດ ແລະມີການເອີ້ນໃຊ້ປຸ່ມຄົ້ນຫາຈາກ UI ໃຫ້ໃຊ້ API search
+    // ຈະບໍ່ຖືກເອີ້ນໂດຍອັດຕະໂນມັດແລ້ວ ແຕ່ຈະຖືກເອີ້ນເມື່ອກົດປຸ່ມ "ຄົ້ນຫາ" ໃນ UI ແທນ
     return students;
   };
 
-  // เพิ่มนักเรียนใหม่
+  // ເພີ່ມນັກຮຽນໃໝ່
   const addStudent = async (student: Student) => {
     try {
       isLoading.value = true;
       errorMessage.value = "";
 
-      // เรียกใช้ API สร้างนักเรียนใหม่
+      // ເອີ້ນໃຊ້ API ສ້າງນັກຮຽນໃໝ່
       const newStudentId = await studentApi.createStudent(student);
-
-      // ดึงข้อมูลนักเรียนทั้งหมดใหม่
+      console.log("ເພີ່ມນັກຮຽນໃໝ່||1:", newStudentId);
+      // ດຶງຂໍ້ມູນນັກຮຽນທັງໝົດໃໝ່
       await fetchAllStudents();
 
       return newStudentId;
@@ -113,16 +113,16 @@ export const useStudentStore = () => {
     }
   };
 
-  // อัพเดทข้อมูลนักเรียน
+  // ອັບເດດຂໍ້ມູນນັກຮຽນ
   const updateStudent = async (student: Student) => {
     try {
       isLoading.value = true;
       errorMessage.value = "";
 
-      // เรียกใช้ API อัพเดทนักเรียน
+      // ເອີ້ນໃຊ້ API ອັບເດດນັກຮຽນ
       await studentApi.updateStudent(student);
 
-      // ดึงข้อมูลนักเรียนทั้งหมดใหม่
+      // ດຶງຂໍ້ມູນນັກຮຽນທັງໝົດໃໝ່
       await fetchAllStudents();
 
       return true;
@@ -135,13 +135,13 @@ export const useStudentStore = () => {
     }
   };
 
-  // ลบนักเรียน
+  // ລຶບນັກຮຽນ
   const deleteStudent = async (studentId: string) => {
     try {
       isLoading.value = true;
       errorMessage.value = "";
 
-      // หาข้อมูลนักเรียนจาก studentId
+      // ຫາຂໍ້ມູນນັກຮຽນຈາກ studentId
       const student = students.find((s) => s.studentId === studentId);
 
       if (!student || !student._id) {
@@ -149,10 +149,10 @@ export const useStudentStore = () => {
         return false;
       }
 
-      // เรียกใช้ API ลบนักเรียน
+      // ເອີ້ນໃຊ້ API ລຶບນັກຮຽນ
       await studentApi.deleteStudent(student._id);
 
-      // ดึงข้อมูลนักเรียนทั้งหมดใหม่
+      // ດຶງຂໍ້ມູນນັກຮຽນທັງໝົດໃໝ່
       await fetchAllStudents();
 
       return true;
@@ -165,7 +165,7 @@ export const useStudentStore = () => {
     }
   };
 
-  // เริ่มแก้ไขนักเรียน
+  // ເລີ່ມແກ້ໄຂນັກຮຽນ
   const startEdit = (studentId: string) => {
     const student = students.find((s) => s.studentId === studentId);
     if (student) {
@@ -177,7 +177,7 @@ export const useStudentStore = () => {
     return false;
   };
 
-  // ล้างฟอร์มสำหรับนักเรียนใหม่
+  // ລ້າງຟອມສຳລັບນັກຮຽນໃໝ່
   const startNew = () => {
     Object.assign(currentStudent, emptyStudent());
     generateStudentId();
@@ -201,21 +201,21 @@ export const useStudentStore = () => {
     currentStudent.studentId = (maxId + 1).toString().padStart(3, "0");
   };
 
-  // ล้างการค้นหา
+  // ລ້າງການຄົ້ນຫາ
   const clearSearch = () => {
     searchQuery.value = "";
     selectedGender.value = "all";
     fetchAllStudents();
   };
 
-  // ดึงข้อมูลการลงทะเบียน
+  // ດຶງຂໍ້ມູນການລົງທະບຽນ
   const fetchRegistrations = async () => {
     try {
       isLoading.value = true;
       errorMessage.value = "";
 
       const data = await studentApi.getRegistrations();
-      // อัปเดตข้อมูลในตัวแปร reactive
+      // ອັບເດດຂໍ້ມູນໃນຕົວແປ reactive
       registrations.splice(0, registrations.length, ...data);
 
       return true;
@@ -228,7 +228,7 @@ export const useStudentStore = () => {
     }
   };
 
-  // นำเข้าข้อมูล
+  // ນຳເຂົ້າຂໍ້ມູນ
   fetchAllStudents();
   fetchRegistrations();
 
@@ -281,7 +281,7 @@ export const useStudentStore = () => {
       }
     },
     getTuitionFee: async (yearLevel: string) => {
-      // สมมติค่าเรียนตามระดับชั้น (ควรดึงจาก API)
+      // ສົມມຸດຄ່າຮຽນຕາມລະດັບຊັ້ນ (ຄວນດຶງຈາກ API)
       const fees: { [key: string]: number } = {
         "ຊັ້ນ ມ 1": 60000,
         "ຊັ້ນ ມ 2": 65000,
@@ -290,11 +290,11 @@ export const useStudentStore = () => {
         "ຊັ້ນ ມ 5": 80000,
         "ຊັ້ນ ມ 6": 85000,
       };
-      return fees[yearLevel] || 50000; // ค่าเริ่มต้นถ้าไม่พบระดับชั้น
+      return fees[yearLevel] || 50000; // ຄ່າເລີ່ມຕົ້ນຖ້າບໍ່ພົບລະດັບຊັ້ນ
     },
     savePayment: async (paymentData: any) => {
-      // ในอนาคตควรเรียกใช้ API บันทึกการชำระเงิน
-      console.log("บันทึกการชำระเงิน:", paymentData);
+      // ໃນອະນາຄົດຄວນເອີ້ນໃຊ້ API ບັນທຶກການຊຳລະເງິນ
+      console.log("ບັນທຶກການຊຳລະເງິນ:", paymentData);
       return true;
     },
     updateRegistrationPaymentStatus: async (id: string, isPaid: boolean) => {

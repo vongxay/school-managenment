@@ -9,7 +9,7 @@ const showPassword = ref(false);
 const showConfirmPassword = ref(false);
 const error = ref<string | null>(null);
 
-// สร้าง form data สำหรับการลงทะเบียน
+// ສ້າງ form data ສຳລັບການລົງທະບຽນ
 const registerForm = reactive({
   username: '',
   password: '',
@@ -18,7 +18,7 @@ const registerForm = reactive({
   role: 'admin' as 'admin' | 'teacher' | 'staff'
 });
 
-// ฟังก์ชันตรวจสอบข้อมูลฟอร์ม
+// ຟັງຊັ່ນກວດສອບຂໍ້ມູນຟອມ
 const validateForm = (): boolean => {
   if (!registerForm.username || !registerForm.password || !registerForm.name) {
     error.value = 'ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບຖ້ວນ';
@@ -33,7 +33,7 @@ const validateForm = (): boolean => {
   return true;
 };
 
-// ฟังก์ชันสำหรับการลงทะเบียน
+// ຟັງຊັ່ນສຳລັບການລົງທະບຽນ
 const submitRegister = async () => {
   if (!validateForm()) {
     return;
@@ -49,19 +49,19 @@ const submitRegister = async () => {
   });
   
   if (result.success) {
-    // นำทางไปยังหน้า Login
+    // ນຳທາງໄປຍັງໜ້າ Login
     router.push('/login');
   } else {
     error.value = result.message;
   }
 };
 
-// ฟังก์ชันสลับการแสดงรหัสผ่าน
+// ຟັງຊັ່ນສະລັບການສະແດງລະຫັດຜ່ານ
 const toggleShowPassword = () => {
   showPassword.value = !showPassword.value;
 };
 
-// ฟังก์ชันสลับการแสดงยืนยันรหัสผ่าน
+// ຟັງຊັ່ນສະລັບການສະແດງຢືນຢັນລະຫັດຜ່ານ
 const toggleShowConfirmPassword = () => {
   showConfirmPassword.value = !showConfirmPassword.value;
 };
@@ -77,7 +77,7 @@ const toggleShowConfirmPassword = () => {
       
       <form class="mt-8 space-y-6" @submit.prevent="submitRegister">
         <div class="rounded-md -space-y-px">
-          <!-- ช่องกรอกชื่อ -->
+          <!-- ຊ່ອງກອກຊື່ -->
           <div class="mb-4">
             <label for="name" class="block text-sm font-medium text-gray-700 mb-1">ຊື່-ນາມສະກຸນ</label>
             <input
@@ -91,7 +91,7 @@ const toggleShowConfirmPassword = () => {
             />
           </div>
           
-          <!-- ช่องกรอกชื่อผู้ใช้ -->
+          <!-- ຊ່ອງກອກຊື່ຜູ້ໃຊ້ -->
           <div class="mb-4">
             <label for="username" class="block text-sm font-medium text-gray-700 mb-1">ຊື່ຜູ້ໃຊ້</label>
             <input
@@ -105,7 +105,7 @@ const toggleShowConfirmPassword = () => {
             />
           </div>
           
-          <!-- ช่องกรอกรหัสผ่าน -->
+          <!-- ຊ່ອງກອກລະຫັດຜ່ານ -->
           <div class="mb-4">
             <label for="password" class="block text-sm font-medium text-gray-700 mb-1">ລະຫັດຜ່ານ</label>
             <div class="relative">
@@ -130,7 +130,7 @@ const toggleShowConfirmPassword = () => {
             </div>
           </div>
           
-          <!-- ช่องกรอกยืนยันรหัสผ่าน -->
+          <!-- ຊ່ອງກອກຢືນຢັນລະຫັດຜ່ານ -->
           <div class="mb-4">
             <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-1">ຢືນຢັນລະຫັດຜ່ານ</label>
             <div class="relative">
@@ -155,7 +155,7 @@ const toggleShowConfirmPassword = () => {
             </div>
           </div>
           
-          <!-- เลือกบทบาท -->
+          <!-- ເລືອກບົດບາດ -->
           <div class="mb-4">
             <label for="role" class="block text-sm font-medium text-gray-700 mb-1">ສະຖານະ</label>
             <select
@@ -172,7 +172,7 @@ const toggleShowConfirmPassword = () => {
           </div>
         </div>
 
-        <!-- ข้อความแสดงข้อผิดพลาด -->
+        <!-- ຂໍ້ຄວາມສະແດງຂໍ້ຜິດພາດ -->
         <div v-if="error || authStore.error" class="rounded-md bg-red-50 p-4 mb-4">
           <div class="flex">
             <div class="flex-shrink-0">
@@ -184,7 +184,7 @@ const toggleShowConfirmPassword = () => {
           </div>
         </div>
 
-        <!-- ปุ่มลงทะเบียน -->
+        <!-- ປຸ່ມລົງທະບຽນ -->
         <div>
           <button
             type="submit"
@@ -192,7 +192,7 @@ const toggleShowConfirmPassword = () => {
             class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span v-if="authStore.isLoading" class="absolute left-0 inset-y-0 flex items-center pl-3">
-              <!-- ไอคอนโหลด -->
+              <!-- ໄອຄອນໂຫຼດ -->
               <svg class="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -202,7 +202,7 @@ const toggleShowConfirmPassword = () => {
           </button>
         </div>
         
-        <!-- ลิงก์ไปหน้าเข้าสู่ระบบ -->
+        <!-- ລິ້ງໄປໜ້າເຂົ້າສູ່ລະບົບ -->
         <div class="text-center">
           <p class="text-sm">
             ມີບັນຊີຜູ້ໃຊ້ແລ້ວບໍ? 

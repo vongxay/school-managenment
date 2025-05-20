@@ -54,7 +54,7 @@ const updateCharts = () => {
           labels: data.labels,
           datasets: [
             {
-              label: `ຈໍານອນ ${245} (ຄົນ)`,
+              label: `ຈຳນວນ ${245} (ຄົນ)`,
               data: data.attendanceData,
               borderColor: "#3b82f6",
               backgroundColor: "rgba(59, 130, 246, 0.1)",
@@ -107,7 +107,7 @@ const updateCharts = () => {
           labels: data.labels,
           datasets: [
             {
-              label: "11,200,000 (Kip)",
+              label: "11,200,000 (ກີບ)",
               data: data.paymentData,
               backgroundColor: "rgba(16, 185, 129, 0.7)",
               borderColor: "rgb(16, 185, 129)",

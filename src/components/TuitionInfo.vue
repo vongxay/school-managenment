@@ -167,19 +167,19 @@ const findTuitionByLevelAndYear = (
   return tuitions.find((t) => t.level === level && t.year === year);
 };
 
-// เพิ่มฟังก์ชันสำหรับค้นหาค่าเรียนที่สามารถใช้ได้กับ API
+// ເພີ່ມຟັງຊັນສຳລັບຄົ້ນຫາຄ່າຮຽນທີ່ສາມາດໃຊ້ກັບ API
 const searchTuitionByLevelAndYear = async (
   level: string,
   year: string
 ): Promise<Tuition | undefined> => {
   try {
-    // ค้นหาในข้อมูลในท้องถิ่นก่อน
+    // ຄົ້ນຫາໃນຂໍ້ມູນໃນທ້ອງຖິ່ນກ່ອນ
     const localTuition = findTuitionByLevelAndYear(level, year);
     if (localTuition) {
       return localTuition;
     }
 
-    // ถ้าไม่พบในข้อมูลท้องถิ่น ค้นหาจาก API
+    // ຖ້າບໍ່ພົບໃນຂໍ້ມູນທ້ອງຖິ່ນ ຄົ້ນຫາຈາກ API
     isLoading.value = true;
     errorMessage.value = "";
 
@@ -203,16 +203,16 @@ const searchTuitionByLevelAndYear = async (
   }
 };
 
-// แสดงความสัมพันธ์ระหว่างค่าเรียน ระดับชั้น และปีการศึกษาในตารางสรุป
+// ສະແດງຄວາມສຳພັນລະຫວ່າງຄ່າຮຽນ ລະດັບຊັ້ນ ແລະປີການສຶກສາໃນຕາຕະລາງສະຫຼຸບ
 const showTuitionSummary = ref(false);
 const tuitionSummaryData = computed(() => {
-  // สร้างข้อมูลสำหรับตารางสรุป
+  // ສ້າງຂໍ້ມູນສຳລັບຕາຕະລາງສະຫຼຸບ
   const summary: {
     level: string;
     years: { [year: string]: number };
   }[] = [];
 
-  // จัดกลุ่มตามระดับชั้น
+  // ຈັດກຸ່ມຕາມລະດັບຊັ້ນ
   const levelGroups = new Map<string, Tuition[]>();
   tuitions.forEach((tuition) => {
     if (!levelGroups.has(tuition.level)) {
@@ -221,7 +221,7 @@ const tuitionSummaryData = computed(() => {
     levelGroups.get(tuition.level)!.push(tuition);
   });
 
-  // สร้างข้อมูลสรุป
+  // ສ້າງຂໍ້ມູນສະຫຼຸບ
   levelGroups.forEach((tuitions, level) => {
     const yearAmount: { [year: string]: number } = {};
     tuitions.forEach((tuition) => {
@@ -467,7 +467,7 @@ onMounted(async () => {
   createNewTuition();
 });
 
-// ส่งออกฟังก์ชันเพื่อให้ใช้งานจากภายนอกได้
+// ສົ່ງອອກຟັງຊັນເພື່ອໃຫ້ໃຊ້ງານຈາກພາຍນໄດ້
 defineExpose({
   searchTuitionByLevelAndYear,
 });

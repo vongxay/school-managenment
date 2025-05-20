@@ -2,6 +2,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
 import axios from "axios";
 import { useAuthStore } from "../stores/authStore";
+import html2pdf from "html2pdf.js";
 
 const authStore = useAuthStore();
 
@@ -229,13 +230,52 @@ const generateNewRegistrationId = () => {
     }
   });
   const nextId = lastId + 1;
-  
-  currentRegistrationId.value = `INV-${nextId.toString().padStart(3, '0')}`;
+
+  currentRegistrationId.value = `INV-${nextId.toString().padStart(3, "0")}`;
 };
 
 // ພິມການລົງທະບຽນ
 const printRegistration = () => {
-  alert("ກຳລັງສັ່ງພິມໃບລົງທະບຽນ...");
+  const element = document.getElementById("registration-print");
+  if (!element) {
+    alert("ບໍ່ພົບຂໍ້ມູນທີ່ຕ້ອງການພິມ");
+    return;
+  }
+
+  const opt = {
+    margin: 1,
+    filename: `ການລົງທະບຽນ_${currentRegistrationId.value}.pdf`,
+    image: { type: "jpeg", quality: 0.98 },
+    html2canvas: { scale: 2 },
+    jsPDF: { unit: "in", format: "a4", orientation: "portrait" },
+  };
+
+  // ສະແດງຂໍ້ຄວາມກຳລັງພິມ
+  const loadingMessage = document.createElement("div");
+  loadingMessage.className =
+    "fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-50";
+  loadingMessage.innerHTML = `
+    <div class="bg-white p-4 rounded-lg shadow-lg">
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700 mx-auto"></div>
+      <p class="mt-2">ກຳລັງພິມເອກະສານ...</p>
+    </div>
+  `;
+  document.body.appendChild(loadingMessage);
+
+  // ເລີ່ມການພິມ PDF
+  html2pdf()
+    .set(opt)
+    .from(element)
+    .save()
+    .then(() => {
+      // ລຶບຂໍ້ຄວາມກຳລັງພິມເມື່ອສຳເລັດ
+      document.body.removeChild(loadingMessage);
+    })
+    .catch((err) => {
+      console.error("Error generating PDF:", err);
+      document.body.removeChild(loadingMessage);
+      alert("ເກີດຂໍ້ຜິດພາດໃນການພິມເອກະສານ");
+    });
 };
 
 // ກວດສອບຄວາມຖືກຕ້ອງຂອງຂໍ້ມູນ
@@ -265,7 +305,7 @@ const validateForm = () => {
     return false;
   }
 
-  if (!currentClassLevelId.value) { 
+  if (!currentClassLevelId.value) {
     alert("ກະລຸນາເລືອກຫ້ອງຮຽນທີ່ມີລະດັບຊັ້ນຮຽນກຳນົດໄວ້");
 
     // ພະຍາຍາມດຶງຂໍ້ມູນຫ້ອງຮຽນອີກຄັ້ງ
@@ -299,10 +339,10 @@ const saveRegistration = async () => {
         // ຄ້ນຫາຄ່າເຣີຢນຕາມລະດັບຊັ້ນແລະປີການສຶກສາ
         const matchingTuition = tuitionResponse.data.data.find(
           (t) =>
-          t.level === currentClassLevel.value &&
-          t.year === currentSchoolYear.value
+            t.level === currentClassLevel.value &&
+            t.year === currentSchoolYear.value
         );
-        
+
         if (matchingTuition) {
           tuitionFee = matchingTuition.amount;
         } else {
@@ -324,7 +364,7 @@ const saveRegistration = async () => {
       level: currentClassLevel.value, // ໃຊ້ລະຫັດລະດັບຊັ້ນແທນຊື່ລະດັບຊັ້ນ
       school_year: currentSchoolYearId.value,
       paid: false,
-      registered_by: authStore.user?.id || '',
+      registered_by: authStore.user?.id || "",
       tuition_fee: tuitionFee,
       invoice_id: currentRegistrationId.value,
       registration_date: new Date().toISOString().split("T")[0],
@@ -367,6 +407,12 @@ const saveRegistration = async () => {
   }
 };
 
+const messageBook = (value) => {
+  this.$Message.info({
+    content: value,
+    duration: 5,
+  });
+};
 // ເພີ່ມຟັງຊັນ clearForm ສຳລັບລ້າງຂໍ້ມູນໃນຟອມ
 const clearForm = () => {
   currentStudentId.value = "";
@@ -400,11 +446,11 @@ const selectClassroom = (classItem) => {
   currentClassId.value = classItem.id;
   currentClassName.value = classItem.name;
 
-  const levelObj = levels.value.find(l => l.name === classItem.level);
+  const levelObj = levels.value.find((l) => l.name === classItem.level);
   if (levelObj) {
     currentClassLevelId.value = levelObj.id;
   }
-  
+
   // ຊອກຫາລະຫັດລະດັບຊັ້ນຈາກຂໍ້ມູນລະດັບຊັ້ນ
   showClassroomDialog.value = false;
 };
@@ -462,11 +508,11 @@ const fetchClassInfo = async (className) => {
 const openClassroomDialog = (event) => {
   // ດຶງຂໍ້ມູນຫ້ອງຮຽນກ່ອນເປີດ dialog
   fetchClasses();
-  // ປິດ dropdown ປີການສຶກສາຖ້າກຳລັງเปິດอยู่
+  // ປິດ dropdown ປີການສຶກສາຖ້າກຳລັງເປີດຢູ່
   showSchoolYearDialog.value = false;
-  // ສॱบสถานะการแสดง dropdown ห້องเรียน
+  // ສະຫຼັບສະຖານະການສະແດງ dropdown ຫ້ອງຮຽນ
   showClassroomDialog.value = !showClassroomDialog.value;
-  // ป้องกันการ bubble ของอีเวนต์คลิก
+  // ປ້ອງກັນການ bubble ຂອງອີເວນຄລິກ
   if (event) event.stopPropagation();
 };
 
@@ -580,15 +626,15 @@ const selectSchoolYear = (year) => {
 
 // ເປີດໜ້າຕ່າງເລືອກປີການສຶກສາ
 const openSchoolYearDialog = (event) => {
-  // ປິດ dropdown ຫ້ອງເຣີຢນຖ້າກຳລັງเปິດอยู่
+  // ປິດ dropdown ຫ້ອງຮຽນຖ້າກຳລັງເປີດຢູ່
   showClassroomDialog.value = false;
-  // ສॱบสถานะการแสดง dropdown ປີການສຶກສາ
+  // ສະຫຼັບສະຖານະການສະແດງ dropdown ປີການສຶກສາ
   showSchoolYearDialog.value = !showSchoolYearDialog.value;
-  // ป้องกันการ bubble ของอีเวนต์คลิก
+  // ປ້ອງກັນການ bubble ຂອງອີເວນຄລິກ
   if (event) event.stopPropagation();
 };
 
-// เลือกการลงทะเบียน
+// ເລືອກການລົງທະບຽນ
 const selectRegistration = async (registrationId) => {
   try {
     isLoading.value = true;
@@ -605,7 +651,7 @@ const selectRegistration = async (registrationId) => {
     if (response.data.success && response.data.data) {
       const registration = response.data.data;
 
-      // อัปเดตข้อมูลใบเสร็จตามการลงทะเบียน
+      // ອັບເດດຂໍ້ມູນໃບເສັດຕາມການລົງທະບຽນ
       currentRegistrationId.value = registration.invoice_id || registration.id;
       currentStudentId.value = registration.student_id;
       currentStudentName.value = registration.student_name;
@@ -624,15 +670,15 @@ const selectRegistration = async (registrationId) => {
   }
 };
 
-// เพิ่มฟังก์ชันสำหรับปิด dropdown เมื่อคลิกนอกพื้นที่ dropdown
+// ເພີ່ມຟັງຊັນສຳລັບປິດ dropdown ເມື່ອຄລິກນອກພື້ນທີ່ dropdown
 const closeDropdowns = (event) => {
-  // ตรวจสอบว่ามีการคลิกนอกพื้นที่ dropdown หรือไม่
+  // ກວດສອບວ່າມີການຄລິກນອກພື້ນທີ່ dropdown ຫຼືບໍ່
   const schoolYearDropdown = document.getElementById("school-year-dropdown");
   const classroomDropdown = document.getElementById("classroom-dropdown");
   const schoolYearButton = document.getElementById("school-year-button");
   const classroomButton = document.getElementById("classroom-button");
 
-  // ถ้าคลิกนอกพื้นที่ dropdown และปุ่มที่เปิด dropdown ให้ปิด dropdown
+  // ຖ້າຄລິກນອກພື້ນທີ່ dropdown ແລະປຸ່ມທີ່ເປີດ dropdown ໃຫ້ປິດ dropdown
   if (
     showSchoolYearDialog.value &&
     schoolYearDropdown &&
@@ -673,7 +719,7 @@ onMounted(() => {
     // ສ້າງ ID ໃໝ່ສຳລັບການລົງທະບຽນ
     generateNewRegistrationId();
 
-    // ຕັ້ງຄ່າປີການສຶກສາປັດຈຸບັນ (ຈະໃຊ້ເປັນຄ່າເຣິ่มต້ນຖ້າບໍ່ສາມາດດຶງຂໍ້ມູນຈາກ API)
+    // ຕັ້ງຄ່າປີການສຶກສາປັດຈຸບັນ (ຈະໃຊ້ເປັນຄ່າເລີ່ມຕົ້ນຖ້າບໍ່ສາມາດດຶງຂໍ້ມູນຈາກ API)
     if (!currentSchoolYear.value) {
       const currentYear = new Date().getFullYear();
       currentSchoolYear.value = `${currentYear}-${currentYear + 1}`;
@@ -865,6 +911,12 @@ const updatePaymentStatus = async (registrationId, isPaid) => {
       </div>
     </div>
     <div class="flex items-center mb-4">
+      <button
+       @click="messageBook('ລະຫັດນັກຮຽນ: 444')"
+       class="absolute right-0 top-0 h-full px-2 bg-white border-l hover:bg-gray-100"
+     >
+       ✖
+     </button>
       <div class="w-28 mr-2">ລະຫັດນັກຮຽນ</div>
       <div class="w-40 mr-4">
         <input
@@ -920,8 +972,13 @@ const updatePaymentStatus = async (registrationId, isPaid) => {
           :key="index"
           class="grid grid-cols-3 p-2 cursor-pointer"
           :class="[
-              'grid grid-cols-4 p-2 cursor-pointer',
-              currentStudentId === student.studentId ? 'bg-blue-600 text-white ' : index % 2 !== 0 ? 'bg-gray-100 hover:bg-blue-100' : 'bg-white hover:bg-blue-100']"
+            'grid grid-cols-4 p-2 cursor-pointer',
+            currentStudentId === student.studentId
+              ? 'bg-blue-600 text-white '
+              : index % 2 !== 0
+              ? 'bg-gray-100 hover:bg-blue-100'
+              : 'bg-white hover:bg-blue-100',
+          ]"
           @click="selectStudent(student)"
         >
           <div>{{ student.studentId }}</div>
@@ -980,8 +1037,11 @@ const updatePaymentStatus = async (registrationId, isPaid) => {
           :key="index"
           class="grid grid-cols-9 p-1 border-b"
           :class="[
-              'grid grid-cols-4 p-2',
-              index % 2 !== 0 ? 'bg-gray-100 hover:bg-blue-100' : 'bg-white hover:bg-blue-100']"
+            'grid grid-cols-4 p-2',
+            index % 2 !== 0
+              ? 'bg-gray-100 hover:bg-blue-100'
+              : 'bg-white hover:bg-blue-100',
+          ]"
         >
           <div>{{ reg.id }}</div>
           <div>{{ formatDate(reg.registrationDate) }}</div>
@@ -992,7 +1052,7 @@ const updatePaymentStatus = async (registrationId, isPaid) => {
           <div>{{ reg.level }}</div>
           <div>{{ reg.schoolYear }}</div>
           <div :class="reg.paid ? 'text-green-600 font-bold' : 'text-red-600'">
-            {{ reg.paid? "ຈ່າຍແລ້ວ" : "ຍັງບໍ່ຈ່າຍ" }}
+            {{ reg.paid ? "ຈ່າຍແລ້ວ" : "ຍັງບໍ່ຈ່າຍ" }}
           </div>
         </div>
       </div>
@@ -1013,6 +1073,75 @@ const updatePaymentStatus = async (registrationId, isPaid) => {
       >
         ພິມໃບລົງທະບຽນ
       </button>
+    </div>
+
+    <!-- ສ່ວນທີ່ຕ້ອງການພິມ -->
+    <div id="registration-print" class="bg-white p-6 rounded-lg shadow-md">
+      <!-- ສ່ວນຫົວເອກະສານ -->
+      <div class="text-center mb-8">
+        <div class="mb-4 p-4 mx-auto max-w-2xl">
+          <div class="flex justify-center mb-4">
+            <img
+              src="/src/assets/school-logo.png"
+              alt="School Logo"
+              class="h-16"
+            />
+          </div>
+          <h1 class="text-xl font-bold">ໃບລົງທະບຽນ</h1>
+        </div>
+      </div>
+
+      <!-- ຂໍ້ມູນການລົງທະບຽນ -->
+      <div class="mb-6">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <p><strong>ລະຫັດລົງທະບຽນ:</strong> {{ currentRegistrationId }}</p>
+            <p>
+              <strong>ວັນທີລົງທະບຽນ:</strong>
+              {{ new Date().toLocaleDateString() }}
+            </p>
+            <p><strong>ລະຫັດນັກຮຽນ:</strong> {{ currentStudentId }}</p>
+            <p><strong>ຊື່ນັກຮຽນ:</strong> {{ currentStudentName }}</p>
+          </div>
+          <div>
+            <p><strong>ເບີໂທຜູ້ປົກຄອງ:</strong> {{ currentStudentPhone }}</p>
+            <p><strong>ຫ້ອງຮຽນ:</strong> {{ currentClassName }}</p>
+            <p><strong>ລະດັບຊັ້ນ:</strong> {{ currentClassLevel }}</p>
+            <p><strong>ສົກຮຽນ:</strong> {{ currentSchoolYear }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ຂໍ້ມູນຄ່າເຣີຢນ -->
+      <div class="mb-6">
+        <h2 class="text-lg font-bold mb-2">ຂໍ້ມູນຄ່າເຣີຢນ</h2>
+        <table class="w-full border-collapse">
+          <thead>
+            <tr class="bg-gray-100">
+              <th class="border p-2">ລາຍການ</th>
+              <th class="border p-2">ຈຳນວນເງິນ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="border p-2">ຄ່າເຣີຢນ</td>
+              <td class="border p-2 text-right">{{ tuitionFee }} ກີບ</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ລາຍເຊັນ -->
+      <div class="mt-8 grid grid-cols-2 gap-4">
+        <div class="text-center">
+          <p class="mb-16">ລາຍເຊັນຜູ້ລົງທະບຽນ</p>
+          <p>...................................</p>
+        </div>
+        <div class="text-center">
+          <p class="mb-16">ລາຍເຊັນຜູ້ຮັບເງິນ</p>
+          <p>...................................</p>
+        </div>
+      </div>
     </div>
   </div>
 </template>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-// ลบการ import Student ที่ไม่ได้ใช้งาน
+// ລຶບການ import Student ທີ່ບໍ່ໄດ້ໃຊ້
 // import type { Student } from '../types/student';
 import StudentList from './StudentList.vue';
 import { useStudentStore } from '../stores/studentStore';
@@ -18,7 +18,7 @@ const handlePhotoUpload = (event: Event) => {
   if (input.files && input.files[0]) {
     const file = input.files[0];
     
-    // สร้าง Image object เพื่อลดขนาด
+    // ສ້າງ Image object ເພື່ອຫຼຸດຂະໜາດ
     const img = new Image();
     const reader = new FileReader();
     
@@ -26,7 +26,7 @@ const handlePhotoUpload = (event: Event) => {
       img.src = e.target?.result as string;
       
       img.onload = () => {
-        // สร้าง canvas เพื่อลดขนาด
+        // ສ້າງ canvas ເພື່ອຫຼຸດຂະໜາດ
         const canvas = document.createElement('canvas');
         const MAX_WIDTH = 600;
         const MAX_HEIGHT = 600;
@@ -51,7 +51,7 @@ const handlePhotoUpload = (event: Event) => {
         const ctx = canvas.getContext('2d');
         ctx?.drawImage(img, 0, 0, width, height);
         console.log('canvas', canvas);
-        // แปลงเป็น Base64 ในรูปแบบที่มีขนาดเล็กลง (คุณภาพ 70%)
+        // ແປງເປັນ Base64 ໃນຮູບແບບທີ່ມີຂະໜາດນ້ອຍລົງ (ຄຸນນະພາບ 70%)
         const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
         photoPreview.value = dataUrl;
         console.log('Photo URL:', dataUrl);
@@ -84,14 +84,15 @@ const handleSubmit = async () => {
       }
     } else {
       const newId = await studentStore.addStudent(student);
+      console.log('ລະຫັດນັກຮຽນໃໝ່:', newId);
       console.log('ລະຫັດນັກຮຽນໃໝ່:', newId, 'await::',await studentStore.addStudent(student));
       if (newId) {
-        alert('ບັນທຶກຂໍ້ມູນນັກຮຽນສຳເລັດແລ້ວ...,ລະຫັດນັກຮຽນໃໝ່: ' + newId);
+        alert('ບັນທຶກຂໍ້ມູນນັກຮຽນສຳເລັດແລ້ວ.');
       } else {
         alert('ບໍ່ສາມາດບັນທຶກຂໍ້ມູນນັກຮຽນໄດ້');
       }
     }
-    // เคลียร์ฟอร์ม
+    // ເຄລີຢຣ໌ຟອມ
     studentStore.startNew();
   } catch (error) {
     console.error('ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກຂໍ້ມູນນັກຮຽນ:', error);

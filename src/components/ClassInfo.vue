@@ -104,37 +104,37 @@ const selectClass = (classItem: ClassRoom) => {
   classIdInput.value = classItem.id;
 };
 
-// เพิ่มฟังก์ชันเพื่อเชื่อมโยงชั้นเรียนกับระดับชั้น
+// ເພີ່ມຟັງຊັ່ນເພື່ອເຊື່ອມຕໍ່ຊັ້ນຮຽນກັບລະດັບຊັ້ນ
 const updateClassLevel = () => {
-  // เมื่อเลือกระดับชั้น ให้อัปเดตชื่อชั้นเรียนอัตโนมัติ
+  // ເມື່ອເລືອກລະດັບຊັ້ນ ໃຫ້ອັບເດດຊື່ຊັ້ນຮຽນອັດຕະໂນມັດ
   if (formClass.level && !selectedClass.value) {
-    // ดึงเลขของระดับชั้น (เช่น M1, M2)
+    // ດຶງເລກຂອງລະດັບຊັ້ນ (ເຊັ່ນ ມ1, ມ2)
     const levelMatch = formClass.level.match(/ຊັ້ນ\s+ມ\s+(\d+)/);
     if (levelMatch && levelMatch[1]) {
-      // ตั้งชื่อชั้นเรียนเป็น "M{level}/{section}" เช่น "ມ 1/1"
+      // ຕັ້ງຊື່ຊັ້ນຮຽນເປັນ "ມ{level}/{section}" ເຊັ່ນ "ມ 1/1"
       formClass.name = `ມ ${levelMatch[1]}/1`;
     }
   }
 };
 
-// ติดตามการเปลี่ยนแปลงของระดับชั้น
+// ຕິດຕາມການປ່ຽນແປງຂອງລະດັບຊັ້ນ
 watch(() => formClass.level, updateClassLevel);
 
-// เพิ่มฟังก์ชันในการตรวจสอบการเชื่อมโยงระดับชั้นกับชั้นเรียน
+// ເພີ່ມຟັງຊັ່ນໃນການກວດສອບການເຊື່ອມຕໍ່ລະດັບຊັ້ນກັບຊັ້ນຮຽນ
 const validateClassLevel = () => {
   if (!formClass.level) {
-    errorMessage.value = "กรุณาเลือกระดับชั้น";
+    errorMessage.value = "ກະລຸນາເລືອກລະດັບຊັ້ນ";
     return false;
   }
 
-  // ตรวจสอบว่าชื่อชั้นเรียนสอดคล้องกับระดับชั้นหรือไม่
+  // ກວດສອບວ່າຊື່ຊັ້ນຮຽນສອດຄ່ອງກັບລະດັບຊັ້ນຫຼືບໍ່
   const levelMatch = formClass.level.match(/ຊັ້ນ\s+ມ\s+(\d+)/);
   const nameMatch = formClass.name.match(/ມ\s+(\d+)/);
 
   if (levelMatch && nameMatch && levelMatch[1] !== nameMatch[1]) {
     if (
       !confirm(
-        `ชั้นเรียน ${formClass.name} ไม่สอดคล้องกับระดับชั้น ${formClass.level} ต้องการดำเนินการต่อหรือไม่?`
+        `ຊັ້ນຮຽນ ${formClass.name} ບໍ່ສອດຄ່ອງກັບລະດັບຊັ້ນ ${formClass.level} ຕ້ອງການດຳເນີນການຕໍ່ຫຼືບໍ່?`
       )
     ) {
       return false;
@@ -144,28 +144,28 @@ const validateClassLevel = () => {
   return true;
 };
 
-// ปรับปรุงฟังก์ชัน validateForm เพื่อรวมการตรวจสอบเกี่ยวกับระดับชั้น
+// ປັບປຸງຟັງຊັ່ນ validateForm ເພື່ອລວມການກວດສອບກ່ຽວກັບລະດັບຊັ້ນ
 const validateForm = () => {
   if (!formClass.id) {
-    errorMessage.value = "กรุณาระบุรหัสชั้นเรียน";
+    errorMessage.value = "ກະລຸນາລະບຸລະຫັດຊັ້ນຮຽນ";
     return false;
   }
 
   if (!formClass.name) {
-    errorMessage.value = "กรุณาระบุชื่อชั้นเรียน";
+    errorMessage.value = "ກະລຸນາລະບຸຊື່ຊັ້ນຮຽນ";
     return false;
   }
 
-  // เพิ่มการตรวจสอบความสัมพันธ์ระหว่างชั้นเรียนกับระดับชั้น
+  // ເພີ່ມການກວດສອບຄວາມສຳພັນລະຫວ່າງຊັ້ນຮຽນກັບລະດັບຊັ້ນ
   if (!validateClassLevel()) {
     return false;
   }
 
-  // ตรวจสอบรหัสซ้ำเมื่อสร้างใหม่
+  // ກວດສອບລະຫັດຊ້ຳເມື່ອສ້າງໃໝ່
   if (!selectedClass.value) {
     const existingClass = classes.find((c) => c.id === formClass.id);
     if (existingClass) {
-      errorMessage.value = "รหัสชั้นเรียนนี้มีอยู่แล้ว";
+      errorMessage.value = "ລະຫັດຊັ້ນຮຽນນີ້ມີຢູ່ແລ້ວ";
       return false;
     }
   }
