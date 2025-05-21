@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { onMounted, watch } from '@vue/runtime-core';
-import {
-  getStudentReports,
-  getFinancialReports,
-  getAcademicReports,
-} from '../api/reports';
-import { api } from '../api/index';
-import { getAcademicYears, getLevels, getClasses } from '../api/common';
-import * as XLSX from 'xlsx';
+import { ref, computed } from "vue";
+import { onMounted, watch } from "@vue/runtime-core";
+import { getStudentReports } from "../api/reports";
+import axios from "axios";
+import { useAuthStore } from "../stores/authStore";
+import html2pdf from "html2pdf.js";
 
+const authStore = useAuthStore();
+// import { api } from '../api/index';
+import { getAcademicYears, getLevels, getClasses } from "../api/common";
+import * as XLSX from "xlsx";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 // Define interface for SchoolYear
 interface SchoolYear {
   id: number;
@@ -18,7 +20,7 @@ interface SchoolYear {
 }
 
 // ລາຍງານທີ່ເລືອກສະແດງ
-const selectedReport = ref('studentList');
+const selectedReport = ref("studentList");
 
 // ຂໍ້ມູນຕົວກອງ
 const filters = ref({
@@ -39,22 +41,18 @@ const classes = ref<{ id: string; name: string; levelId: string }[]>([]);
 
 // ປະເພດລາຍງານ
 const reportTypes = [
-  { id: 'studentList', name: 'ລາຍງານຂໍ້ມູນນັກຮຽນ', icon: '👨‍🎓' },
-  { id: 'gradesByClass', name: 'ຂໍ້ມູນນັກຮຽນຕາມຊັ້ນຮຽນ', icon: '🏠' },
-  // { id: 'reportersByClass', name: 'ຫ້ອງຮຽນ', icon: '🏠' },
-  { id: 'gradesByLevel', name: 'ຊັ້ນຮຽນ', icon: '📊' },
-  { id: 'registration', name: 'ລາຍງານການລົງທະບຽນ', icon: '📑' },
-  { id: 'financialReport', name: 'ລາຍງານການເງິນ', icon: '💰' },
+  { id: "studentList", name: "ລາຍງານຂໍ້ມູນນັກຮຽນ", icon: "👨‍🎓" },
+  { id: "registration", name: "ລາຍງານການລົງທະບຽນ", icon: "📑" },
+  { id: "gradesByLevel", name: "ຊັ້ນຮຽນ", icon: "📊" },
+  { id: "gradesByClass", name: "ຫ້ອງຮຽນ", icon: "🏠" },
+  { id: "financialReport", name: "ລາຍງານການເງິນ", icon: "💰" },
 ];
 
 // ຂໍ້ມູນລາຍງານ
 const reportData = ref({
   studentList: [] as any[],
-  gradesByClass: [] as any[],
-  gradesByLevel: [] as any[],
   registration: [] as any[],
   financialReport: [] as any[],
-  // reportersByClass: [] as any[],
 });
 
 // ສະຖານະການໂຫລດ
@@ -63,7 +61,7 @@ const loading = ref(false);
 // ກອງຫ້ອງຮຽນຕາມຊັ້ນຮຽນທີ່ເລືອກ
 const filteredClasses = computed(() => {
   if (!filters.value.levelId) return classes.value;
-  return classes.value.filter(c => c.levelId === filters.value.levelId);
+  return classes.value.filter((c) => c.levelId === filters.value.levelId);
 });
 
 // ຟັງຊັນດຶງຂໍ້ມູນພື້ນຖານ
@@ -94,11 +92,11 @@ const fetchBasicData = async () => {
       classes.value = classesResponse.data.map((c: any) => ({
         id: c.id,
         name: c.name,
-        levelId: c.level_id
+        levelId: c.level_id,
       }));
     }
   } catch (error) {
-    console.error('ຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນພື້ນຖານ:', error);
+    console.error("ຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນພື້ນຖານ:", error);
   }
 };
 
@@ -112,11 +110,11 @@ const fetchClassesByLevel = async (levelId: string) => {
       classes.value = response.data.map((c: any) => ({
         id: c.id,
         name: c.name,
-        levelId: c.level_id
+        levelId: c.level_id,
       }));
     }
   } catch (error) {
-    console.error('ຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນຫ້ອງຮຽນ:', error);
+    console.error("ຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນຫ້ອງຮຽນ:", error);
   }
 };
 
@@ -132,67 +130,89 @@ const fetchReportData = async () => {
     if (filters.value.classId !== null) params.class_id = filters.value.classId;
     if (filters.value.month !== null) params.month = filters.value.month;
 
-    if (selectedReport.value === 'studentList') {
+    if (selectedReport.value === "studentList") {
       try {
-        console.log('ຂໍ້ມູນລາຍງານນັກຮຽນPP:', params);
+        console.log("ຂໍ້ມູນລາຍງານນັກຮຽນPP:", params);
         const response = await getStudentReports(params);
         if (response.success) {
-          console.log('ຂໍ້ມູນລາຍງານLL:', response.data);
+          console.log("ຂໍ້ມູນລາຍງານLL:", response.data);
           reportData.value.studentList = response.data.studentList || [];
         }
       } catch (error) {
-        console.error('เกิดข้อผิดพลาดในการดึงข้อมูลรายงานนักเรียน:', error);
+        console.error("เกิดข้อผิดพลาดในการดึงข้อมูลรายงานนักเรียน:", error);
         reportData.value.studentList = [];
       }
-    }  else if (selectedReport.value === 'gradesByClass') {
-      try {
-        const response = await getAcademicReports(params);
-        if (response.success) {
-          reportData.value.gradesByClass = response.data.gradesByClass || [];
-        }
-      } catch (error) {
-        console.error('ຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນລາຍງານຫ້ອງຮຽນ:', error);
-        reportData.value.gradesByClass = [];
-      }
-    } else if (selectedReport.value === 'gradesByLevel') {
-      try {
-        const response = await getAcademicReports(params);
-        if (response.success) {
-          reportData.value.gradesByLevel = response.data.gradesByLevel || [];
-        }
-      } catch (error) {
-        console.error('ຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນນັກຮຽນຕາມຊັ້ນຮຽນ:', error);
-        reportData.value.gradesByLevel = [];
-      }
-    } else if (selectedReport.value === 'registration') {
-      try {
-        const response = await getStudentReports(params);
-        if (response.success) {
-          reportData.value.registration = response.data.registration || [];
-        } else {
-          // ຖ້າບໍ່ມີຂໍ້ມູນໃນການຕອບກັບ ໃຫ້ລອງດຶງຂໍ້ມູນຈາກ endpoint ເພີ່ມເຕີມ
-          const registrationResponse = await api.get('/reports/registration', { params });
-          if (registrationResponse.data.success) {
-            reportData.value.registration = registrationResponse.data.data.registration || [];
-          }
-        }
-      } catch (error) {
-        console.error('ຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນລາຍງານການລົງທະບຽນ:', error);
-        reportData.value.registration = [];
-      }
-    } else if (selectedReport.value === 'financialReport') {
-      try {
-        const response = await getFinancialReports(params);
-        if (response.success) {
-          reportData.value.financialReport = response.data.financialReport || [];
-        }
-      } catch (error) {
-        console.error('ຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນລາຍງານການເງິນ:', error);
-        reportData.value.financialReport = [];
-      }
+    } else if (selectedReport.value === "registration") {
+      //   try {
+      //     const response = await getStudentReports(params);
+      //     if (response.success) {
+      //       reportData.value.registration = response.data.registration || [];
+      //     } else {
+      //       // ຖ້າບໍ່ມີຂໍ້ມູນໃນການຕອບກັບ ໃຫ້ລອງດຶງຂໍ້ມູນຈາກ endpoint ເພີ່ມເຕີມ
+      //       const registrationResponse = await api.get('/reports/registration', { params });
+      //       if (registrationResponse.data.success) {
+      //         reportData.value.registration = registrationResponse.data.data.registration || [];
+      //       }
+      //     }
+      //   } catch (error) {
+      //     console.error('ຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນລາຍງານການລົງທະບຽນ:', error);
+      //     reportData.value.registration = [];
+      //   }
+      await fetchRegistrations();
     }
+    // else if (selectedReport.value === 'gradesByClass') {
+    //   reportData.value.gradesByClass = filteredClasses.value;
+    // }
+    // else if (selectedReport.value === 'gradesByLevel') {
+    //   reportData.value.gradesByLevel = levels.value;
+    // }
+    // else if (selectedReport.value === 'financialReport') {
+    //   try {
+    //     const response = await getFinancialReports(params);
+    //     if (response.success) {
+    //       reportData.value.financialReport = response.data.financialReport || [];
+    //     }
+    //   } catch (error) {
+    //     console.error('ຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນລາຍງານການເງິນ:', error);
+    //     reportData.value.financialReport = [];
+    //   }
+    // }
   } catch (error) {
-    console.error('ຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນລາຍງານ:', error);
+    console.error("ຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນລາຍງານ:", error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const fetchRegistrations = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/registrations`, {
+      headers: {
+        Authorization: `Bearer ${authStore.user?.token}`,
+      },
+    });
+
+    if (response.data.success) {
+      // ປັບຮູບແບບຂໍ້ມູນໃຫ້ຕົງກັບໂຄງສ້າງທີ່ໃຊ້ສະແດງຜົນ
+      const formattedData = response.data.data.registrations.map(
+        (reg: any) => ({
+          id: reg.id || reg.invoice_id,
+          registrationDate: reg.registration_date,
+          studentId: reg.student_id,
+          studentName: reg.student_name || "",
+          studentPhone: reg.student_phone || "",
+          classroom: reg.classroom || "",
+          level: reg.level || "",
+          schoolYear: reg.school_year || "",
+          paid: reg.paid === 1 ? true : false,
+        })
+      );
+
+      // ກຳນົດຂໍ້ມູນໃຫ້ກັບອາເຣເທີ່ໃຊ້ສະແດງຜົນ
+      reportData.value.registration = formattedData;
+    }
+  } catch (err) {
+    console.error("Error fetching registrations:", err);
   } finally {
     loading.value = false;
   }
@@ -205,20 +225,27 @@ onMounted(() => {
 });
 
 // ເພີ່ມ watch ເພື່ອດັກການປ່ຽນແປງຂອງຕົວກອງ
-watch(() => filters.value.levelId, (newLevelId, oldLevelId) => {
-  // ຖ້າມີການປ່ຽນແປງຊັ້ນຮຽນ ໃຫ້ດຶງຂໍ້ມູນຫ້ອງຮຽນໃໝ່
-  if (newLevelId !== oldLevelId) {
-    filters.value.classId = null;  // ຣີເຊັດຫ້ອງຮຽນທີ່ເລືອກ
-    if (newLevelId) {
-      fetchClassesByLevel(newLevelId);
+watch(
+  () => filters.value.levelId,
+  (newLevelId, oldLevelId) => {
+    // ຖ້າມີການປ່ຽນແປງຊັ້ນຮຽນ ໃຫ້ດຶງຂໍ້ມູນຫ້ອງຮຽນໃໝ່
+    if (newLevelId !== oldLevelId) {
+      filters.value.classId = null; // ຣີເຊັດຫ້ອງຮຽນທີ່ເລືອກ
+      if (newLevelId) {
+        fetchClassesByLevel(newLevelId);
+      }
     }
   }
-});
+);
 
 // ເພີ່ມ watch ເພື່ອດັກການປ່ຽນແປງຂອງຕົວກອງທັງໝົດ
-watch(filters, () => {
-  fetchReportData();
-}, { deep: true });
+watch(
+  filters,
+  () => {
+    fetchReportData();
+  },
+  { deep: true }
+);
 
 // ຟັງຊັນເລືອກປະເພດລາຍງານ
 const selectReportType = (reportType: string) => {
@@ -228,42 +255,82 @@ const selectReportType = (reportType: string) => {
 
 // ຟັງຊັນພິມລາຍງານ
 const printReport = () => {
-  window.print();
-};
+  const element = document.getElementById("registration-print");
+  if (!element) {
+    alert("ບໍ່ພົບຂໍ້ມູນທີ່ຕ້ອງການພິມ");
+    return;
+  }
+  const todayStr = new Date().toISOString().split("T")[0];
 
+  const opt = {
+    margin: 0.5,
+    filename: `ການລົງທະບຽນ_${todayStr}.pdf`,
+    image: { type: "jpeg", quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF: { unit: "mm", format: [610, 1000], orientation: "portrait" }, // 210mm x 1000mm
+    pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+  };
+
+  // ສະແດງຂໍ້ຄວາມກຳລັງພິມ
+  const loadingMessage = document.createElement("div");
+  loadingMessage.className =
+    "fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-50";
+  loadingMessage.innerHTML = `
+    <div class="bg-white p-4 rounded-lg shadow-lg">
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700 mx-auto"></div>
+      <p class="mt-2">ກຳລັງພິມເອກະສານ...</p>
+    </div>
+  `;
+  document.body.appendChild(loadingMessage);
+
+  // ເລີ່ມການພິມ PDF
+  html2pdf()
+    .set(opt)
+    .from(element)
+    .save()
+    .then(() => {
+      // ລຶບຂໍ້ຄວາມກຳລັງພິມເມື່ອສຳເລັດ
+      document.body.removeChild(loadingMessage);
+    })
+    .catch(() => {
+      console.error("Error generating PDF:");
+      document.body.removeChild(loadingMessage);
+      alert("ເກີດຂໍ້ຜິດພາດໃນການພິມເອກະສານ");
+    });
+};
 // ຟັງຊັນສົ່ງອອກລາຍງານ
 const exportReport = () => {
   try {
     let data: any[] = [];
-    let fileName = '';
+    let fileName = "";
 
     // ກຳນົດຂໍ້ມູນຕາມປະເພດລາຍງານ
     switch (selectedReport.value) {
-      case 'studentList':
+      case "studentList":
         data = reportData.value.studentList;
-        fileName = 'ລາຍງານຂໍ້ມູນນັກຮຽນ';
+        fileName = "ລາຍງານຂໍ້ມູນນັກຮຽນ";
         break;
-      case 'registration':
+      case "registration":
         data = reportData.value.registration;
-        fileName = 'ລາຍງານການລົງທະບຽນ';
+        fileName = "ລາຍງານການລົງທະບຽນ";
         break;
-      case 'financialReport':
+      case "financialReport":
         data = reportData.value.financialReport;
-        fileName = 'ລາຍງານການເງິນ';
+        fileName = "ລາຍງານການເງິນ";
         break;
-      case 'gradesByClass':
-        data = reportData.value.gradesByClass;
-        fileName = 'ຂໍ້ມູນນັກຮຽນຕາມຊັ້ນຮຽນ';
+      case "gradesByClass":
+        data = filteredClasses.value;
+        fileName = "ຂໍ້ມູນຫ້ອງຮຽນ";
         break;
-      case 'gradesByLevel':
-        data = reportData.value.gradesByLevel;
-        fileName = 'ລາຍງານຄະແນນຕາມຊັ້ນຮຽນ';
+      case "gradesByLevel":
+        data = levels.value;
+        fileName = "ລາຍງານຊັ້ນຮຽນ";
         break;
       default:
-        throw new Error('ປະເພດລາຍງານບໍ່ຖືກຕ້ອງ');
+        throw new Error("ປະເພດລາຍງານບໍ່ຖືກຕ້ອງ");
     }
     if (data.length === 0) {
-      alert('ບໍ່ມີຂໍ້ມູນໃນລາຍງານ');
+      alert("ບໍ່ມີຂໍ້ມູນໃນລາຍງານ");
       return;
     }
 
@@ -272,17 +339,21 @@ const exportReport = () => {
 
     // ສ້າງ workbook
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+    XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
 
     // ສ້າງໄຟລ໌ Excel
-    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const blob = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
 
     // ສ້າງລິ້ງສຳລັບດາວໂຫຼດ
     const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = url;
-    link.download = `${fileName}-${new Date().toISOString().split('T')[0]}.xlsx`;
+    link.download = `${fileName}-${
+      new Date().toISOString().split("T")[0]
+    }.xlsx`;
 
     // ດາວໂຫຼດໄຟລ໌
     document.body.appendChild(link);
@@ -291,14 +362,31 @@ const exportReport = () => {
     // ລຳບັກຊັບພະຍາກອນ
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-
   } catch (error) {
-    console.error('ຂໍ້ຜິດພາດໃນການສົ່ງອອກເປັນ Excel:', error);
-    alert('ການສົ່ງອອກລາຍງານລົ້ມເຫລວ');
+    console.error("ຂໍ້ຜິດພາດໃນການສົ່ງອອກເປັນ Excel:", error);
+    alert("ການສົ່ງອອກລາຍງານລົ້ມເຫລວ");
   }
 };
+function formatDate(dateStr: string) {
+  if (!dateStr) return "";
+  return dateStr.split("T")[0];
+}
 </script>
-
+<style>
+@media print {
+  table,
+  tr,
+  td,
+  th {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  .page-break {
+    page-break-before: always;
+    break-before: always;
+  }
+}
+</style>
 <template>
   <div class="reports-container">
     <!-- ສ່ວນຂອງຕົວກອງ -->
@@ -319,20 +407,6 @@ const exportReport = () => {
             <option :value="null">ທັງໝົດ</option>
             <option v-for="level in levels" :key="level.id" :value="level.id">
               {{ level.name }}
-            </option>
-          </select>
-        </div>
-
-        <div>
-          <label class="block mb-2 text-sm font-medium">ຫ້ອງຮຽນ</label>
-          <select v-model="filters.classId" class="w-full p-2 border rounded">
-            <option :value="null">ທັງໝົດ</option>
-            <option
-              v-for="class_ in filteredClasses"
-              :key="class_.id"
-              :value="class_.id"
-            >
-              {{ class_.name }}
             </option>
           </select>
         </div>
@@ -383,7 +457,7 @@ const exportReport = () => {
     </div>
 
     <!-- ສ່ວນສະແດງຜົນລາຍງານ -->
-    <div class="bg-white p-6 rounded-lg shadow-md">
+    <div id="registration-print" class="bg-white p-6 rounded-lg shadow-md">
       <!-- ສ່ວນຫົວເອກະສານ -->
       <div class="text-center mb-8 print-header">
         <!-- ສ່ວນທີ 1: ສ່ວນເທິງສຸດ - ຕຣາປະເທດລາວ -->
@@ -432,7 +506,7 @@ const exportReport = () => {
                 selectedReport === "studentList"
                   ? "ລາຍງານຂໍ້ມູນນັກຮຽນ"
                   : selectedReport === "gradesByClass"
-                  ? "ຂໍ້ມູນນັກຮຽນຕາມຊັ້ນຮຽນ"
+                  ? "ຂໍ້ມູນຫ້ອງຮຽນ"
                   : selectedReport === "gradesByLevel"
                   ? "ລາຍງານຄະແນນຕາມຊັ້ນຮຽນ"
                   : selectedReport === "registration"
@@ -463,7 +537,6 @@ const exportReport = () => {
           </div>
         </div>
       </div>
-
       <!-- Loading indicator -->
       <div v-if="loading" class="flex justify-center py-8">
         <div
@@ -534,13 +607,10 @@ const exportReport = () => {
       </div>
 
       <!-- ສ່ວນສະແດງຜົນລາຍງານຕາມຊັ້ນຮຽນ -->
-      <div
-        v-else-if="selectedReport === 'gradesByClass'"
-        class="overflow-x-auto"
-      >
+      <div v-else-if="selectedReport === ''" class="overflow-x-auto">
         <table class="min-w-full border-collapse border border-gray-300">
           <thead>
-            <tr class="bg-gray-100">
+            <tr class="bg-yellow-100">
               <th class="border border-gray-300 px-4 py-2">ລ/ດ</th>
               <th class="border border-gray-300 px-4 py-2">ລະຫັດນັກຮຽນ</th>
               <th class="border border-gray-300 px-4 py-2">ຊື່ ແລະ ນາມສະກຸນ</th>
@@ -555,24 +625,21 @@ const exportReport = () => {
             </tr>
           </thead>
           <tbody>
-            <tr
-              v-for="(student, index) in reportData.gradesByClass"
-              :key="index"
-            >
+            <tr v-for="i in 9" :key="i">
               <td class="border border-gray-300 px-4 py-2 text-center">
                 {{ index + 1 }}
               </td>
               <td class="border border-gray-300 px-4 py-2">
-                {{ student.studentId }}
+                <!-- {{ student.studentId }} -->
               </td>
               <td class="border border-gray-300 px-4 py-2">
-                {{ student.name }}
+                <!-- {{ student.name }} -->
               </td>
               <td class="border border-gray-300 px-4 py-2">
-                {{ student.class }}
+                <!-- {{ student.class }} -->
               </td>
               <td class="border border-gray-300 px-4 py-2">
-                {{ student.math }}
+                <!-- {{ student.math }} -->
               </td>
               <td class="border border-gray-300 px-4 py-2">
                 {{ student.science }}
@@ -603,28 +670,25 @@ const exportReport = () => {
       >
         <table class="min-w-full border-collapse border border-gray-300">
           <thead>
-            <tr class="bg-gray-100">
+            <tr class="bg-yellow-100">
               <th class="border border-gray-300 px-4 py-2">ລ/ດ</th>
               <th class="border border-gray-300 px-4 py-2">ລະຫັດຊັ້ນຮຽນ</th>
               <th class="border border-gray-300 px-4 py-2">ຊື່ຊັ້ນຮຽນ</th>
             </tr>
           </thead>
           <tbody>
-            <tr
-              v-for="(classData, index) in reportData.gradesByLevel"
-              :key="index"
-            >
+            <tr v-for="(classData, index) in levels" :key="index">
               <td class="border border-gray-300 px-4 py-2 text-center">
                 {{ index + 1 }}
               </td>
               <td class="border border-gray-300 px-4 py-2">
-                {{ classData.classId }}
+                {{ classData.id }}
               </td>
               <td class="border border-gray-300 px-4 py-2">
-                {{ classData.className }}
+                {{ classData.name }}
               </td>
             </tr>
-            <tr v-if="reportData.gradesByLevel.length === 0">
+            <tr v-if="levels.length === 0">
               <td
                 colspan="6"
                 class="border border-gray-300 px-4 py-4 text-center"
@@ -638,33 +702,30 @@ const exportReport = () => {
 
       <!-- ສ່ວນສະແດງຜົນລາຍງານຫ້ອງຮຽນ -->
       <div
-        v-else-if="selectedReport === 'reportersByClass'"
+        v-else-if="selectedReport === 'gradesByClass'"
         class="overflow-x-auto"
       >
         <table class="min-w-full border-collapse border border-gray-300">
           <thead>
-            <tr class="bg-gray-100">
+            <tr class="bg-yellow-100">
               <th class="border border-gray-300 px-4 py-2">ລ/ດ</th>
               <th class="border border-gray-300 px-4 py-2">ລະຫັດຫ້ອງຮຽນ</th>
               <th class="border border-gray-300 px-4 py-2">ຊື່ຫ້ອງຮຽນ</th>
             </tr>
           </thead>
           <tbody>
-            <tr
-              v-for="(classData) in 2"
-              :key="classData"
-            >
+            <tr v-for="(classData, index) in filteredClasses" :key="index">
               <td class="border border-gray-300 px-4 py-2 text-center">
-                {{ classData + 1 }}
+                {{ index + 1 }}
               </td>
               <td class="border border-gray-300 px-4 py-2">
-                <!-- {{ classData.classId }} -->
+                {{ classData.id }}
               </td>
               <td class="border border-gray-300 px-4 py-2">
-                <!-- {{ classData.className }} -->
+                {{ classData.name }}
               </td>
             </tr>
-            <tr v-if="reportData.gradesByLevel.length === 0">
+            <tr v-if="filteredClasses.length === 0">
               <td
                 colspan="6"
                 class="border border-gray-300 px-4 py-4 text-center"
@@ -677,24 +738,23 @@ const exportReport = () => {
       </div>
 
       <!-- ສ່ວນສະແດງຜົນລາຍງານ -->
-
       <div
         v-else-if="selectedReport === 'registration'"
         class="overflow-x-auto"
       >
         <table class="min-w-full border-collapse border border-gray-300">
           <thead>
-            <tr class="bg-gray-100">
+            <tr class="bg-yellow-100">
               <th class="border border-gray-300 px-4 py-2">ລ/ດ</th>
+              <th class="border border-gray-300 px-4 py-2">ລະຫັດລົງທະບຽນ</th>
               <th class="border border-gray-300 px-4 py-2">ລະຫັດນັກສືກສາ</th>
-              <th class="border border-gray-300 px-4 py-2">ລະຫັດປະຈຳຕົວ</th>
               <th class="border border-gray-300 px-4 py-2">ຊື່ ແລະ ນາມສະກຸນ</th>
-              <th class="border border-gray-300 px-4 py-2">ເລກບັດປະຈຳຕົວ</th>
-              <th class="border border-gray-300 px-4 py-2">ເພດ</th>
-              <th class="border border-gray-300 px-4 py-2">ຊັ້ນຮຽນ</th>
+              <th class="border border-gray-300 px-4 py-2">ເບີໂທຕິດຕໍ່</th>
               <th class="border border-gray-300 px-4 py-2">ຫ້ອງຮຽນ</th>
+              <th class="border border-gray-300 px-4 py-2">ຊັ້ນຮຽນ</th>
+              <th class="border border-gray-300 px-4 py-2">ສົກຮຽນ</th>
               <th class="border border-gray-300 px-4 py-2">ວັນທີລົງທະບຽນ</th>
-              <th class="border border-gray-300 px-4 py-2">ສະຖານະພາບ</th>
+              <th class="border border-gray-300 px-4 py-2">ສະຖານະ</th>
             </tr>
           </thead>
           <tbody>
@@ -709,28 +769,35 @@ const exportReport = () => {
                 {{ registration.id }}
               </td>
               <td class="border border-gray-300 px-4 py-2">
-                {{ registration.code }}
+                {{ registration.studentId }}
               </td>
               <td class="border border-gray-300 px-4 py-2">
-                {{ registration.name }}
+                {{ registration.studentName }}
               </td>
               <td class="border border-gray-300 px-4 py-2">
-                {{ registration.idNumber }}
+                {{ registration.studentPhone }}
               </td>
               <td class="border border-gray-300 px-4 py-2">
-                {{ registration.gender }}
+                {{ registration.classroom }}
               </td>
               <td class="border border-gray-300 px-4 py-2">
                 {{ registration.level }}
               </td>
               <td class="border border-gray-300 px-4 py-2">
-                {{ registration.class }}
+                {{ registration.schoolYear }}
               </td>
               <td class="border border-gray-300 px-4 py-2">
-                {{ registration.regDate }}
+                {{ formatDate(registration.registrationDate) }}
               </td>
-              <td class="border border-gray-300 px-4 py-2">
-                {{ registration.status }}
+              <td
+                class="border border-gray-300 px-4 py-2"
+                :class="
+                  registration.paid
+                    ? 'text-green-600 font-bold'
+                    : 'text-red-600'
+                "
+              >
+                {{ registration.paid ? "ຈ່າຍແລ້ວ" : "ບໍ່ຈ່າຍ" }}
               </td>
             </tr>
             <tr v-if="reportData.registration.length === 0">
@@ -752,7 +819,7 @@ const exportReport = () => {
       >
         <table class="min-w-full border-collapse border border-gray-300">
           <thead>
-            <tr class="bg-gray-100">
+            <tr class="bg-yellow-100">
               <th class="border border-gray-300 px-4 py-2">ລ/ດ</th>
               <th class="border border-gray-300 px-4 py-2">ເດືອນ</th>
               <th class="border border-gray-300 px-4 py-2">ລາຍຮັບ (ກີບ)</th>

@@ -1,8 +1,8 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
 import axios from "axios";
-import { useAuthStore } from "../stores/authStore";
 import html2pdf from "html2pdf.js";
+import { useAuthStore } from "../stores/authStore";
 
 const authStore = useAuthStore();
 
@@ -407,12 +407,12 @@ const saveRegistration = async () => {
   }
 };
 
-const messageBook = (value) => {
-  this.$Message.info({
-    content: value,
-    duration: 5,
-  });
-};
+// const messageBook = (value) => {
+//   this.$Message.info({
+//     content: value,
+//     duration: 5,
+//   });
+// };
 // ເພີ່ມຟັງຊັນ clearForm ສຳລັບລ້າງຂໍ້ມູນໃນຟອມ
 const clearForm = () => {
   currentStudentId.value = "";
@@ -911,12 +911,12 @@ const updatePaymentStatus = async (registrationId, isPaid) => {
       </div>
     </div>
     <div class="flex items-center mb-4">
-      <button
+      <!-- <button
        @click="messageBook('ລະຫັດນັກຮຽນ: 444')"
        class="absolute right-0 top-0 h-full px-2 bg-white border-l hover:bg-gray-100"
      >
        ✖
-     </button>
+     </button> -->
       <div class="w-28 mr-2">ລະຫັດນັກຮຽນ</div>
       <div class="w-40 mr-4">
         <input
