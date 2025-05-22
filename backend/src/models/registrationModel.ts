@@ -295,6 +295,7 @@ async getCurrentRegistration(): Promise<String> {
   let connection;
   try {
     connection = await db.getConnection();
+    console.log('data byid:',id)
 
     const query = `
       SELECT 
@@ -305,12 +306,13 @@ async getCurrentRegistration(): Promise<String> {
         r.student_name, 
         r.student_phone,
         r.classroom, 
-        r.level, 
+        l.name as level, 
         sy.name as school_year,  -- Get the name from school_years
         r.is_paid as paid,
         r.created_at,
         r.updated_at
       FROM registrations r
+      LEFT JOIN levels l ON r.level = l.id
       LEFT JOIN school_years sy ON r.school_year = sy.id
       WHERE r.id = ?
     `;

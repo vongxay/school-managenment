@@ -21,7 +21,7 @@ interface Payment {
   status: string;
 }
 
-// ຮັບຂໍ້ມູນນັກຮຽນຈາກ prop
+// ຮັບຂໍ້ມູນນັກຮຽນາກ prop
 const props = defineProps({
   studentId: {
     type: String,
@@ -155,69 +155,68 @@ const fetchUnpaidRegistrations = async () => {
 };
 
 // ໂຫຼດຂໍ້ມູນຄ່າຮຽນ
-const loadTuitionInfo = async () => {
-  try {
-    isLoading.value = true;
-    const response = await axios.get(`${API_URL}/tuitions`, {
-      headers: {
-        Authorization: `Bearer ${
-          authStore.user?.token || localStorage.getItem("token")
-        }`,
-      },
-    });
-    if (response.data.success && response.data.data.length > 0) {
-      // ເກັບຂໍ້ມູນຄ່າຮຽນທັງໝົດໄວ້ໃຊ້
-      const allTuitions = response.data.data;
+// const loadTuitionInfo = async () => {
+//   try {
+//     isLoading.value = true;
+//     const response = await axios.get(`${API_URL}/tuitions`, {
+//       headers: {
+//         Authorization: `Bearer ${
+//           authStore.user?.token || localStorage.getItem("token")
+//         }`,
+//       },
+//     });
+//     if (response.data.success && response.data.data.length > 0) {
+//       // ເກັບຂໍ້ມູນຄ່າຮຽນທັງໝົດໄວ້ໃຊ້
+//       const allTuitions = response.data.data;
 
-      // ຖ້າມີຂໍ້ມູນຊັ້ນຮຽນແລະປີການສຶກສາແລ້ວ ໃຊ້ຫາຄ່າຮຽນທີ່ເໝາະສົມ
-      if (payment.level && payment.academicYear) {
-        const matchingTuition = allTuitions.find(
-          (t: any) =>
-            t.level === payment.level && t.year === payment.academicYear
-        );
-        if (matchingTuition) {
-          tuitionInfo.value = {
-            id: matchingTuition.id,
-            amount: matchingTuition.amount,
-            level: matchingTuition.level,
-            year: matchingTuition.year,
-          };
-          amount.value = tuitionInfo.value.amount;
-        } else {
-          tuitionInfo.value = {
-            id: "000",
-            amount: 20000, // ໃຊ້ຄ່າທີ່ກຳນົດ
-            level: allTuitions[0].level,
-            year: allTuitions[0].year,
-          };
-          amount.value = tuitionInfo.value.amount;
-        }
-      } else {
-        // ຖ້າຍັງບໍ່ມີຂໍ້ມູນຊັ້ນຮຽນ ໃຊ້ຄ່າຈາກ array index 1 ຫຼືຄ່າທຳອິດ
-        if (allTuitions.length > 1) {
-          tuitionInfo.value = {
-            id: "000",
-            amount: 20000, // ໃຊ້ຄ່າທີ່ກຳນົດ
-            level: allTuitions[1].level,
-            year: allTuitions[1].year,
-          };
-        } else {
-          tuitionInfo.value = {
-            id: "000",
-            amount: 20000, // ໃຊ້ຄ່າທີ່ກຳນົດ
-            level: allTuitions[0].level,
-            year: allTuitions[0].year,
-          };
-        }
-        amount.value = tuitionInfo.value.amount;
-      }
-    }
-  } catch (error) {
-    console.error("ບໍ່ສາມາດໂຫຼດຂໍ້ມູນຄ່າຮຽນໄດ້:", error);
-  } finally {
-    isLoading.value = false;
-  }
-};
+//       if (payment.level && payment.academicYear) {
+//         const matchingTuition = allTuitions.find(
+//           (t: any) =>
+//             t.level === payment.level && t.year === payment.academicYear
+//         );
+//         if (matchingTuition) {
+//           tuitionInfo.value = {
+//             id: matchingTuition.id,
+//             amount: matchingTuition.amount,
+//             level: matchingTuition.level,
+//             year: matchingTuition.year,
+//           };
+//           amount.value = tuitionInfo.value.amount;
+//         } else {
+//           tuitionInfo.value = {
+//             id: "000",
+//             amount: 20000, // Changed to use consistent default amount
+//             level: allTuitions[0].level,
+//             year: allTuitions[0].year,
+//           };
+//           amount.value = tuitionInfo.value.amount;
+//         }
+//       } else {
+//         // ຖ້າຍັງບໍ່ມີຂໍ້ມູນຊັ້ນຮຽນ ໃຊ້ຄ່າຈາກ array index 1 ຫຼືຄ່າທຳອິດ
+//         if (allTuitions.length > 1) {
+//           tuitionInfo.value = {
+//             id: "000",
+//             amount: 20000, // Changed to use consistent default amount
+//             level: allTuitions[1].level,
+//             year: allTuitions[1].year,
+//           };
+//         } else {
+//           tuitionInfo.value = {
+//             id: "000",
+//             amount: 20000, // Changed to use consistent default amount
+//             level: allTuitions[0].level,
+//             year: allTuitions[0].year,
+//           };
+//         }
+//         amount.value = tuitionInfo.value.amount;
+//       }
+//     }
+//   } catch (error) {
+//     console.error("ບໍ່ສາມາດໂຫຼດຂໍ້ມູນຄ່າຮຽນໄດ້:", error);
+//   } finally {
+//     isLoading.value = false;
+//   }
+// };
 
 // ເອີ້ນໃຊ້ຟັງຊັ່ນໂຫຼດຂໍ້ມູນຄ່າຮຽນເມື່ອຄອມໂພເນັນຖືກໂຫຼດ
 onMounted(() => {
@@ -228,7 +227,7 @@ onMounted(() => {
     ] = `Bearer ${authStore.user.token}`;
   }
 
-  loadTuitionInfo();
+  // loadTuitionInfo();
   loadData();
 });
 
@@ -236,6 +235,7 @@ onMounted(() => {
 async function loadStudentData(studentId: string) {
   try {
     const student = await studentStore.getStudentById(studentId);
+    console.log("PPL::", student);
     if (student) {
       payment.studentName = student.studentNameLao || "";
       payment.studentPhone = student.phoneNumber || "";
@@ -275,6 +275,7 @@ async function loadStudentData(studentId: string) {
               level: matchingTuition.level,
               year: matchingTuition.year,
             };
+            console.log("Found matching tuition:", matchingTuition);
           } else {
             // ຖ້າບໍ່ພົບຄ່າຮຽນທີ່ຕົງກັບລະດັບຊັ້ນ ໃຊ້ຄ່າຮຽນເລີ່ມຕົ້ນ
             amount.value = tuitionInfo.value.amount;
@@ -488,7 +489,7 @@ const selectRegistration = async (registrationId: string) => {
     }
 
     const registration = response.data.data;
-
+    console.log("ຂໍໍ່ມູນການລົງທະບຽນ:", registration);
     // ອັບເດດຂໍ້ມູນໃບເສັດຕາມການລົງທະບຽນ
     payment.invoiceNo = registration.id;
     payment.date = new Date().toISOString().split("T")[0];
@@ -521,6 +522,7 @@ const selectRegistration = async (registrationId: string) => {
             }`,
           },
         });
+        console.log("tuitionResponse", tuitionResponse);
         if (
           tuitionResponse.data.success &&
           tuitionResponse.data.data.length > 0
@@ -528,8 +530,7 @@ const selectRegistration = async (registrationId: string) => {
           // ຫາຄ່າຮຽນຕາມລະດັບຊັ້ນແລະປີການສຶກສາ
           const matchingTuition = tuitionResponse.data.data.find(
             (t: any) =>
-              t.level === registration.level &&
-              t.year === registration.school_year
+              t.level === registration.level && t.year === registration.school_year
           );
           console.log("matchingTuition", matchingTuition);
           if (matchingTuition) {
@@ -540,15 +541,19 @@ const selectRegistration = async (registrationId: string) => {
               level: matchingTuition.level,
               year: matchingTuition.year,
             };
+            console.log("Found matching tuition:", matchingTuition);
           } else {
             // ຖ້າບໍ່ພົບຄ່າຮຽນທີ່ຕົງກັບລະດັບຊັ້ນ ໃຊ້ຄ່າ 20000
             tuitionInfo.value = {
               id: "000",
-              amount: 0,
-              level: tuitionResponse.data.data[0].level,
-              year: tuitionResponse.data.data[0].year,
+              amount: 0, // Changed from 0 to 20000 as default
+              level: "",
+              year: "",
             };
-            amount.value = tuitionInfo.value.amount;
+            console.log(
+              "No matching tuition found, using default:",
+              tuitionInfo.value
+            );
           }
         }
       } catch (error) {
@@ -568,6 +573,70 @@ const selectRegistration = async (registrationId: string) => {
     isLoading.value = false;
   }
 };
+
+// const loadTuitionInfo = async () => {
+//   try {
+//     isLoading.value = true;
+//     const response = await axios.get(`${API_URL}/tuitions`, {
+//       headers: {
+//         Authorization: `Bearer ${
+//           authStore.user?.token || localStorage.getItem("token")
+//         }`,
+//       },
+//     });
+//     if (response.data.success && response.data.data.length > 0) {
+//       // ເກັບຂໍ້ມູນຄ່າຮຽນທັງໝົດໄວ້ໃຊ້
+//       const allTuitions = response.data.data;
+
+//       console.log('??',payment.level ,payment)
+//       if (payment.level && payment.academicYear) {
+//         const matchingTuition = allTuitions.find(
+//           (t: any) =>
+//             t.level === payment.level && t.year === payment.academicYear
+//         );
+//         if (matchingTuition) {
+//           tuitionInfo.value = {
+//             id: matchingTuition.id,
+//             amount: matchingTuition.amount,
+//             level: matchingTuition.level,
+//             year: matchingTuition.year,
+//           };
+//           amount.value = tuitionInfo.value.amount;
+//         } else {
+//           tuitionInfo.value = {
+//             id: "000",
+//             amount: 0, // ໃຊ້ຄ່າທີ່ກຳນົດ
+//             level: allTuitions[0].level,
+//             year: allTuitions[0].year,
+//           };
+//           amount.value = tuitionInfo.value.amount;
+//         }
+//       } else {
+//         // ຖ້າຍັງບໍ່ມີຂໍ້ມູນຊັ້ນຮຽນ ໃຊ້ຄ່າຈາກ array index 1 ຫຼືຄ່າທຳອິດ
+//         if (allTuitions.length > 1) {
+//           tuitionInfo.value = {
+//             id: "000",
+//             amount: 0, // ໃຊ້ຄ່າທີ່ກຳນົດ
+//             level: allTuitions[1].level,
+//             year: allTuitions[1].year,
+//           };
+//         } else {
+//           tuitionInfo.value = {
+//             id: "000",
+//             amount: 0, // ໃຊ້ຄ່າທີ່ກຳນົດ
+//             level: allTuitions[0].level,
+//             year: allTuitions[0].year,
+//           };
+//         }
+//         amount.value = tuitionInfo.value.amount;
+//       }
+//     }
+//   } catch (error) {
+//     console.error("ບໍ່ສາມາດໂຫຼດຂໍ້ມູນຄ່າຮຽນໄດ້:", error);
+//   } finally {
+//     isLoading.value = false;
+//   }
+// };
 
 // ເພີ່ມຟັງຊັ່ນສຳລັບກວດສອບຄວາມຖືກຕ້ອງຂອງຂໍ້ມູນ
 const validatePaymentInput = () => {
@@ -798,7 +867,7 @@ const showUnpaidRegistrationsSearch = () => {
           <div>
             <div class="mb-1 text-sm">ຄ່າຮຽນ:</div>
             <div class="p-2 bg-gray-100 rounded font-bold">
-              {{ tuitionInfo.amount.toLocaleString() }} ກີບ
+              {{ Number(tuitionInfo.amount).toLocaleString() }} ກີບ
             </div>
           </div>
         </div>
@@ -831,7 +900,7 @@ const showUnpaidRegistrationsSearch = () => {
                 <td class="px-4 py-2">{{ item.id.substring(0, 8) }}...</td>
                 <td class="px-4 py-2">{{ item.payment_date }}</td>
                 <td class="px-4 py-2 text-right">
-                  {{ Number(item.amount) }} ກີບ
+                  {{ Number(item.amount).toLocaleString() }} ກີບ
                 </td>
                 <td class="px-4 py-2">
                   {{ item.payment_method === "cash" ? "ເງິນສົດ" : "ໂອນເງິນ" }}
@@ -856,7 +925,7 @@ const showUnpaidRegistrationsSearch = () => {
             <span v-if="isLoading">ກຳລັງດຳເນີນການ...</span>
             <span v-else>ຊຳລະ</span>
           </button>
-          <div v-else class="px-12 py-2 rounded ">
+          <div v-else class="px-12 py-2 rounded">
             <span>ບໍ່ພົບຂໍ້ມູນຄ່າ!</span>
           </div>
         </div>
@@ -866,7 +935,7 @@ const showUnpaidRegistrationsSearch = () => {
             <div class="text-right">ຈໍານວນ</div>
             <input
               type="text"
-              :value="tuitionInfo.amount"
+              :value="Number(tuitionInfo.amount).toLocaleString()"
               class="w-32 px-2 py-1 border rounded text-right"
               readonly
             />

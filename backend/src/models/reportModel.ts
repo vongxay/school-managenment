@@ -568,6 +568,99 @@ if (!level_id || level_id === null || level_id === '' || level_id === 'all' || l
   }
 };
 
+export const getMoneyByYear = async (
+  year_id?: number,
+  level_id?: string,
+): Promise<any[]> => {
+  try {
+    if (!year_id) return [];
+    let regRows: any[] = [];
+    if (
+      !level_id ||
+      level_id === null ||
+      level_id === '' ||
+      level_id === 'all' ||
+      level_id === undefined ||
+      level_id === 'null'
+    ) {
+      const [rows] = await db.query(
+        `SELECT r.id,
+        l.name AS level_name,
+        r.school_year,
+        sy.name AS school_year_name
+        FROM registrations r 
+        LEFT JOIN levels l ON r.level = l.id
+        LEFT JOIN school_years sy ON r.school_year = sy.id
+        WHERE r.school_year = ?`,
+        [year_id]
+      );
+      regRows = rows as any[];
+    } else {
+      const [rows] = await db.query(
+        `SELECT r.id,
+        l.name AS level_name,
+        r.school_year,
+        sy.name AS school_year_name
+        FROM registrations r 
+        LEFT JOIN levels l ON r.level = l.id
+        LEFT JOIN school_years sy ON r.school_year = sy.id WHERE school_year = ? AND level = ?`,
+        [year_id, level_id]
+      );
+      regRows = rows as any[];
+    }
+    const registrationIds = regRows.map(row => row.id);
+    if (registrationIds.length === 0) return [];
+
+    const placeholders = registrationIds.map(() => '?').join(',');
+    // Group by registration_id to keep mapping
+    const [studentRows] = await db.query(
+      `SELECT registration_id, amount, count(*) as number FROM payments WHERE registration_id IN (${placeholders}) GROUP BY registration_id`,
+      registrationIds
+    );
+
+    // Merge school_year_name and level_name from regRows for each payment row
+    // ...existing code up to result mapping...
+const result = (studentRows as any[]).map(payment => {
+  const reg = regRows.find(r => r.id === payment.registration_id);
+  return {
+    ...payment,
+    school_year_name: reg ? reg.school_year_name : null,
+    level_name: reg ? reg.level_name : null,
+  };
+});
+
+// Group by level_name and school_year_name
+const grouped: { [key: string]: any } = {};
+for (const row of result) {
+  // Use a composite key for grouping
+  const key = `${row.level_name}__${row.school_year_name}`;
+  if (!grouped[key]) {
+    grouped[key] = {
+      amount: parseFloat(row.amount),
+      number: Number(row.number),
+      school_year_name: row.school_year_name,
+      level_name: row.level_name,
+    };
+  } else {
+    grouped[key].amount += parseFloat(row.amount);
+    grouped[key].number += Number(row.number);
+  }
+}
+
+// Convert grouped object to array and format amount as string
+const groupedResult = Object.values(grouped).map((item: any) => ({
+  ...item,
+  amount: item.amount.toFixed(2),
+}));
+
+return groupedResult;
+  } catch (error) {
+    console.error('Error in getMoneyByYear:', error);
+    return [];
+  }
+};
+
+
 
 export const getStudentsByLevel = async (
   year_id?: number

@@ -9,6 +9,7 @@ router.get('/students', reportController.getStudentReports);
 // เส้นทางสำหรับดึงข้อมูลรายงานนักเรียนตามปีการศึกษา
 router.get('/studentByYear', reportController.getStudentReportsByYear);
 
+router.get('/moneyByYear', reportController.getMoneyReportsByYear);
 
 // เส้นทางสำหรับดึงข้อมูลรายงานการเงิน
 router.get('/financial', reportController.getFinancialReports);
