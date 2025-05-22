@@ -355,7 +355,6 @@ const saveRegistration = async () => {
 
     // ສ້າງຂໍ້ມູນການລົງທະບຽນໃໝ່ຕາມໂຄງສ້າງຖານຂໍ້ມູນ
     currentClassLevel.value = currentClassLevelId.value;
-    console.log("ກຳລັງສ້າງຂໍ້ມູນການລົງທະບຽນໃໝ່", currentClassLevel.value);
     const registrationData = {
       student_id: currentStudentId.value,
       student_name: currentStudentName.value,
@@ -389,7 +388,7 @@ const saveRegistration = async () => {
 
       // ລ້າງຟອມຫຼັງຈາກບັນທຶກ
       clearForm();
-
+      searchStudents();
       alert("ບັນທຶກການລົງທະບຽນສຳເລັດ");
     } else {
       apiError.value = response.data.message || "ເກີດຂໍ້ຜິດພາດໃນການລົງທະບຽນ";

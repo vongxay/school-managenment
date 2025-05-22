@@ -84,20 +84,22 @@ const handleSubmit = async () => {
       }
     } else {
       const newId = await studentStore.addStudent(student);
-      console.log('ລະຫັດນັກຮຽນໃໝ່:', newId);
-      console.log('ລະຫັດນັກຮຽນໃໝ່:', newId, 'await::',await studentStore.addStudent(student));
       if (newId) {
         alert('ບັນທຶກຂໍ້ມູນນັກຮຽນສຳເລັດແລ້ວ.');
+        studentStore.startNew();
       } else {
         alert('ບໍ່ສາມາດບັນທຶກຂໍ້ມູນນັກຮຽນໄດ້');
       }
     }
     // ເຄລີຢຣ໌ຟອມ
-    studentStore.startNew();
   } catch (error) {
     console.error('ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກຂໍ້ມູນນັກຮຽນ:', error);
     alert('ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກຂໍ້ມູນນັກຮຽນ');
   }
+  finally {
+    
+  }
+  
 };
 
 const handleDelete = async () => {

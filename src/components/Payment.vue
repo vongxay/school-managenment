@@ -383,8 +383,8 @@ const confirmPayment = async () => {
 
       // ຖາມຜູ້ໃຊ້ວ່າຕ້ອງການລ້າງຟອມເພື່ອຊຳລະເງິນຄົນໃໝ່ຫຼືບໍ່
       if (confirm("ທ່ານຕ້ອງການລ້າງຟອມເພື່ອຊຳລະເງິນຄົນໃໝ່ຫຼືບໍ່?")) {
-        resetForm();
       }
+      resetForm();                                                        ///////////////////////////////
     } else {
       alert("ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກການຊຳລະເງິນ");
     }
@@ -489,7 +489,6 @@ const selectRegistration = async (registrationId: string) => {
     }
 
     const registration = response.data.data;
-    console.log("ຂໍໍ່ມູນການລົງທະບຽນ:", registration);
     // ອັບເດດຂໍ້ມູນໃບເສັດຕາມການລົງທະບຽນ
     payment.invoiceNo = registration.id;
     payment.date = new Date().toISOString().split("T")[0];
@@ -522,7 +521,6 @@ const selectRegistration = async (registrationId: string) => {
             }`,
           },
         });
-        console.log("tuitionResponse", tuitionResponse);
         if (
           tuitionResponse.data.success &&
           tuitionResponse.data.data.length > 0
@@ -532,7 +530,6 @@ const selectRegistration = async (registrationId: string) => {
             (t: any) =>
               t.level === registration.level && t.year === registration.school_year
           );
-          console.log("matchingTuition", matchingTuition);
           if (matchingTuition) {
             amount.value = matchingTuition.amount;
             tuitionInfo.value = {
@@ -541,7 +538,6 @@ const selectRegistration = async (registrationId: string) => {
               level: matchingTuition.level,
               year: matchingTuition.year,
             };
-            console.log("Found matching tuition:", matchingTuition);
           } else {
             // ຖ້າບໍ່ພົບຄ່າຮຽນທີ່ຕົງກັບລະດັບຊັ້ນ ໃຊ້ຄ່າ 20000
             tuitionInfo.value = {
@@ -550,10 +546,7 @@ const selectRegistration = async (registrationId: string) => {
               level: "",
               year: "",
             };
-            console.log(
-              "No matching tuition found, using default:",
-              tuitionInfo.value
-            );
+          
           }
         }
       } catch (error) {

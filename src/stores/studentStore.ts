@@ -99,7 +99,7 @@ export const useStudentStore = () => {
 
       // ເອີ້ນໃຊ້ API ສ້າງນັກຮຽນໃໝ່
       const newStudentId = await studentApi.createStudent(student);
-      console.log("ເພີ່ມນັກຮຽນໃໝ່||1:", newStudentId);
+      console.log("|3|:", newStudentId);
       // ດຶງຂໍ້ມູນນັກຮຽນທັງໝົດໃໝ່
       await fetchAllStudents();
 

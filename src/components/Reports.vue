@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { onMounted, watch } from "@vue/runtime-core";
-import { getStudentReports } from "../api/reports";
+import { getStudentReportsByYear } from "../api/reports";
 import axios from "axios";
 import { useAuthStore } from "../stores/authStore";
 import html2pdf from "html2pdf.js";
@@ -132,51 +132,23 @@ const fetchReportData = async () => {
 
     if (selectedReport.value === "studentList") {
       try {
-        console.log("ຂໍ້ມູນລາຍງານນັກຮຽນPP:", params);
-        const response = await getStudentReports(params);
+        if (Object.keys(params).length === 0) {
+          return;
+        }
+        const response = await getStudentReportsByYear(params);
         if (response.success) {
-          console.log("ຂໍ້ມູນລາຍງານLL:", response.data);
-          reportData.value.studentList = response.data.studentList || [];
+          console.log("Response:", response.data.studentsByYear);
+          reportData.value.studentList = response.data.studentsByYear || [];
         }
       } catch (error) {
         console.error("เกิดข้อผิดพลาดในการดึงข้อมูลรายงานนักเรียน:", error);
         reportData.value.studentList = [];
       }
     } else if (selectedReport.value === "registration") {
-      //   try {
-      //     const response = await getStudentReports(params);
-      //     if (response.success) {
-      //       reportData.value.registration = response.data.registration || [];
-      //     } else {
-      //       // ຖ້າບໍ່ມີຂໍ້ມູນໃນການຕອບກັບ ໃຫ້ລອງດຶງຂໍ້ມູນຈາກ endpoint ເພີ່ມເຕີມ
-      //       const registrationResponse = await api.get('/reports/registration', { params });
-      //       if (registrationResponse.data.success) {
-      //         reportData.value.registration = registrationResponse.data.data.registration || [];
-      //       }
-      //     }
-      //   } catch (error) {
-      //     console.error('ຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນລາຍງານການລົງທະບຽນ:', error);
-      //     reportData.value.registration = [];
-      //   }
       await fetchRegistrations();
+    } else if (selectedReport.value === "financialReport") {
+      await fetchFinancialReport();
     }
-    // else if (selectedReport.value === 'gradesByClass') {
-    //   reportData.value.gradesByClass = filteredClasses.value;
-    // }
-    // else if (selectedReport.value === 'gradesByLevel') {
-    //   reportData.value.gradesByLevel = levels.value;
-    // }
-    // else if (selectedReport.value === 'financialReport') {
-    //   try {
-    //     const response = await getFinancialReports(params);
-    //     if (response.success) {
-    //       reportData.value.financialReport = response.data.financialReport || [];
-    //     }
-    //   } catch (error) {
-    //     console.error('ຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນລາຍງານການເງິນ:', error);
-    //     reportData.value.financialReport = [];
-    //   }
-    // }
   } catch (error) {
     console.error("ຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນລາຍງານ:", error);
   } finally {
@@ -218,6 +190,55 @@ const fetchRegistrations = async () => {
   }
 };
 
+const fetchFinancialReport = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/financial-report`, {
+      headers: {
+        Authorization: `Bearer ${authStore.user?.token}`,
+      },
+    });
+    if (
+      response.data.success &&
+      response.data.data &&
+      response.data.data.length > 0
+    ) {
+      reportData.value.financialReport = response.data.data;
+    } else {
+      // ถ้าไม่มีข้อมูลจาก API ให้ใช้ mock data ที่มี field ครบ
+      reportData.value.financialReport = [
+        {
+          id: "111",
+          name: "USD",
+          expenses: 0,
+          balance: 0,
+        },
+        {
+          id: "222",
+          name: "LAK",
+          expenses: 190000,
+          balance: 205000,
+        },
+      ];
+    }
+  } catch (error) {
+    reportData.value.financialReport = [
+      {
+        id: "111",
+        name: "USD",
+        expenses: 190000,
+        balance: 205000,
+      },
+      {
+        id: "222",
+        name: "LAK",
+        expenses: 0,
+        balance: 0,
+      },
+    ];
+  } finally {
+    loading.value = false;
+  }
+};
 // ເອີ້ນຂໍ້ມູນເມື່ອຄອມໂພເນນໂຫລດສຳເລັດ ແລະເມື່ອມີການປ່ຽນແປງຕົວກອງ
 onMounted(() => {
   fetchBasicData();
@@ -260,7 +281,11 @@ const printReport = () => {
     alert("ບໍ່ພົບຂໍ້ມູນທີ່ຕ້ອງການພິມ");
     return;
   }
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = new Date()
+    .toISOString()
+    .replace("T", "_")
+    .substring(0, 19)
+    .replace(/:/g, "-");
 
   const opt = {
     margin: 0.5,
@@ -403,7 +428,12 @@ function formatDate(dateStr: string) {
         </div>
         <div>
           <label class="block mb-2 text-sm font-medium">ຊັ້ນຮຽນ</label>
-          <select v-model="filters.levelId" class="w-full p-2 border rounded">
+          <select
+            v-model="filters.levelId"
+            class="w-full p-2 border rounded"
+            :class="[ selectedReport !== 'studentList'? 'bg-gray-200 cursor-not-allowed': '']"
+            :disabled="selectedReport !== 'studentList'"
+          >
             <option :value="null">ທັງໝົດ</option>
             <option v-for="level in levels" :key="level.id" :value="level.id">
               {{ level.name }}
@@ -559,6 +589,8 @@ function formatDate(dateStr: string) {
               <th class="border border-gray-300 px-4 py-2">ແຂວງ</th>
               <th class="border border-gray-300 px-4 py-2">ເພດ</th>
               <th class="border border-gray-300 px-4 py-2">ເບີໂທຕິດຕໍ່</th>
+              <th class="border border-gray-300 px-4 py-2">ຊົນເຜົ່າ</th>
+              <th class="border border-gray-300 px-4 py-2">ສານຊາດ</th>
             </tr>
           </thead>
           <tbody>
@@ -567,16 +599,16 @@ function formatDate(dateStr: string) {
                 {{ index + 1 }}
               </td>
               <td class="border border-gray-300 px-4 py-2">
-                {{ student.studentId }}
+                {{ student.student_id }}
               </td>
               <td class="border border-gray-300 px-4 py-2">
-                {{ student.name }}
+                {{ student.student_name_lao }}
               </td>
               <td class="border border-gray-300 px-4 py-2">
-                {{ student.parentPhone }}
+                {{ student.guardian_phone }}
               </td>
               <td class="border border-gray-300 px-4 py-2">
-                {{ student.dob }}
+                {{ formatDate(student.date_of_birth) }}
               </td>
               <td class="border border-gray-300 px-4 py-2">
                 {{ student.village }}
@@ -591,7 +623,13 @@ function formatDate(dateStr: string) {
                 {{ student.gender }}
               </td>
               <td class="border border-gray-300 px-4 py-2">
-                {{ student.phone }}
+                {{ student.phone_number }}
+              </td>
+              <td class="border border-gray-300 px-4 py-2">
+                {{ student.ethnicity }}
+              </td>
+              <td class="border border-gray-300 px-4 py-2">
+                {{ student.nationality }}
               </td>
             </tr>
             <tr v-if="reportData.studentList.length === 0">
@@ -836,10 +874,10 @@ function formatDate(dateStr: string) {
                 {{ index + 1 }}
               </td>
               <td class="border border-gray-300 px-4 py-2">
-                {{ finance.month }}
+                {{ finance.id }}
               </td>
               <td class="border border-gray-300 px-4 py-2 text-right">
-                {{ finance.income.toLocaleString() }}
+                {{ finance.name }}
               </td>
               <td class="border border-gray-300 px-4 py-2 text-right">
                 {{ finance.expenses.toLocaleString() }}

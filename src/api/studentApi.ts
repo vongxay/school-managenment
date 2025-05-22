@@ -94,7 +94,8 @@ export const studentApi = {
       };
 
       const response = await axios.post('/students', studentData);
-      return response.data.data.studentId;
+      console.log('|4|:', response.data);
+      return response.data.data.id;
     } catch (error) {
       console.error('Error creating student:', error);
       throw error;

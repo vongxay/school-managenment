@@ -403,7 +403,7 @@ const createNewTuition = () => {
 
 // ສ້າງຊື່ຄ່າຮຽນຕາມລະດັບຊັ້ນທີ່ເລືອກ
 const updateName = () => {
-  console.log("Update name called", formTuition) ;
+  console.log("Update name called", formTuition);
   formTuition.name = `ຄ່າຮຽນ ${formTuition.level}`;
 };
 
@@ -463,7 +463,7 @@ watch(
 
 // ໂຫລດຂໍ້ມູນເມື່ອຄອມໂພເນັນຖືກສ້າງ
 onMounted(async () => {
-  await Promise.all([fetchTuitions(), fetchYears(), fetchLevels(),]);
+  await Promise.all([fetchTuitions(), fetchYears(), fetchLevels()]);
   createNewTuition();
 });
 
@@ -512,6 +512,12 @@ defineExpose({
           min="0"
           class="w-full px-3 py-2 border border-gray-300 rounded"
         />
+        <div class="mt-1 text-gray-500 text-sm">
+          {{
+            formTuition.amount ? formTuition.amount.toLocaleString() : "0"
+          }}
+          ກີບ
+        </div>
       </div>
 
       <div class="mb-4">
@@ -561,9 +567,13 @@ defineExpose({
               v-for="(year, index) in schoolYears"
               :key="index"
               :value="year"
-              :label="year.is_current === 1 ? year.name + '✔️' : year.name || '0000-00-00'"
+              :label="
+                year.is_current === 1
+                  ? year.name + '✔️'
+                  : year.name || '0000-00-00'
+              "
             >
-            {{ year.name }}
+              {{ year.name }}
             </option>
           </select>
           <button class="px-3 py-2 bg-gray-200 rounded">...</button>
@@ -592,7 +602,7 @@ defineExpose({
           ]"
           :disabled="isLoading"
         >
-          {{ selectedTuition ? "ອັບເດດ" : "ບັນທຶກ"}}
+          {{ selectedTuition ? "ອັບເດດ" : "ບັນທຶກ" }}
         </button>
       </div>
     </div>
@@ -745,8 +755,8 @@ defineExpose({
               selectedTuition?.id === tuition.id
                 ? 'bg-blue-600 text-white'
                 : index % 2 !== 0
-              ? 'bg-gray-100'
-              : 'bg-white',
+                ? 'bg-gray-100'
+                : 'bg-white',
             ]"
           >
             <div>{{ tuition.id }}</div>

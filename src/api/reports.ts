@@ -1,13 +1,14 @@
 import { api } from './index';
 
 // ดึงข้อมูลรายงานนักเรียน
-export const getStudentReports = async (params?: {
+export const getStudentReportsByYear = async (params?: {
   year_id?: number;
   level_id?: string;
-  class_id?: string;
+  // class_id?: string;
 }) => {
   try {
-    const response = await api.get('/reports/students', { params });
+    console.log('Fetching student reports with params{{}}:', params);
+    const response = await api.get('/reports/studentByYear', { params });
     return response.data;
   } catch (error) {
     console.error('Error fetching student reports:', error);
