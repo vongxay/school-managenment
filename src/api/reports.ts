@@ -17,12 +17,12 @@ export const getStudentReportsByYear = async (params?: {
 };
 
 // ดึงข้อมูลรายงานการเงิน
-export const getFinancialReports = async (params?: {
+export const getMoneyByYearReportsByYear = async (params?: {
   year_id?: number;
   month?: string;
 }) => {
   try {
-    const response = await api.get('/reports/financial', { params });
+    const response = await api.get('/reports/moneyByYear', { params });
     return response.data;
   } catch (error) {
     console.error('Error fetching financial reports:', error);

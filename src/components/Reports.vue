@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { onMounted, watch } from "@vue/runtime-core";
-import { getStudentReportsByYear } from "../api/reports";
+import {
+  getStudentReportsByYear,
+  getMoneyByYearReportsByYear,
+} from "../api/reports";
 import axios from "axios";
 import { useAuthStore } from "../stores/authStore";
 import html2pdf from "html2pdf.js";
@@ -147,7 +150,11 @@ const fetchReportData = async () => {
     } else if (selectedReport.value === "registration") {
       await fetchRegistrations();
     } else if (selectedReport.value === "financialReport") {
-      await fetchFinancialReport();
+      // await fetchFinancialReport();
+      const response = await getMoneyByYearReportsByYear(params);
+      if (response.success) {
+        reportData.value.financialReport = response.data.studentsByYear || [];
+      }
     }
   } catch (error) {
     console.error("ຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນລາຍງານ:", error);
@@ -190,55 +197,27 @@ const fetchRegistrations = async () => {
   }
 };
 
-const fetchFinancialReport = async () => {
-  try {
-    const response = await axios.get(`${API_URL}/financial-report`, {
-      headers: {
-        Authorization: `Bearer ${authStore.user?.token}`,
-      },
-    });
-    if (
-      response.data.success &&
-      response.data.data &&
-      response.data.data.length > 0
-    ) {
-      reportData.value.financialReport = response.data.data;
-    } else {
-      // ถ้าไม่มีข้อมูลจาก API ให้ใช้ mock data ที่มี field ครบ
-      reportData.value.financialReport = [
-        {
-          id: "111",
-          name: "USD",
-          expenses: 0,
-          balance: 0,
-        },
-        {
-          id: "222",
-          name: "LAK",
-          expenses: 190000,
-          balance: 205000,
-        },
-      ];
-    }
-  } catch (error) {
-    reportData.value.financialReport = [
-      {
-        id: "111",
-        name: "USD",
-        expenses: 190000,
-        balance: 205000,
-      },
-      {
-        id: "222",
-        name: "LAK",
-        expenses: 0,
-        balance: 0,
-      },
-    ];
-  } finally {
-    loading.value = false;
-  }
-};
+// const fetchFinancialReport = async () => {
+//   try {
+//     const response = await axios.get(`${API_URL}/reports/moneyByYear`, {
+//       headers: {
+//         Authorization: `Bearer ${authStore.user?.token}`,
+//       },
+//     });
+//     console.log("Response||:", response.data);
+//     if (
+//       response.data.success &&
+//       response.data.data &&
+//       response.data.data.length > 0
+//     ) {
+//       reportData.value.financialReport = response.data.data || [];
+//     }
+//   } catch (error) {
+//     console.error("Error fetching financial report:", error);
+//   } finally {
+//     loading.value = false;
+//   }
+// };
 // ເອີ້ນຂໍ້ມູນເມື່ອຄອມໂພເນນໂຫລດສຳເລັດ ແລະເມື່ອມີການປ່ຽນແປງຕົວກອງ
 onMounted(() => {
   fetchBasicData();
@@ -431,8 +410,20 @@ function formatDate(dateStr: string) {
           <select
             v-model="filters.levelId"
             class="w-full p-2 border rounded"
-            :class="[ selectedReport !== 'studentList'? 'bg-gray-200 cursor-not-allowed': '']"
-            :disabled="selectedReport !== 'studentList'"
+            :class="[
+              !(
+                selectedReport === 'studentList' ||
+                selectedReport === 'financialReport'
+              )
+                ? 'bg-gray-200 cursor-not-allowed'
+                : '',
+            ]"
+            :disabled="
+              !(
+                selectedReport === 'studentList' ||
+                selectedReport === 'financialReport'
+              )
+            "
           >
             <option :value="null">ທັງໝົດ</option>
             <option v-for="level in levels" :key="level.id" :value="level.id">
@@ -859,10 +850,10 @@ function formatDate(dateStr: string) {
           <thead>
             <tr class="bg-yellow-100">
               <th class="border border-gray-300 px-4 py-2">ລ/ດ</th>
-              <th class="border border-gray-300 px-4 py-2">ເດືອນ</th>
-              <th class="border border-gray-300 px-4 py-2">ລາຍຮັບ (ກີບ)</th>
-              <th class="border border-gray-300 px-4 py-2">ລາຍຈ່າຍ (ກີບ)</th>
-              <th class="border border-gray-300 px-4 py-2">ຍອດເຫຼືອ (ກີບ)</th>
+              <th class="border border-gray-300 px-4 py-2">ສົກຮຽນ</th>
+              <th class="border border-gray-300 px-4 py-2">ຊັ້ນຮຽນ</th>
+              <th class="border border-gray-300 px-4 py-2">ນັກຮຽນ</th>
+              <th class="border border-gray-300 px-4 py-2">ເງີນ (Lak)</th>
             </tr>
           </thead>
           <tbody>
@@ -874,16 +865,16 @@ function formatDate(dateStr: string) {
                 {{ index + 1 }}
               </td>
               <td class="border border-gray-300 px-4 py-2">
-                {{ finance.id }}
+                {{ finance.school_year_name }}
               </td>
               <td class="border border-gray-300 px-4 py-2 text-right">
-                {{ finance.name }}
+                {{ finance.level_name }}
               </td>
               <td class="border border-gray-300 px-4 py-2 text-right">
-                {{ finance.expenses.toLocaleString() }}
+                {{ finance.number.toLocaleString() }}
               </td>
               <td class="border border-gray-300 px-4 py-2 text-right">
-                {{ finance.balance.toLocaleString() }}
+                {{ (Number(finance.amount)).toLocaleString() }}
               </td>
             </tr>
             <tr v-if="reportData.financialReport.length === 0">
