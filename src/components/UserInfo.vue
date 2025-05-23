@@ -367,9 +367,10 @@ const handleImageUpload = (event: Event) => {
             v-model="formUser.role"
             class="w-full px-3 py-2 border border-gray-300 rounded"
           >
-            <option value="admin">ຜູ້ດູແລລະບົບ</option>
+            <option value="admin">ຫົວໜ້າອາໜອຍການ</option>
+            <option value="T-admin">ຮອງຫົວໜ້າອາໜອຍການ</option>
+            <option value="T-money">ຝ່າຍການເງີນ</option>
             <option value="teacher">ຄູສອນ</option>
-            <option value="staff">ພະນັກງານ</option>
           </select>
         </div>
 

@@ -11,7 +11,7 @@ import html2pdf from "html2pdf.js";
 
 const authStore = useAuthStore();
 // import { api } from '../api/index';
-import { getAcademicYears, getLevels, getClasses } from "../api/common";
+import { getAcademicYears, getLevels, getClassesReoort } from "../api/common";
 import * as XLSX from "xlsx";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
@@ -63,8 +63,7 @@ const loading = ref(false);
 
 // ກອງຫ້ອງຮຽນຕາມຊັ້ນຮຽນທີ່ເລືອກ
 const filteredClasses = computed(() => {
-  if (!filters.value.levelId) return classes.value;
-  return classes.value.filter((c) => c.levelId === filters.value.levelId);
+  return classes.value;
 });
 
 // ຟັງຊັນດຶງຂໍ້ມູນພື້ນຖານ
@@ -90,7 +89,7 @@ const fetchBasicData = async () => {
     }
 
     // ດຶງຂໍ້ມູນຫ້ອງຮຽນທັງໝົດ
-    const classesResponse = await getClasses();
+    const classesResponse = await getClassesReoort();
     if (classesResponse.success) {
       classes.value = classesResponse.data.map((c: any) => ({
         id: c.id,
@@ -108,7 +107,7 @@ const fetchClassesByLevel = async (levelId: string) => {
   if (!levelId) return;
 
   try {
-    const response = await getClasses(levelId);
+    const response = await getClassesReoort();
     if (response.success) {
       classes.value = response.data.map((c: any) => ({
         id: c.id,
@@ -140,7 +139,6 @@ const fetchReportData = async () => {
         }
         const response = await getStudentReportsByYear(params);
         if (response.success) {
-          console.log("Response:", response.data.studentsByYear);
           reportData.value.studentList = response.data.studentsByYear || [];
         }
       } catch (error) {
@@ -152,8 +150,35 @@ const fetchReportData = async () => {
     } else if (selectedReport.value === "financialReport") {
       // await fetchFinancialReport();
       const response = await getMoneyByYearReportsByYear(params);
+      console.log("response||:", response.data.studentsByYear);
       if (response.success) {
-        reportData.value.financialReport = response.data.studentsByYear || [];
+        // Group data by school year
+        const groupedByYear = response.data.studentsByYear.reduce((acc: { [key: string]: any[] }, curr: any) => {
+          if (!acc[curr.school_year_name]) {
+            acc[curr.school_year_name] = [];
+          }
+          acc[curr.school_year_name].push(curr);
+          return acc;
+        }, {});
+
+        // Calculate totals and add summary rows
+        const processedData = Object.entries(groupedByYear).flatMap(([year, data]) => {
+          const yearData = data as any[];
+          const totalAmount = yearData.reduce((sum, item) => sum + parseFloat(item.amount), 0);
+          const totalNumber = yearData.reduce((sum, item) => sum + item.number, 0);
+
+          // Add summary row for this year
+          const summaryRow = {
+            amount: totalAmount.toFixed(2),
+            number: totalNumber,
+            school_year_name: year,
+            level_name: 'ທັງໝົດ'
+          };
+
+          return [...yearData, summaryRow];
+        });
+
+        reportData.value.financialReport = processedData || [];
       }
     }
   } catch (error) {
@@ -197,28 +222,6 @@ const fetchRegistrations = async () => {
   }
 };
 
-// const fetchFinancialReport = async () => {
-//   try {
-//     const response = await axios.get(`${API_URL}/reports/moneyByYear`, {
-//       headers: {
-//         Authorization: `Bearer ${authStore.user?.token}`,
-//       },
-//     });
-//     console.log("Response||:", response.data);
-//     if (
-//       response.data.success &&
-//       response.data.data &&
-//       response.data.data.length > 0
-//     ) {
-//       reportData.value.financialReport = response.data.data || [];
-//     }
-//   } catch (error) {
-//     console.error("Error fetching financial report:", error);
-//   } finally {
-//     loading.value = false;
-//   }
-// };
-// ເອີ້ນຂໍ້ມູນເມື່ອຄອມໂພເນນໂຫລດສຳເລັດ ແລະເມື່ອມີການປ່ຽນແປງຕົວກອງ
 onMounted(() => {
   fetchBasicData();
   fetchReportData();
@@ -427,7 +430,7 @@ function formatDate(dateStr: string) {
           >
             <option :value="null">ທັງໝົດ</option>
             <option v-for="level in levels" :key="level.id" :value="level.id">
-              {{ level.name }}
+              {{ !(selectedReport === 'studentList' || selectedReport === 'financialReport') ? 'ທັງໝົດ' : level.name }}
             </option>
           </select>
         </div>
@@ -529,7 +532,7 @@ function formatDate(dateStr: string) {
                   : selectedReport === "gradesByClass"
                   ? "ຂໍ້ມູນຫ້ອງຮຽນ"
                   : selectedReport === "gradesByLevel"
-                  ? "ລາຍງານຄະແນນຕາມຊັ້ນຮຽນ"
+                  ? "ລາຍງານຊັ້ນຮຽນ"
                   : selectedReport === "registration"
                   ? "ລາຍງານການລົງທະບຽນ"
                   : selectedReport === "financialReport"
@@ -544,16 +547,23 @@ function formatDate(dateStr: string) {
         <div v-if="filters.yearId" class="p-4 mb-4 mx-auto">
           <div class="text-center">
             <h3 class="text-lg">
-              ລາຍງານຂໍ້ມູນນັກຮຽນທີ່ລົງທະບຽນແລ້ວປະຈຳສົກຮຽນ
-              {{ years.find((y: SchoolYear) => y.id === filters.yearId)?.name }}
-              <span v-if="filters.levelId">
-                ຊັ້ນ
-                {{ levels.find((l: any) => l.id === filters.levelId)?.name }}
-              </span>
-              <span v-if="filters.classId && filters.levelId">
-                ຫ້ອງ
-                {{ classes.find((c: any) => c.id === filters.classId)?.name }}
-              </span>
+              {{
+                "ລາຍງານຂໍ້ມູນ" +
+                (selectedReport === "studentList"
+                  ? "ນັກຮຽນທັງໝົດ"
+                  : selectedReport === "gradesByClass"
+                  ? "ຫ້ອງຮຽນ"
+                  : selectedReport === "gradesByLevel"
+                  ? "ຊັ້ນຮຽນ"
+                  : selectedReport === "registration"
+                  ? "ການລົງທະບຽນ"
+                  : selectedReport === "financialReport"
+                  ? "ການເງິນ"
+                  : "") +
+                "ປະຈຳສົກຮຽນ" +
+                (years.find((y: SchoolYear) => y.id === filters.yearId)?.name ||
+                  "")
+              }}
             </h3>
           </div>
         </div>
@@ -626,63 +636,6 @@ function formatDate(dateStr: string) {
             <tr v-if="reportData.studentList.length === 0">
               <td
                 colspan="10"
-                class="border border-gray-300 px-4 py-4 text-center"
-              >
-                ບໍ່ມີຂໍ້ມູນໃນລະບົບ
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- ສ່ວນສະແດງຜົນລາຍງານຕາມຊັ້ນຮຽນ -->
-      <div v-else-if="selectedReport === ''" class="overflow-x-auto">
-        <table class="min-w-full border-collapse border border-gray-300">
-          <thead>
-            <tr class="bg-yellow-100">
-              <th class="border border-gray-300 px-4 py-2">ລ/ດ</th>
-              <th class="border border-gray-300 px-4 py-2">ລະຫັດນັກຮຽນ</th>
-              <th class="border border-gray-300 px-4 py-2">ຊື່ ແລະ ນາມສະກຸນ</th>
-              <th class="border border-gray-300 px-4 py-2">ເບີໂທຜູ້ປົກຄອງ</th>
-              <th class="border border-gray-300 px-4 py-2">ວັນເດືອນປີເກີດ</th>
-              <th class="border border-gray-300 px-4 py-2">ບ້ານ</th>
-              <th class="border border-gray-300 px-4 py-2">ເມືອງ</th>
-              <th class="border border-gray-300 px-4 py-2">ແຂວງ</th>
-              <th class="border border-gray-300 px-4 py-2">ເພດ</th>
-              <th class="border border-gray-300 px-4 py-2">ເບີໂທຕິດຕໍ່</th>
-              <th class="border border-gray-300 px-4 py-2">ຊັ້ນຮຽນ</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="i in 9" :key="i">
-              <td class="border border-gray-300 px-4 py-2 text-center">
-                {{ index + 1 }}
-              </td>
-              <td class="border border-gray-300 px-4 py-2">
-                <!-- {{ student.studentId }} -->
-              </td>
-              <td class="border border-gray-300 px-4 py-2">
-                <!-- {{ student.name }} -->
-              </td>
-              <td class="border border-gray-300 px-4 py-2">
-                <!-- {{ student.class }} -->
-              </td>
-              <td class="border border-gray-300 px-4 py-2">
-                <!-- {{ student.math }} -->
-              </td>
-              <td class="border border-gray-300 px-4 py-2">
-                {{ student.science }}
-              </td>
-              <td class="border border-gray-300 px-4 py-2">
-                {{ student.language }}
-              </td>
-              <td class="border border-gray-300 px-4 py-2">
-                {{ student.average }}
-              </td>
-            </tr>
-            <tr v-if="reportData.gradesByClass.length === 0">
-              <td
-                colspan="8"
                 class="border border-gray-300 px-4 py-4 text-center"
               >
                 ບໍ່ມີຂໍ້ມູນໃນລະບົບ
@@ -860,9 +813,10 @@ function formatDate(dateStr: string) {
             <tr
               v-for="(finance, index) in reportData.financialReport"
               :key="index"
+              :class="[finance.level_name === 'ທັງໝົດ' ? 'bg-yellow-50' : '']"
             >
               <td class="border border-gray-300 px-4 py-2 text-center">
-                {{ index + 1 }}
+                {{ finance.level_name === 'ທັງໝົດ' ? 'ລອມ' : index + 1 }}
               </td>
               <td class="border border-gray-300 px-4 py-2">
                 {{ finance.school_year_name }}
@@ -874,7 +828,7 @@ function formatDate(dateStr: string) {
                 {{ finance.number.toLocaleString() }}
               </td>
               <td class="border border-gray-300 px-4 py-2 text-right">
-                {{ (Number(finance.amount)).toLocaleString() }}
+                {{ Number(finance.amount).toLocaleString() }}
               </td>
             </tr>
             <tr v-if="reportData.financialReport.length === 0">
