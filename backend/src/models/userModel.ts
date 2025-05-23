@@ -85,10 +85,22 @@ class UserModel {
       const hashedPassword = await bcrypt.hash(userData.password, 10);
       const id = uuidv4();
 
+       // Query the latest student_id
+          const [rows] = await db.query<RowDataPacket[]>(
+            `SELECT id FROM users ORDER BY id DESC LIMIT 1`
+          );
+      
+          let newUserId = '001'; // Default value if no students exist
+          if (rows.length > 0 && rows[0].id) {
+              const lastStudentId = rows[0].id;
+              const numericPart = parseInt(lastStudentId, 10); // Extract numeric part
+              newUserId = String(numericPart + 1).padStart(3, '0'); // Increment and pad with leading zeros
+          }
+
       await db.execute(
         'INSERT INTO users (id, username, password, name, role, active, image) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [
-          id,
+          newUserId,
           userData.username,
           hashedPassword,
           userData.name,
