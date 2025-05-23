@@ -1,19 +1,64 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from "@vue/runtime-dom";
+import { ref, onMounted, watch, computed } from "@vue/runtime-dom";
 import Chart from "chart.js/auto";
+import { useStudentStore } from "../stores/studentStore";
+import { getMoneyByYearReportsByYear } from "../api/reports";
+import axios from "axios";
 
+// Get stores
+const studentStore = useStudentStore();
+
+const API_URL = "http://localhost:5000/api";
+const classes = ref(0);
+const unpaidTotalAmount = ref(0);
+const unpaidTotalNumber = ref(0);
 // Toggle between monthly and yearly views
 const viewMode = ref<"monthly" | "yearly">("monthly");
 
-// Mock statistics data
-const stats = ref({
-  totalStudents: 358,
-  maleStudents: 210,
-  femaleStudents: 148,
-  totalClasses: 12,
-  averageAttendance: 97.2,
-  unpaidFees: 12500000,
+// Calculate stats from real data
+const stats = computed(() => {
+  const students = studentStore.students;
+  return {
+    totalStudents: students.length,
+    maleStudents: students.filter((s) => s.gender === "M").length,
+    femaleStudents: students.filter((s) => s.gender === "F").length,
+    unpaidFees: 12500000, // This should be calculated from actual payment data
+  };
 });
+
+const fetchYears = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/years`);
+    if (response.data.success) {
+      const currentYear = response.data.data.find((y: any) => y.is_current === 1);
+      return currentYear ? currentYear.id : null;
+    }
+  } catch (error) {
+    console.error("Error fetching school years:", error);
+    return null;
+  }
+};
+
+const fetchReportData = async () => {
+  try {
+    const params: { [key: string]: any } = {};
+    params.year_id = await fetchYears();
+    params.level_id = '';
+    const response = await getMoneyByYearReportsByYear(params);
+    if (response.success) {
+      let totalAmount = 0;
+      let totalNumber = 0;
+      response.data.studentsByYear.forEach((item: any) => {
+        totalAmount += parseFloat(item.amount);
+        totalNumber += item.number;
+      });
+      unpaidTotalAmount.value = totalAmount;
+      unpaidTotalNumber.value = totalNumber;
+    }
+  } catch (error) {
+    console.error("ຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນລາຍງານ:", error);
+  }
+};
 
 // Yearly attendance data for the chart
 const yearlyAttendanceData = ref([88, 86, 92, 81, 90]);
@@ -32,6 +77,17 @@ const getCurrentChartData = () => {
     attendanceData: yearlyAttendanceData.value,
     paymentData: yearlyPaymentData.value,
   };
+};
+const fetchClasses = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/classes`);
+    if (response.data.success) {
+      Object.assign(classes, response.data.data);
+      classes.value = response.data.data.length;
+    }
+  } catch (error) {
+    console.error("Error fetching classes:", error);
+  }
 };
 
 // Function to initialize or update the charts
@@ -142,10 +198,13 @@ watch(viewMode, () => {
   updateCharts();
 });
 
-onMounted(() => {
+// Load data when component is mounted
+onMounted(async () => {
+  await Promise.all([studentStore.getAllStudents()]);
   updateCharts();
+  fetchClasses();
+  fetchReportData();
 });
-
 </script>
 
 <template>
@@ -173,7 +232,7 @@ onMounted(() => {
             ></span>
             ຊາຍ: {{ stats.maleStudents }}
           </span>
-          <span class="text-gray-600 ml-4 flex items-center">
+          <span class="text-gray-600 flex items-center">
             <span
               class="inline-block w-3 h-3 bg-purple-500 rounded-full mr-2"
             ></span>
@@ -187,9 +246,9 @@ onMounted(() => {
       >
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-sm font-medium text-gray-500">ຈຳນວນຫ້ອງຮຽນ</p>
+            <p class="text-sm font-medium text-gray-500">ຈຳນວນຫ້ອງຮຽນທັງໝົດ</p>
             <p class="text-3xl font-bold text-green-700">
-              {{ stats.totalClasses }}
+              {{ classes }}
             </p>
           </div>
           <div class="p-3 bg-green-100 rounded-full text-green-800 text-xl">
@@ -201,7 +260,7 @@ onMounted(() => {
             <span
               class="inline-block w-3 h-3 bg-green-500 rounded-full mr-2"
             ></span>
-            ອັດຕາການມາຮຽນ: {{ stats.averageAttendance }}%
+            ຈຳນວນທັງໝົດ ຊັ້ນ ມ.1 ເຖີງ ຊັ້ນ ມ.7
           </span>
         </div>
       </div>
@@ -211,9 +270,9 @@ onMounted(() => {
       >
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-sm font-medium text-gray-500">ຄ່າຮຽນຍັງບໍ່ທັນຈ່າຍ</p>
+            <p class="text-sm font-medium text-gray-500">ຄ່າຮຽນຈ່າຍທັງຫໝົດ</p>
             <p class="text-3xl font-bold text-red-700">
-              {{ stats.unpaidFees.toLocaleString() }} ₭
+              {{ unpaidTotalAmount.toLocaleString() }} Lak
             </p>
           </div>
           <div class="p-3 bg-red-100 rounded-full text-red-800 text-xl">💰</div>
@@ -223,7 +282,7 @@ onMounted(() => {
             <span
               class="inline-block w-3 h-3 bg-red-500 rounded-full mr-2"
             ></span>
-            ຕ້ອງໄດ້ຮັບຊຳລະພາຍໃນເດືອນນີ້
+            ນັກຮຽນທັງໝົດ:{{ unpaidTotalNumber }}
           </span>
         </div>
       </div>

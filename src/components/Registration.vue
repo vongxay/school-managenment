@@ -1,11 +1,10 @@
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import axios from "axios";
 import html2pdf from "html2pdf.js";
 import { useAuthStore } from "../stores/authStore";
 
 const authStore = useAuthStore();
-
 // ຂໍ້ມູນການລົງທະບຽນ
 const registrations = ref([]);
 const studentTableData = ref([]);
@@ -32,8 +31,19 @@ const currentStudentPhone = ref("");
 const currentClassName = ref("");
 const currentClassLevel = ref(""); // ເພີ່ມຕົວແປເກັບລະດັບຊັ້ນຂອງຫ້ອງຮຽນ
 const currentClassLevelId = ref(""); // ເພີ່ມຕົວແປເກັບລະຫັດລະດັບຊັ້ນຂອງຫ້ອງຮຽນ
-const numberOfBills = ref("");
-const description = ref("");
+
+const reportFile = ref({
+  id: "",
+  studentId: "",
+  name: "",
+  phone: "",
+  classroom: "",
+  level: "",
+  schoolYear: "",
+  paid: false,
+  date: "",
+});
+
 const searchQuery = ref("");
 const studentSearchQuery = ref("");
 const isAuthenticated = ref(false);
@@ -387,9 +397,10 @@ const saveRegistration = async () => {
       await fetchRegistrations();
 
       // ລ້າງຟອມຫຼັງຈາກບັນທຶກ
-      clearForm();
-      searchStudents();
       alert("ບັນທຶກການລົງທະບຽນສຳເລັດ");
+      
+      searchStudents();
+      clearForm();
     } else {
       apiError.value = response.data.message || "ເກີດຂໍ້ຜິດພາດໃນການລົງທະບຽນ";
       alert(apiError.value);
@@ -529,7 +540,6 @@ const fetchClasses = async () => {
 
     if (response.data.success) {
       // ປັບໃຫ້ເກັບຂໍ້ມູນເປັນ object ໂດຍກົງສຳລັບ dialog
-      console.log("ຂໍ້ມູນຫ້ອງຮຽນ???:", response.data.data);
       classroomData.value = response.data.data.map((cls) => ({
         id: cls.id,
         name: cls.name,
@@ -635,40 +645,34 @@ const openSchoolYearDialog = (event) => {
 
 // ເລືອກການລົງທະບຽນ
 const selectRegistration = async (registrationId) => {
-  try {
-    isLoading.value = true;
-
-    const response = await axios.get(
-      `${API_URL}/registrations/${registrationId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${authStore.user?.token}`,
-        },
-      }
-    );
-
-    if (response.data.success && response.data.data) {
-      const registration = response.data.data;
-
-      // ອັບເດດຂໍ້ມູນໃບເສັດຕາມການລົງທະບຽນ
-      currentRegistrationId.value = registration.invoice_id || registration.id;
-      currentStudentId.value = registration.student_id;
-      currentStudentName.value = registration.student_name;
-      currentStudentPhone.value = registration.student_phone;
-      currentClassName.value = registration.classroom;
-      currentClassLevel.value = registration.level;
-      currentSchoolYear.value = registration.school_year;
-    } else {
-      throw new Error("ບໍ່ພົບຂໍ້ມູນການລົງທະບຽນ");
-    }
-  } catch (err) {
-    console.error("ເກີດຂໍ້ຜິດພາດໃນການໂຫລດຂໍ້ມູນການລົງທະບຽນ:", err);
-    error.value = "ບໍ່ສາມາໂຫລດຂໍ້ມູນການລົງທະບຽນໄດ້";
-  } finally {
-    isLoading.value = false;
-  }
+  console.log("ກຳລັງເລືອກການລົງທະບຽນ11:", registrationId);
+  reportFile.value = {
+    id: registrationId.id,
+    studentId: registrationId.studentId, // ใช้ key ให้ตรงกับ ref
+    name: registrationId.studentName, // ใช้ key name
+    phone: registrationId.studentPhone, // ใช้ key phone
+    classroom: registrationId.classroom,
+    level: registrationId.level,
+    schoolYear: registrationId.schoolYear,
+    paid: registrationId.paid || false,
+    date: registrationId.registrationDate,
+  };
+  console.log("ກຳລັງເລືອກການລົງທະບຽນ22:", reportFile.value);
 };
 
+const creaReport = async () => {
+  reportFile.value = {
+    id: "",
+    studentId: "", // ใช้ key ให้ตรงกับ ref
+    name: "", // ใช้ key name
+    phone: "", // ใช้ key phone
+    classroom: "",
+    level: "",
+    schoolYear: "",
+    paid: false,
+    date: "",
+  };
+};
 // ເພີ່ມຟັງຊັນສຳລັບປິດ dropdown ເມື່ອຄລິກນອກພື້ນທີ່ dropdown
 const closeDropdowns = (event) => {
   // ກວດສອບວ່າມີການຄລິກນອກພື້ນທີ່ dropdown ຫຼືບໍ່
@@ -729,7 +733,7 @@ onMounted(() => {
       if (authStore.isAuthenticated) {
         fetchRegistrations();
       }
-    }, 30000);
+    }, 60*1000);
 
     // ເກັບ interval ໄວ້ໃນຕົວແປເພື່ອລຶບເມື່ອຄອມໂພເນນຖືກທຳລາຍ
     onUnmounted(() => {
@@ -1037,10 +1041,13 @@ const updatePaymentStatus = async (registrationId, isPaid) => {
           class="grid grid-cols-9 p-1 border-b"
           :class="[
             'grid grid-cols-4 p-2',
-            index % 2 !== 0
+            reportFile.id === reg.id
+              ? 'bg-blue-600 text-white '
+              : index % 2 !== 0
               ? 'bg-gray-100 hover:bg-blue-100'
               : 'bg-white hover:bg-blue-100',
           ]"
+          @click="selectRegistration(reg)"
         >
           <div>{{ reg.id }}</div>
           <div>{{ formatDate(reg.registrationDate) }}</div>
@@ -1050,14 +1057,14 @@ const updatePaymentStatus = async (registrationId, isPaid) => {
           <div>{{ reg.classroom }}</div>
           <div>{{ reg.level }}</div>
           <div>{{ reg.schoolYear }}</div>
-          <div :class="reg.paid ? 'text-green-600 font-bold' : 'text-red-600'">
+          <div :class="reportFile.id === reg.id ? 'text-white' : reg.paid ? 'text-green-600 font-bold' : 'text-red-600'">
             {{ reg.paid ? "ຈ່າຍແລ້ວ" : "ຍັງບໍ່ຈ່າຍ" }}
           </div>
         </div>
       </div>
     </div>
 
-    <div class="flex justify-center space-x-4">
+    <div class="flex justify-center space-x-4 mb-4">
       <button
         class="px-6 py-2 border bg-gray-300 text-black rounded hover:bg-gray-400 disabled:opacity-50"
         @click="saveRegistration"
@@ -1071,6 +1078,13 @@ const updatePaymentStatus = async (registrationId, isPaid) => {
         :disabled="isLoading || !isAuthenticated"
       >
         ພິມໃບລົງທະບຽນ
+      </button>
+      <button
+        class="px-6 py-2 border bg-gray-300 text-black rounded hover:bg-gray-400 disabled:opacity-50"
+        @click="creaReport"
+        :disabled="isLoading || !isAuthenticated"
+      >
+        ລ້າງຟອມ
       </button>
     </div>
 
@@ -1094,19 +1108,19 @@ const updatePaymentStatus = async (registrationId, isPaid) => {
       <div class="mb-6">
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <p><strong>ລະຫັດລົງທະບຽນ:</strong> {{ currentRegistrationId }}</p>
+            <p><strong>ລະຫັດລົງທະບຽນ:</strong> {{ reportFile.id }}</p>
             <p>
               <strong>ວັນທີລົງທະບຽນ:</strong>
-              {{ new Date().toLocaleDateString() }}
+              {{ reportFile.date ? reportFile.date.split("T")[0] : "" }}
             </p>
-            <p><strong>ລະຫັດນັກຮຽນ:</strong> {{ currentStudentId }}</p>
-            <p><strong>ຊື່ນັກຮຽນ:</strong> {{ currentStudentName }}</p>
+            <p><strong>ລະຫັດນັກຮຽນ:</strong> {{ reportFile.studentId }}</p>
+            <p><strong>ຊື່ນັກຮຽນ:</strong> {{ reportFile.name }}</p>
           </div>
           <div>
-            <p><strong>ເບີໂທຜູ້ປົກຄອງ:</strong> {{ currentStudentPhone }}</p>
-            <p><strong>ຫ້ອງຮຽນ:</strong> {{ currentClassName }}</p>
-            <p><strong>ລະດັບຊັ້ນ:</strong> {{ currentClassLevel }}</p>
-            <p><strong>ສົກຮຽນ:</strong> {{ currentSchoolYear }}</p>
+            <p><strong>ເບີໂທ:</strong> {{ reportFile.phone }}</p>
+            <p><strong>ຫ້ອງຮຽນ:</strong> {{ reportFile.classroom }}</p>
+            <p><strong>ຊັ້ນຮຽນ:</strong> {{ reportFile.level }}</p>
+            <p><strong>ສົກຮຽນ:</strong> {{ reportFile.schoolYear }}</p>
           </div>
         </div>
       </div>
@@ -1117,14 +1131,27 @@ const updatePaymentStatus = async (registrationId, isPaid) => {
         <table class="w-full border-collapse">
           <thead>
             <tr class="bg-gray-100">
-              <th class="border p-2">ລາຍການ</th>
+              <th class="border p-2">ຊື່ນັກຮຽນ</th>
               <th class="border p-2">ຈຳນວນເງິນ</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td class="border p-2">ຄ່າເຣີຢນ</td>
-              <td class="border p-2 text-right">{{ tuitionFee }} ກີບ</td>
+              <td class="border p-2 pl-4">{{ reportFile.name || "..." }}</td>
+              <td
+                class="border p-2 text-right pr-4"
+                :class="
+                  reportFile.paid ? 'text-green-600 font-bold' : 'text-red-600'
+                "
+              >
+                {{
+                  reportFile.id
+                    ? reportFile.paid
+                      ? "ຈ່າຍແລ້ວ"
+                      : "ຍັງບໍ່ຈ່າຍ"
+                    : "..."
+                }}
+              </td>
             </tr>
           </tbody>
         </table>

@@ -23,6 +23,7 @@ export const getMoneyByYearReportsByYear = async (params?: {
 }) => {
   try {
     const response = await api.get('/reports/moneyByYear', { params });
+    
     return response.data;
   } catch (error) {
     console.error('Error fetching financial reports:', error);
