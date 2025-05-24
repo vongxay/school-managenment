@@ -12,8 +12,10 @@ const API_URL = "http://localhost:5000/api";
 const classes = ref(0);
 const unpaidTotalAmount = ref(0);
 const unpaidTotalNumber = ref(0);
+
 // Toggle between monthly and yearly views
 const viewMode = ref<"monthly" | "yearly">("monthly");
+const grachData = ref<{ number: number; amount: string; level_name: string, school_year_name:string }[]>([]);
 
 // Calculate stats from real data
 const stats = computed(() => {
@@ -22,7 +24,6 @@ const stats = computed(() => {
     totalStudents: students.length,
     maleStudents: students.filter((s) => s.gender === "M").length,
     femaleStudents: students.filter((s) => s.gender === "F").length,
-    unpaidFees: 12500000, // This should be calculated from actual payment data
   };
 });
 
@@ -39,6 +40,18 @@ const fetchYears = async () => {
   }
 };
 
+// const fetchYears = async () => {
+//   try {
+//     const response = await axios.get(`${API_URL}/years`);
+//     if (response.data.success) {
+//       const currentYear = response.data.data.find((y: any) => y.is_current === 1);
+//       return currentYear ? currentYear.id : null;
+//     }
+//   } catch (error) {
+//     console.error("Error fetching school years:", error);
+//     return null;
+//   }
+// };
 const fetchReportData = async () => {
   try {
     const params: { [key: string]: any } = {};
@@ -48,6 +61,8 @@ const fetchReportData = async () => {
     if (response.success) {
       let totalAmount = 0;
       let totalNumber = 0;
+      grachData.value = response.data.studentsByYear;
+      console.log("Years data123:", grachData.value);
       response.data.studentsByYear.forEach((item: any) => {
         totalAmount += parseFloat(item.amount);
         totalNumber += item.number;
@@ -292,13 +307,12 @@ onMounted(async () => {
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div class="bg-white rounded-lg shadow-lg p-6">
         <div class="flex justify-between items-center mb-4">
-          <h2 class="text-lg font-medium">ອັດຕາການເຂົ້າຮຽນຂອງນັກຮຽນ</h2>
+          <h2 class="text-lg font-medium">ຂໍ້ມູນນັກຮຽນ</h2>
         </div>
         <div class="h-64">
           <canvas id="attendanceChart"></canvas>
         </div>
       </div>
-
       <div class="bg-white rounded-lg shadow-lg p-6">
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-lg font-medium">ການຈ່າຍຄ່າຮຽນ</h2>
