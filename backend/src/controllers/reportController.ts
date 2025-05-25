@@ -96,7 +96,7 @@ export const getMoneyReportsByYear = async (req: Request, res: Response) => {
     // const yearId = year_id ? year_id : undefined;
     
     // ดึงข้อมูลนักเรียนตามเพศ
-    const genderData = await reportModel.getMoneyByYear(
+    const genderData = await reportModel.getYearMoneyAndStudentNumber(
       yearId as number, 
       level_id as string,
     );

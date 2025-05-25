@@ -661,6 +661,124 @@ return groupedResult;
 };
 
 
+export const getYearMoneyAndStudentNumber = async (
+  year_id?: number,
+  level_id?: string,
+): Promise<{ levels: string[], numbers: number[], amounts: string[] }> => {
+  try {
+    // 1. Get all levels in order
+    const [levelRows] = await db.query(
+      `SELECT id, name FROM levels ORDER BY id`
+    );
+    const levels = (levelRows as any[]).map(l => l.name);
+
+    // 2. Get registration/payment data (add sy.current=1 to registration query)
+    let regRows: any[] = [];
+    const conditions = ['sy.is_current = 1'];
+    const params: any[] = [];
+
+    if (
+      !level_id ||
+      level_id === null ||
+      level_id === '' ||
+      level_id === 'all' ||
+      level_id === undefined ||
+      level_id === 'null'
+    ) {
+      if (year_id) {
+        conditions.push('r.school_year = ?');
+        params.push(year_id);
+      }
+      const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+      const [rows] = await db.query(
+        `SELECT r.id,
+        l.name AS level_name,
+        r.school_year,
+        sy.name AS school_year_name
+        FROM registrations r 
+        LEFT JOIN levels l ON r.level = l.id
+        LEFT JOIN school_years sy ON r.school_year = sy.id
+        ${whereClause}`,
+        params
+      );
+      regRows = rows as any[];
+    } else {
+      conditions.push('r.level = ?');
+      params.push(level_id);
+      if (year_id) {
+        conditions.push('r.school_year = ?');
+        params.push(year_id);
+      }
+      const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+      const [rows] = await db.query(
+        `SELECT r.id,
+        l.name AS level_name,
+        r.school_year,
+        sy.name AS school_year_name
+        FROM registrations r 
+        LEFT JOIN levels l ON r.level = l.id
+        LEFT JOIN school_years sy ON r.school_year = sy.id
+        ${whereClause}`,
+        params
+      );
+      regRows = rows as any[];
+    }
+    const registrationIds = regRows.map(row => row.id);
+    if (registrationIds.length === 0) {
+      // Return zeros for all levels
+      return {
+        levels,
+        numbers: levels.map(() => 0),
+        amounts: levels.map(() => '0')
+      };
+    }
+
+    const placeholders = registrationIds.map(() => '?').join(',');
+    const [studentRows] = await db.query(
+      `SELECT registration_id, amount, count(*) as number FROM payments WHERE registration_id IN (${placeholders}) GROUP BY registration_id`,
+      registrationIds
+    );
+
+    // Merge school_year_name and level_name from regRows for each payment row
+    const result = (studentRows as any[]).map(payment => {
+      const reg = regRows.find(r => r.id === payment.registration_id);
+      return {
+        ...payment,
+        school_year_name: reg ? reg.school_year_name : null,
+        level_name: reg ? reg.level_name : null,
+      };
+    });
+
+    // Group by level_name
+    const grouped: { [level: string]: { amount: number, number: number } } = {};
+    for (const row of result) {
+      const level = row.level_name;
+      if (!grouped[level]) {
+        grouped[level] = {
+          amount: parseFloat(row.amount),
+          number: Number(row.number)
+        };
+      } else {
+        grouped[level].amount += parseFloat(row.amount);
+        grouped[level].number += Number(row.number);
+      }
+    }
+
+    // Build arrays in the order of levels
+    const numbers = levels.map(level => grouped[level]?.number || 0);
+    const amounts = levels.map(level => grouped[level] ? grouped[level].amount.toFixed(0) : '0');
+
+    return {
+      levels,
+      numbers,
+      amounts
+    };
+  } catch (error) {
+    console.error('Error in getYearMoneyAndStudentNumber:', error);
+    return { levels: [], numbers: [], amounts: [] };
+  }
+};
+
 
 export const getStudentsByLevel = async (
   year_id?: number
