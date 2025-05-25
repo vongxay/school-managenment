@@ -42,7 +42,9 @@ const switchToFormView = () => {
 const isPublicPage = computed(() => {
   return route.path === "/login" || route.path === "/register";
 });
-const userSession = JSON.parse(localStorage.getItem("currentUser") || "null");
+const userSession = computed(() => {
+  return JSON.parse(localStorage.getItem("currentUser") || "null");
+});
 
 // Computed to determine which component to display based on activeMenu
 const activeComponent = computed(() => {
@@ -86,9 +88,8 @@ const canAccessMenu = (role: string, menu: string) => {
 
 // Handle menu selection from sidebar
 const handleMenuSelect = (menuId: string) => {
-  if (!userSession || !userSession.role) return;
-
-  if (canAccessMenu(userSession.role, menuId)) {
+  if (!userSession.value || !userSession.value.role) return;
+  if (canAccessMenu(userSession.value.role, menuId)) {
     activeMenu.value = menuId;
     if (menuId === "studentInfo") {
       studentTab.value = "list";
