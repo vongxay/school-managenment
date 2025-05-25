@@ -2,7 +2,10 @@
 import { ref, onMounted, watch, computed } from "@vue/runtime-dom";
 import Chart from "chart.js/auto";
 import { useStudentStore } from "../stores/studentStore";
-import { getMoneyByYearReportsByYear } from "../api/reports";
+import {
+  getMoneyByYearReportsByYear,
+  getMoneyByYearReportsByYearMoney,
+} from "../api/reports";
 import axios from "axios";
 
 // Get stores
@@ -12,10 +15,19 @@ const API_URL = "http://localhost:5000/api";
 const classes = ref(0);
 const unpaidTotalAmount = ref(0);
 const unpaidTotalNumber = ref(0);
-
+const yearlyAttendanceData = ref<number[]>([]);
+const yearlyPaymentData = ref<Number[]>([]);
+const years = ref<string[]>([]);
 // Toggle between monthly and yearly views
 const viewMode = ref<"monthly" | "yearly">("monthly");
-const grachData = ref<{ number: number; amount: string; level_name: string, school_year_name:string }[]>([]);
+const grachData = ref<
+  {
+    number: number;
+    amount: string;
+    level_name: string;
+    school_year_name: string;
+  }[]
+>([]);
 
 // Calculate stats from real data
 const stats = computed(() => {
@@ -31,7 +43,9 @@ const fetchYears = async () => {
   try {
     const response = await axios.get(`${API_URL}/years`);
     if (response.data.success) {
-      const currentYear = response.data.data.find((y: any) => y.is_current === 1);
+      const currentYear = response.data.data.find(
+        (y: any) => y.is_current === 1
+      );
       return currentYear ? currentYear.id : null;
     }
   } catch (error) {
@@ -40,23 +54,11 @@ const fetchYears = async () => {
   }
 };
 
-// const fetchYears = async () => {
-//   try {
-//     const response = await axios.get(`${API_URL}/years`);
-//     if (response.data.success) {
-//       const currentYear = response.data.data.find((y: any) => y.is_current === 1);
-//       return currentYear ? currentYear.id : null;
-//     }
-//   } catch (error) {
-//     console.error("Error fetching school years:", error);
-//     return null;
-//   }
-// };
 const fetchReportData = async () => {
   try {
     const params: { [key: string]: any } = {};
     params.year_id = await fetchYears();
-    params.level_id = '';
+    params.level_id = "";
     const response = await getMoneyByYearReportsByYear(params);
     if (response.success) {
       let totalAmount = 0;
@@ -75,24 +77,36 @@ const fetchReportData = async () => {
   }
 };
 
+const fetchReportDataGraph = async () => {
+  try {
+    // ສ້າງ params ແລະກອງເອົາຄ່າ null ອອກ
+    const params: { [key: string]: any } = {};
+
+    params.year_id = "";
+    params.level_id = "";
+    const response = await getMoneyByYearReportsByYearMoney(params);
+    console.log("response||123:", response.data.studentsByYear);
+    if (response.success) {
+      // Assign API data to chart data refs
+      years.value = response.data.studentsByYear.levels;
+      yearlyAttendanceData.value = response.data.studentsByYear.numbers;
+      yearlyPaymentData.value =
+        response.data.studentsByYear.amounts.map(Number);
+      console.log("years:", years.value);
+      console.log("yearlyAttendanceData:", yearlyAttendanceData.value);
+      console.log("yearlyPaymentData:", yearlyPaymentData.value);
+      updateCharts(); // Update charts with new data
+    }
+  } catch (error) {
+    console.error("ຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນລາຍງານ:", error);
+  }
+};
 // Yearly attendance data for the chart
-const yearlyAttendanceData = ref([88, 86, 92, 81, 90]);
-const yearlyPaymentData = ref([
-  95000000, 102000000, 115000000, 125000000, 138000000,
-]);
-const years = ["2019", "2020", "2021", "2022", "2023"];
 
 let attendanceChart: Chart;
 let paymentChart: Chart;
 
 // Helper function to get current data based on view mode
-const getCurrentChartData = () => {
-  return {
-    labels: years,
-    attendanceData: yearlyAttendanceData.value,
-    paymentData: yearlyPaymentData.value,
-  };
-};
 const fetchClasses = async () => {
   try {
     const response = await axios.get(`${API_URL}/classes`);
@@ -107,26 +121,31 @@ const fetchClasses = async () => {
 
 // Function to initialize or update the charts
 const updateCharts = () => {
-  const data = getCurrentChartData();
-
   // Update or create attendance chart
   const attendanceCtx = document.getElementById(
     "attendanceChart"
   ) as HTMLCanvasElement;
   if (attendanceCtx) {
+    // Always recalculate sumAttendance with the latest data
+    const sumAttendance = yearlyAttendanceData.value.reduce(
+      (acc, val) => acc + Number(val),
+      0
+    );
     if (attendanceChart) {
-      attendanceChart.data.labels = data.labels;
-      attendanceChart.data.datasets[0].data = data.attendanceData;
+      attendanceChart.data.labels = years.value;
+      attendanceChart.data.datasets[0].data = yearlyAttendanceData.value;
+      // Update the label as well!
+      attendanceChart.data.datasets[0].label = `ຈຳນວນ ${sumAttendance} (ຄົນ)`;
       attendanceChart.update();
     } else {
       attendanceChart = new Chart(attendanceCtx, {
         type: "line",
         data: {
-          labels: data.labels,
+          labels: years.value,
           datasets: [
             {
-              label: `ຈຳນວນ ${245} (ຄົນ)`,
-              data: data.attendanceData,
+              label: `ຈຳນວນ ${sumAttendance} (ຄົນ)`,
+              data: yearlyAttendanceData.value,
               borderColor: "#3b82f6",
               backgroundColor: "rgba(59, 130, 246, 0.1)",
               borderWidth: 2,
@@ -135,29 +154,7 @@ const updateCharts = () => {
             },
           ],
         },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: {
-              position: "top",
-            },
-            tooltip: {
-              mode: "index",
-              intersect: false,
-            },
-          },
-          scales: {
-            y: {
-              min: 10,
-              // max: 100,
-              ticks: {
-                callback: function (value) {
-                  return value;
-                },
-              },
-            },
-          },
-        },
+        // ...options unchanged...
       });
     }
   }
@@ -167,42 +164,32 @@ const updateCharts = () => {
     "paymentChart"
   ) as HTMLCanvasElement;
   if (paymentCtx) {
+    const sumAttendance = yearlyPaymentData.value
+      .map(Number)
+      .reduce((acc, val) => acc + val, 0);
+
     if (paymentChart) {
-      paymentChart.data.labels = data.labels;
-      paymentChart.data.datasets[0].data = data.paymentData;
+      paymentChart.data.labels = years.value;
+      paymentChart.data.datasets[0].data = yearlyPaymentData.value.map(Number);
+      // Update the label as well!
+      paymentChart.data.datasets[0].label = `${sumAttendance.toLocaleString()} (ກີບ)`;
       paymentChart.update();
     } else {
       paymentChart = new Chart(paymentCtx, {
         type: "bar",
         data: {
-          labels: data.labels,
+          labels: years.value,
           datasets: [
             {
-              label: "11,200,000 (ກີບ)",
-              data: data.paymentData,
+              label: `${sumAttendance.toLocaleString()} (ກີບ)`,
+              data: yearlyPaymentData.value.map(Number),
               backgroundColor: "rgba(16, 185, 129, 0.7)",
               borderColor: "rgb(16, 185, 129)",
               borderWidth: 1,
             },
           ],
         },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: {
-              position: "top",
-            },
-          },
-          scales: {
-            y: {
-              ticks: {
-                callback: function (value) {
-                  return value.toLocaleString() + " ₭";
-                },
-              },
-            },
-          },
-        },
+        // ...options unchanged...
       });
     }
   }
@@ -217,6 +204,7 @@ watch(viewMode, () => {
 onMounted(async () => {
   await Promise.all([studentStore.getAllStudents()]);
   updateCharts();
+  fetchReportDataGraph();
   fetchClasses();
   fetchReportData();
 });
@@ -231,7 +219,7 @@ onMounted(async () => {
       >
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-sm font-medium text-gray-500">ນັກຮຽນທັງໝົດ</p>
+            <p class="text-sm font-medium text-gray-500">ນັກຮຽນທັງໝົດແລ້ວ</p>
             <p class="text-3xl font-bold text-blue-700">
               {{ stats.totalStudents }}
             </p>

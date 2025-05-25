@@ -31,6 +31,19 @@ export const getMoneyByYearReportsByYear = async (params?: {
   }
 };
 
+export const getMoneyByYearReportsByYearMoney = async (params?: {
+  year_id?: number;
+  month?: string;
+}) => {
+  try {
+    const response = await api.get('/reports/graph', { params });
+    
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching financial reports:', error);
+    throw error;
+  }
+};
 // ดึงข้อมูลรายงานด้านการเรียน
 export const getAcademicReports = async (params?: {
   year_id?: number;
