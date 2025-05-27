@@ -591,7 +591,7 @@ function formatDate(dateStr: string) {
               <th class="border border-gray-300 px-4 py-2">ເພດ</th>
               <th class="border border-gray-300 px-4 py-2">ເບີໂທຕິດຕໍ່</th>
               <th class="border border-gray-300 px-4 py-2">ຊົນເຜົ່າ</th>
-              <th class="border border-gray-300 px-4 py-2">ສານຊາດ</th>
+              <th class="border border-gray-300 px-4 py-2">ສັນຊາດ</th>
             </tr>
           </thead>
           <tbody>
