@@ -137,14 +137,14 @@ export const StudentController = {
   deleteStudent: async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      
+      console.log('Deleting student with ID:', id);
       // ตรวจสอบว่ามีนักเรียนหรือไม่
       const existingStudent = await StudentModel.findById(id);
       if (!existingStudent) {
         return res.status(404).json({ success: false, message: 'ບໍ່ພົບຂໍ້ມູນນັກຮຽນ' });
       }
       
-      const deleted = await StudentModel.delete(id);
+      const deleted = await StudentModel.deleteWithAll(id);
       
       if (!deleted) {
         return res.status(400).json({ success: false, message: 'ບໍ່ສາມາດລຶບຂໍ້ມູນນັກຮຽນໄດ້' });

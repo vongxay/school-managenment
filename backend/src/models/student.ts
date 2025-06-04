@@ -74,7 +74,7 @@ export const StudentModel = {
   },
   
   findById: async (id: string): Promise<Student | null> => {
-    const [rows] = await db.query<Student[]>('SELECT * FROM students WHERE id = ?', [id]);
+    const [rows] = await db.query<Student[]>('SELECT * FROM students WHERE student_id = ?', [id]);
     
     if (rows.length > 0) {
       const student = rows[0];
@@ -169,6 +169,51 @@ export const StudentModel = {
     const [result] = await db.query<ResultSetHeader>('DELETE FROM students WHERE id = ?', [id]);
     return result.affectedRows > 0;
   },
+
+  deleteWithAll: async (id: string): Promise<boolean> => {
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+    console.log('id:',id)
+    // 1. Get all registration IDs for this student
+    const [regRows] = await connection.query<RowDataPacket[]>(
+      'SELECT id FROM registrations WHERE student_id = ?',
+      [id]
+    );
+    const registrationIds = regRows.map((row: any) => row.id);
+
+    // 2. Delete payments for each registration_id
+    if (registrationIds.length > 0) {
+      const placeholders = registrationIds.map(() => '?').join(',');
+      await connection.query<ResultSetHeader>(
+        `DELETE FROM payments WHERE registration_id IN (${placeholders})`,
+        registrationIds
+      );
+    }
+
+    // 3. Delete registrations for this student
+    await connection.query<ResultSetHeader>(
+      'DELETE FROM registrations WHERE student_id = ?',
+      [id]
+    );
+
+    // 4. Delete the student
+    const [result] = await connection.query<ResultSetHeader>(
+      'DELETE FROM students WHERE student_id = ?',
+      [id]
+    );
+
+    await connection.commit();
+    return result.affectedRows > 0;
+  } catch (error) {
+    await connection.rollback();
+    console.error('เกิดข้อผิดพลาดในการลบนักเรียนและข้อมูลที่เกี่ยวข้อง:', error);
+    throw error;
+  } finally {
+    connection.release();
+  }
+},
+
   
   // เพิ่มเติมสำหรับการค้นหา
   search: async (query: string): Promise<Student[]> => {

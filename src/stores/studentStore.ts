@@ -143,14 +143,14 @@ export const useStudentStore = () => {
 
       // ຫາຂໍ້ມູນນັກຮຽນຈາກ studentId
       const student = students.find((s) => s.studentId === studentId);
-
+      console.log("ລຶບນັກຮຽນ:", student);
       if (!student || !student._id) {
         errorMessage.value = "ບໍ່ພົບຂໍ້ມູນນັກຮຽນ";
         return false;
       }
 
       // ເອີ້ນໃຊ້ API ລຶບນັກຮຽນ
-      await studentApi.deleteStudent(student._id);
+      await studentApi.deleteStudent(student.studentId);
 
       // ດຶງຂໍ້ມູນນັກຮຽນທັງໝົດໃໝ່
       await fetchAllStudents();
