@@ -1127,7 +1127,7 @@ const updatePaymentStatus = async (registrationId, isPaid) => {
 
       <!-- ຂໍ້ມູນຄ່າເຣີຢນ -->
       <div class="mb-6">
-        <h2 class="text-lg font-bold mb-2">ຂໍ້ມູນຄ່າເຣີຢນ</h2>
+        <h2 class="text-lg font-bold mb-2">ຂໍ້ມູນຄ່າຮຽນ</h2>
         <table class="w-full border-collapse">
           <thead>
             <tr class="bg-gray-100">

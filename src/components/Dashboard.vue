@@ -64,7 +64,7 @@ const fetchReportData = async () => {
       let totalAmount = 0;
       let totalNumber = 0;
       grachData.value = response.data.studentsByYear;
-      console.log("Years data123:", grachData.value);
+      // console.log("Years data123:", grachData.value);
       response.data.studentsByYear.forEach((item: any) => {
         totalAmount += parseFloat(item.amount);
         totalNumber += item.number;
@@ -85,16 +85,13 @@ const fetchReportDataGraph = async () => {
     params.year_id = "";
     params.level_id = "";
     const response = await getMoneyByYearReportsByYearMoney(params);
-    console.log("response||123:", response.data.studentsByYear);
+    // console.log("response||123:", response.data.studentsByYear);
     if (response.success) {
       // Assign API data to chart data refs
       years.value = response.data.studentsByYear.levels;
       yearlyAttendanceData.value = response.data.studentsByYear.numbers;
       yearlyPaymentData.value =
         response.data.studentsByYear.amounts.map(Number);
-      console.log("years:", years.value);
-      console.log("yearlyAttendanceData:", yearlyAttendanceData.value);
-      console.log("yearlyPaymentData:", yearlyPaymentData.value);
       updateCharts(); // Update charts with new data
     }
   } catch (error) {
