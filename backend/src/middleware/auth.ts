@@ -20,6 +20,7 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
   try {
     // ตรวจสอบ header สำหรับ token
     const authHeader = req.headers.authorization;
+    console.log('Authorization Header:', authHeader);
     if (!authHeader) {
       res.status(401).json({ message: 'ບໍ່ມີໂທເຄັນການເຂົ້າລະບົບ' });
       return;
@@ -27,6 +28,7 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
 
     // แยก token จาก Bearer
     const token = authHeader.split(' ')[1];
+    console.log('Token:', token);
     if (!token) {
       res.status(401).json({ message: 'ບໍ່ມີໂທເຄັນການເຂົ້າລະບົບ' });
       return;
@@ -43,6 +45,7 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
     req.user = decoded;
     next();
   } catch (error) {
+    console.error('Authentication error:', error);
     res.status(401).json({ message: 'ໂທເຄັນບໍ່ຖືກຕ້ອງຫລືໝົດອາຍຸ' });
   }
 };

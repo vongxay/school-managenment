@@ -158,7 +158,7 @@ export const StudentModel = {
     const values = [...Object.values(student), id];
     
     const [result] = await db.query<ResultSetHeader>(
-      `UPDATE students SET ${updates} WHERE id = ?`,
+      `UPDATE students SET ${updates} WHERE student_id = ?`,
       values
     );
     

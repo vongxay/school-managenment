@@ -8,7 +8,7 @@ export const studentApi = {
     try {
       const response = await axios.get('/students');
       return response.data.data.students.map((student: any) => ({
-        _id: student.id,
+        _id: student.student_id,
         studentId: student.student_id,
         studentNameLao: student.student_name_lao,
         guardianPhone: student.guardian_phone,

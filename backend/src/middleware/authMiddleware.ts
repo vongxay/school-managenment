@@ -12,6 +12,7 @@ interface DecodedToken {
 export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
   try {
     // ຮັບ token ຈາກ header
+    console.log('Request Headers version2:', req.headers);
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ 
