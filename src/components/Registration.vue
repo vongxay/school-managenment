@@ -42,6 +42,7 @@ const reportFile = ref({
   schoolYear: "",
   paid: false,
   date: "",
+  tuition_fee: 0, // เพิ่มฟิลด์เก็บค่าเรียน
 });
 
 const searchQuery = ref("");
@@ -131,6 +132,7 @@ const fetchRegistrations = async () => {
         level: reg.level || "",
         schoolYear: reg.school_year || "",
         paid: reg.paid === 1 ? true : false, // ແກ້ໄຂໃຫ້ຕົວແປ paid ມີຄ່າ boolean ເທົ່ານັ້ນ
+        tuition_fee: reg.tuition_fee || 0, // เพิ่มการเก็บค่าเรียน
       }));
 
       // ກຳນົດຂໍ້ມູນໃຫ້ກັບອາເຣເທີ່ໃຊ້ສະແດງຜົນ
@@ -646,6 +648,8 @@ const openSchoolYearDialog = (event) => {
 // ເລືອກການລົງທະບຽນ
 const selectRegistration = async (registrationId) => {
   console.log("ກຳລັງເລືອກການລົງທະບຽນ11:", registrationId);
+  
+  // เก็บข้อมูลพื้นฐานก่อน
   reportFile.value = {
     id: registrationId.id,
     studentId: registrationId.studentId, // ใช้ key ให้ตรงกับ ref
@@ -656,7 +660,42 @@ const selectRegistration = async (registrationId) => {
     schoolYear: registrationId.schoolYear,
     paid: registrationId.paid || false,
     date: registrationId.registrationDate,
+    tuition_fee: registrationId.tuition_fee || 0, // เก็บค่าเรียนจากข้อมูลการลงทะเบียน
   };
+  
+  // ถ้าค่าเรียนเป็น 0 ให้ดึงข้อมูลค่าเรียนจาก API
+  if (!reportFile.value.tuition_fee || reportFile.value.tuition_fee === 0) {
+    try {
+      isLoading.value = true;
+      const tuitionResponse = await axios.get(`${API_URL}/tuitions`, {
+        headers: {
+          Authorization: `Bearer ${authStore.user?.token}`,
+        },
+      });
+      
+      if (tuitionResponse.data.success) {
+        // ค้นหาค่าเรียนตามระดับชั้นและปีการศึกษา
+        const matchingTuition = tuitionResponse.data.data.find(
+          (t) => 
+            t.level === reportFile.value.level && 
+            t.year === reportFile.value.schoolYear
+        );
+        
+        if (matchingTuition) {
+          // ถ้าพบข้อมูลค่าเรียนที่ตรงกัน
+          reportFile.value.tuition_fee = matchingTuition.amount;
+          console.log("พบข้อมูลค่าเรียน:", matchingTuition.amount);
+        } else {
+          console.log("ไม่พบข้อมูลค่าเรียนที่ตรงกับระดับชั้นและปีการศึกษา");
+        }
+      }
+    } catch (error) {
+      console.error("เกิดข้อผิดพลาดในการดึงข้อมูลค่าเรียน:", error);
+    } finally {
+      isLoading.value = false;
+    }
+  }
+  
   console.log("ກຳລັງເລືອກການລົງທະບຽນ22:", reportFile.value);
 };
 
@@ -671,6 +710,7 @@ const creaReport = async () => {
     schoolYear: "",
     paid: false,
     date: "",
+    tuition_fee: 0, // รีเซ็ตค่าเรียน
   };
 };
 // ເພີ່ມຟັງຊັນສຳລັບປິດ dropdown ເມື່ອຄລິກນອກພື້ນທີ່ dropdown
@@ -1133,13 +1173,17 @@ const updatePaymentStatus = async (registrationId, isPaid) => {
             <tr class="bg-gray-100">
               <th class="border p-2">ຊື່ນັກຮຽນ</th>
               <th class="border p-2">ຈຳນວນເງິນ</th>
+              <th class="border p-2">ສະຖານະ</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td class="border p-2 pl-4">{{ reportFile.name || "..." }}</td>
+              <td class="border p-2 text-center pl-4">{{ reportFile.name || "..." }}</td>
+              <td class="border p-2  text-center pr-4 font-bold">
+                {{ reportFile.tuition_fee ? Number(reportFile.tuition_fee).toLocaleString() + " ກີບ" : "..." }}
+              </td>
               <td
-                class="border p-2 text-right pr-4"
+                class="border p-2 text-center pr-4"
                 :class="
                   reportFile.paid ? 'text-green-600 font-bold' : 'text-red-600'
                 "
